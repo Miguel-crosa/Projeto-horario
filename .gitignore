@@ -1,0 +1,8 @@
+# Ignore the tmp folder in the root
+/tmp/
+
+# Ignore the prompt.txt file
+prompt.txt
+
+# Ignore the documentation file
+documentacao_frontend.docx

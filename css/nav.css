@@ -1,0 +1,420 @@
+:root {
+    --corDestaque: #ed1c24;
+    --corTxt3: #333333;
+    --txtClaro: #ffffff;
+    --txtEscuro: #333333;
+    --corBase: #ed1c24;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-2xl: 1.5rem;
+}
+
+[data-tema="escuro"] {
+    --corTxt3: #f0f0f0;
+    --txtClaro: #f0f0f0;
+    --txtEscuro: #ffffff;
+}
+
+.sidebar {
+    width: 275px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 999;
+    background: var(--corDestaque);
+    padding: 20px 0px;
+    transition: width 0.3s ease;
+}
+
+body.sidebar-closed .sidebar {
+    width: 70px;
+}
+
+
+
+.div-links {
+    width: 100%;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    background: transparent;
+    padding: 10px 0px;
+}
+
+/* Custom Scrollbar for Sidebar */
+.div-links::-webkit-scrollbar {
+    width: 6px;
+}
+
+.div-links::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.div-links::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+
+.div-links::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.links {
+    width: 90%;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: var(--text-base);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    color: var(--txtClaro);
+    font-weight: bold;
+    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+}
+
+.links:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--txtClaro);
+}
+
+.links.ativo:hover {
+    background: var(--bg-color);
+    color: var(--corDestaque);
+}
+
+.links i {
+    margin-right: 15px;
+    font-size: 1.25rem;
+    width: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.links.ativo {
+    background: var(--bg-color);
+    color: var(--corDestaque);
+}
+
+.menu-manutencao {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.manutencao-btn {
+    width: 90%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.manutencao-btn .seta {
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+}
+
+.submenu {
+    width: 90%;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+    padding-left: 10px;
+}
+
+.submenu.aberto {
+    display: flex;
+    margin-bottom: 15px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    padding: 5px;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.menu-manutencao.aberto .seta {
+    transform: rotate(180deg);
+}
+
+.links-sub {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 0.82rem;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.9);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    background: transparent;
+    border-left: 3px solid transparent;
+}
+
+.links-sub:hover {
+    background: rgba(0, 0, 0, 0.2);
+    border-left-color: var(--txtClaro);
+}
+
+.links-sub i {
+    font-size: 1rem;
+    margin-right: 10px;
+}
+
+.active-sub {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border-left-color: var(--txtClaro);
+    font-weight: 700;
+}
+
+.div-configs {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+}
+
+#tema {
+    font-size: 1.5rem;
+    padding: 10px;
+    border: none;
+    color: var(--txtClaro);
+    background: none;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+#tema:hover {
+    transform: rotate(30deg);
+}
+
+.sair {
+    width: 80%;
+    padding: 10px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    color: white;
+    text-decoration: none;
+    text-align: center;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.div-img {
+    width: 80%;
+    margin-bottom: 20px;
+    position: relative;
+    left: 10%;
+}
+
+.div-img img {
+    max-width: 100%;
+}
+
+body.sidebar-closed .div-img {
+    display: none !important;
+}
+
+/* Contrair textos, manter apenas ícones nas categorias superiores e subcategorias */
+body.sidebar-closed .links,
+body.sidebar-closed .links-sub,
+body.sidebar-closed .sair {
+    font-size: 0 !important;
+    justify-content: center;
+    padding: 15px 0;
+    width: 100%;
+    margin-left: 0;
+    border-radius: 0;
+}
+
+/* Esconde setas do menu manutenção */
+body.sidebar-closed .manutencao-btn .seta {
+    display: none !important;
+}
+
+body.sidebar-closed .links i,
+body.sidebar-closed .links-sub i,
+body.sidebar-closed .sair i {
+    font-size: 1.4rem !important;
+    margin-right: 0 !important;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Mostrando a div de configs, mas adequando o padding dos links internos */
+body.sidebar-closed .div-configs {
+    display: flex;
+}
+
+/* Animations */
+@keyframes arrow {
+
+    0%,
+    100% {
+        left: 92%;
+    }
+
+    50% {
+        left: 94%;
+    }
+}
+
+/* Main Content Adjustment */
+.main-content {
+    transition: margin-left 0.3s ease;
+    padding: 20px;
+}
+
+/* Sidebar Toggle Button & Animated Hamburger */
+.sidebar-toggle-btn {
+    background: none;
+    border: none;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    margin-right: 15px;
+}
+
+.hamburger-menu {
+    width: 22px;
+    height: 18px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.hamburger-menu .line {
+    display: block;
+    height: 2px;
+    width: 100%;
+    background-color: var(--text-color);
+    border-radius: 2px;
+    transition: all 0.3s cubic-bezier(0.68, -0.6, 0.32, 1.6);
+}
+
+/* Animação para "X" quando aberto */
+/* Mobile aberto ou Desktop aberto (quando não tem a classe .sidebar-closed) */
+body.sidebar-mobile-open .hamburger-menu .line:nth-child(1),
+body:not(.sidebar-closed) .hamburger-menu .line:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+}
+
+body.sidebar-mobile-open .hamburger-menu .line:nth-child(2),
+body:not(.sidebar-closed) .hamburger-menu .line:nth-child(2) {
+    opacity: 0;
+    transform: translateX(-10px);
+}
+
+body.sidebar-mobile-open .hamburger-menu .line:nth-child(3),
+body:not(.sidebar-closed) .hamburger-menu .line:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+}
+
+/* Ajuste específico para mobile fechado */
+@media (max-width: 768px) {
+    body:not(.sidebar-mobile-open) .hamburger-menu .line {
+        transform: none !important;
+        opacity: 1 !important;
+    }
+}
+
+.sidebar-toggle-btn:hover {
+    color: var(--corDestaque);
+}
+
+/* Sidebar Overlay */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    backdrop-filter: blur(2px);
+    transition: opacity 0.3s;
+    opacity: 0;
+}
+
+body.sidebar-mobile-open .sidebar-overlay {
+    display: block;
+    opacity: 1;
+}
+
+/* Responsividade Sidebar Escurecida Navbar Em Mobile */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        width: 275px !important;
+        /* Sempre com largura total da navbar normal para facilitar leitura */
+        box-shadow: 5px 0 15px rgba(0, 0, 0, 0.2);
+    }
+
+    body.sidebar-mobile-open .sidebar {
+        transform: translateX(0);
+    }
+
+    body.sidebar-closed .div-links,
+    body.sidebar-closed .div-img,
+    body.sidebar-closed .div-configs,
+    body.sidebar-closed .sair {
+        display: flex !important;
+        /* Mostrar tudo no mobile quando aberta, ignorando o cookie de desktop */
+    }
+
+    /* Reset behaviors of .sidebar-closed for mobile */
+    body.sidebar-closed .links,
+    body.sidebar-closed .sair,
+    body.sidebar-closed .manutencao-btn .seta {
+        font-size: var(--text-base) !important;
+        justify-content: flex-start;
+        padding: 15px;
+    }
+
+    body.sidebar-closed .links-sub {
+        font-size: 0.85rem !important;
+        justify-content: flex-start;
+        padding: 12px 15px;
+    }
+
+    body.sidebar-closed .links i,
+    body.sidebar-closed .sair i {
+        font-size: 1.2rem !important;
+        margin-right: 15px !important;
+    }
+
+    body.sidebar-closed .links-sub i {
+        font-size: 1rem !important;
+        margin-right: 10px !important;
+    }
+
+    body.sidebar-closed .manutencao-btn .seta {
+        display: inline-block !important;
+    }
+}
