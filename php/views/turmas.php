@@ -1,5 +1,12 @@
 <?php
 require_once __DIR__ . '/../configs/db.php';
+require_once __DIR__ . '/../configs/auth.php';
+
+if (!isAdmin() && !isGestor()) {
+    header("Location: dashboard_vendas.php");
+    exit;
+}
+
 include __DIR__ . '/../components/header.php';
 
 // Migrated to lowercase table names for Linux compatibility
@@ -12,6 +19,7 @@ $query = "SELECT t.*, c.nome as curso_nome,
           LEFT JOIN docente d2 ON t.docente_id2 = d2.id
           LEFT JOIN docente d3 ON t.docente_id3 = d3.id
           LEFT JOIN docente d4 ON t.docente_id4 = d4.id
+          WHERE t.ativo = 1
           ORDER BY t.data_inicio DESC";
 $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
 ?>
@@ -34,6 +42,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             <option value="Noite">Noite</option>
             <option value="Integral">Integral</option>
         </select>
+        <a href="agenda_professores.php?mode=reserva" class="btn btn-warning" style="background: #ffb300; border-color: #ffa000; color: #5d4037;"><i class="fas fa-bookmark"></i> Reserva Turma</a>
         <a href="turmas_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Nova Turma</a>
         <a href="fix_turmas_loading.php" class="btn btn-warning"><i class="fas fa-magic"></i> Ajustar horários incorretos</a>
     </div>

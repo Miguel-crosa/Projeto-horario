@@ -120,6 +120,8 @@ CREATE TABLE IF NOT EXISTS turma (
     docente_id3 INT(11) DEFAULT NULL,
     docente_id4 INT(11) DEFAULT NULL,
     local VARCHAR(255) DEFAULT NULL,
+    horario_inicio TIME DEFAULT '07:30',
+    horario_fim TIME DEFAULT '11:30',
     tipo_custeio ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade',
     previsao_despesa DECIMAL(10,2) DEFAULT 0.00,
     valor_turma DECIMAL(10,2) DEFAULT 0.00,
@@ -127,8 +129,7 @@ CREATE TABLE IF NOT EXISTS turma (
     tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão',
     parceiro VARCHAR(255) DEFAULT NULL,
     contato_parceiro VARCHAR(255) DEFAULT NULL,
-    horario_inicio TIME DEFAULT '07:30',
-    horario_fim TIME DEFAULT '11:30',
+    ativo TINYINT(1) DEFAULT 1,
     PRIMARY KEY (id),
     FOREIGN KEY (curso_id) REFERENCES curso(id),
     FOREIGN KEY (ambiente_id) REFERENCES ambiente(id)
@@ -173,6 +174,13 @@ CREATE TABLE IF NOT EXISTS reservas (
     vagas INT DEFAULT NULL,
     local VARCHAR(255) DEFAULT NULL,
     tipo VARCHAR(50) DEFAULT NULL,
+    tipo_custeio ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade',
+    previsao_despesa DECIMAL(10,2) DEFAULT 0.00,
+    valor_turma DECIMAL(10,2) DEFAULT 0.00,
+    numero_proposta VARCHAR(100) DEFAULT NULL,
+    tipo_atendimento ENUM('Empresa','Entidade','Balcão') DEFAULT 'Balcão',
+    parceiro VARCHAR(255) DEFAULT NULL,
+    contato_parceiro VARCHAR(255) DEFAULT NULL,
     status ENUM('ativo', 'concluido', 'PENDENTE', 'APROVADA', 'REJEITADA', 'CONCLUIDA') NOT NULL DEFAULT 'PENDENTE',
     notas TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -240,29 +248,42 @@ CREATE INDEX idx_notificacoes_usuario ON notificacoes(usuario_id, lida);
 
 -- ============================================================
 -- USUÁRIO ADMINISTRADOR PADRÃO
--- Senha: admin123 (hash bcrypt)
 -- ============================================================
 INSERT INTO usuario (nome, email, senha, role, obrigar_troca_senha) 
 VALUES ('Administrador', 'admin@senai.br', '$2y$10$d8zHMItalmR8WxmucXWdquWSHknxyWy.imiT3sNO6H3L36DUcLVly', 'admin', 1);
+
 INSERT INTO usuario (nome, email, senha, role, obrigar_troca_senha) 
 VALUES ('roberto', 'roberto@senai.br', '$2y$10$XFjAiGRelFifZrzlE.pWheJrBhacywoE.14JdrbgWM7JsNLrF4b7G', 'admin', 0);
 
--- ============================================================
--- MIGRATION (27/03/2026) - GESTÃO FINANCEIRA
--- Execute este comando se seu banco já estiver criado para não perder dados:
--- ============================================================
--- ALTER TABLE turma 
--- ADD COLUMN tipo_custeio ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade' AFTER local,
--- ADD COLUMN previsao_despesa DECIMAL(10,2) DEFAULT 0.00 AFTER tipo_custeio,
--- ADD COLUMN valor_turma DECIMAL(10,2) DEFAULT 0.00 AFTER previsao_despesa;
--- Rodar este comando para atualizar bancos existentes:
--- ALTER TABLE docente ADD COLUMN ativo TINYINT(1) DEFAULT 1;
 
 -- ============================================================
--- MIGRATION (02/04/2026) - NOVOS CAMPOS TURMA
+-- PARA QUEM NÃO QUER APAGAR O BANCO (COPIE E COLE PARA ATUALIZAR)
 -- ============================================================
--- ALTER TABLE turma 
--- ADD COLUMN numero_proposta VARCHAR(100) DEFAULT NULL AFTER valor_turma,
--- ADD COLUMN tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão' AFTER numero_proposta,
--- ADD COLUMN parceiro VARCHAR(255) DEFAULT NULL AFTER tipo_atendimento,
--- ADD COLUMN contato_parceiro VARCHAR(255) DEFAULT NULL AFTER parceiro;
+
+/*
+-- 1. ADICIONAR CAMPOS NA TABELA 'DOCENTE'
+ALTER TABLE docente ADD COLUMN IF NOT EXISTS weekly_hours_limit INT NOT NULL DEFAULT 0 AFTER carga_horaria_contratual;
+ALTER TABLE docente ADD COLUMN IF NOT EXISTS monthly_hours_limit INT NOT NULL DEFAULT 0 AFTER weekly_hours_limit;
+ALTER TABLE docente ADD COLUMN IF NOT EXISTS ativo TINYINT(1) DEFAULT 1;
+
+-- 2. ADICIONAR CAMPOS NA TABELA 'TURMA'
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS horario_inicio TIME DEFAULT '07:30' AFTER local;
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS horario_fim TIME DEFAULT '11:30' AFTER horario_inicio;
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS tipo_custeio ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade';
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS previsao_despesa DECIMAL(10,2) DEFAULT 0.00;
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS valor_turma DECIMAL(10,2) DEFAULT 0.00;
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS numero_proposta VARCHAR(100) DEFAULT NULL;
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão';
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS parceiro VARCHAR(255) DEFAULT NULL;
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS contato_parceiro VARCHAR(255) DEFAULT NULL;
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS ativo TINYINT(1) DEFAULT 1;
+
+-- 3. ADICIONAR CAMPOS NA TABELA 'RESERVAS'
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS tipo_custeio ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade' AFTER local;
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS previsao_despesa DECIMAL(10,2) DEFAULT 0.00 AFTER tipo_custeio;
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS valor_turma DECIMAL(10,2) DEFAULT 0.00 AFTER previsao_despesa;
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS numero_proposta VARCHAR(100) DEFAULT NULL;
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão';
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS parceiro VARCHAR(255) DEFAULT NULL;
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS contato_parceiro VARCHAR(255) DEFAULT NULL;
+*/

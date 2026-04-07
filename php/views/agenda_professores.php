@@ -139,6 +139,15 @@ if (isset($_POST['ajax_create_reserva'])) {
     $hora_inicio = $_POST['hora_inicio'];
     $hora_fim = $_POST['hora_fim'];
     $notas = $_POST['notas'] ?? '';
+    // Novos campos
+    $numero_proposta = $_POST['numero_proposta'] ?? '';
+    $tipo_atendimento = $_POST['tipo_atendimento'] ?? 'Balcão';
+    $parceiro = $_POST['parceiro'] ?? '';
+    $contato_parceiro = $_POST['contato_parceiro'] ?? '';
+    $tipo_custeio = $_POST['tipo_custeio'] ?? 'Gratuidade';
+    $previsao_despesa = (float)($_POST['previsao_despesa'] ?? 0);
+    $valor_turma = (float)($_POST['valor_turma'] ?? 0);
+
     $usuario_id = $auth_user_id;
     if (!$docente_id_r || !$data_inicio || !$data_fim || !$dias_semana || !$hora_inicio || !$hora_fim) {
         echo json_encode(['ok' => false, 'error' => 'Dados incompletos.']);
@@ -161,8 +170,8 @@ if (isset($_POST['ajax_create_reserva'])) {
             exit;
         }
     }
-    $st2 = $mysqli->prepare("INSERT INTO reservas (docente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $st2->bind_param('iissssss', $docente_id_r, $usuario_id, $data_inicio, $data_fim, $dias_semana, $hora_inicio, $hora_fim, $notas);
+    $st2 = $mysqli->prepare("INSERT INTO reservas (docente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, notas, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_custeio, previsao_despesa, valor_turma) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $st2->bind_param('iisssssssssssdd', $docente_id_r, $usuario_id, $data_inicio, $data_fim, $dias_semana, $hora_inicio, $hora_fim, $notas, $numero_proposta, $tipo_atendimento, $parceiro, $contato_parceiro, $tipo_custeio, $previsao_despesa, $valor_turma);
     $st2->execute();
     echo json_encode(['ok' => true, 'id' => $mysqli->insert_id, 'msg' => 'Professor reservado com sucesso!']);
     exit;
@@ -208,6 +217,13 @@ if (isset($_GET['ajax_availability'])) {
             if (in_array($dow, $dias_arr)) {
                 $d = $cur->format('Y-m-d');
                 $reserved[$d] = ['gestor' => $rr['gestor_nome'], 'own' => ($rr['usuario_id'] == $auth_user_id), 'hora' => $rr['hora_inicio'] . '-' . $rr['hora_fim']];
+                
+                if (!isset($turnos[$d])) $turnos[$d] = ['M' => false, 'T' => false, 'N' => false];
+                $hi = $rr['hora_inicio'];
+                $hf = $rr['hora_fim'];
+                if ($hi < '12:00:00') $turnos[$d]['M'] = true;
+                if ($hi < '18:00:00' && $hf > '12:00:00') $turnos[$d]['T'] = true;
+                if ($hf > '18:00:00' || $hi >= '18:00:00') $turnos[$d]['N'] = true;
             }
             $cur->modify('+1 day');
         }
@@ -407,7 +423,6 @@ if (!empty($prof_ids)) {
                 }
             }
         } else {
-            // RESERVA, RESERVA_LEGADO, FERIADO or FERIAS
             $lbl_gestor = $row['gestor_nome'] ?? 'Bloqueio Automático';
             if ($row['type'] === 'FERIADO')
                 $lbl_gestor = 'Feriado: ' . ($row['name'] ?? '');
@@ -421,6 +436,20 @@ if (!empty($prof_ids)) {
                 'notas' => $row['notas'] ?? 'Bloqueio Automático',
                 'tipo_bloqueio' => ($row['type'] === 'FERIADO') ? 'FERIADO' : (($row['type'] === 'FERIAS') ? 'FERIAS' : null)
             ];
+
+            // NOVO: Adiciona ao detalhamento de turnos para renderização precisa
+            if (!isset($turno_detail[$pid][$dt])) {
+                $turno_detail[$pid][$dt] = ['M' => false, 'T' => false, 'N' => false, 'I' => false];
+            }
+            if ($hi < '12:00:00') {
+                $turno_detail[$pid][$dt]['M'] = 'RESERVADO';
+            }
+            if ($hi < '18:00:00' && $hf > '12:00:00') {
+                $turno_detail[$pid][$dt]['T'] = 'RESERVADO';
+            }
+            if ($hf > '18:00:00' || $hi >= '18:00:00') {
+                $turno_detail[$pid][$dt]['N'] = 'RESERVADO';
+            }
         }
     }
 

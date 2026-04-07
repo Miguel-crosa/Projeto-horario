@@ -1,5 +1,12 @@
 <?php
 require_once __DIR__ . '/../configs/db.php';
+require_once __DIR__ . '/../configs/auth.php';
+
+if (!isAdmin() && !isGestor()) {
+    header("Location: dashboard_vendas.php");
+    exit;
+}
+
 include __DIR__ . '/../components/header.php';
 
 $cursos = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM curso ORDER BY nome ASC"), MYSQLI_ASSOC);

@@ -12,9 +12,8 @@ if ($action == 'delete') {
     $res = mysqli_query($conn, "SELECT sigla FROM turma WHERE id = '$id'");
     $sigla_deleted = ($row = mysqli_fetch_assoc($res)) ? $row['sigla'] : 'Desconhecida';
 
-    // Delete associated agenda records first
-    mysqli_query($conn, "DELETE FROM agenda WHERE turma_id = '$id'");
-    mysqli_query($conn, "DELETE FROM turma WHERE id = '$id'");
+    // Support soft delete
+    mysqli_query($conn, "UPDATE turma SET ativo = 0 WHERE id = '$id'");
 
     dispararNotificacaoGlobal($conn, 'exclusao_turma', 'Turma Excluída', "A turma $sigla_deleted foi removida do sistema.", BASE_URL . "/php/views/turmas.php", ['admin', 'gestor', 'professor', 'cri']);
 
@@ -184,64 +183,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
  * FIX: Todas as comparações de DateTime agora usam format('Y-m-d') para evitar
  * que o horário 00:00:00 faça o último dia ser ignorado no loop.
  */
-function generateAgendaRecords($conn, $turma_id, $dias_arr, $periodo, $h_inicio, $h_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_ids)
-{
-    $daysMap = [
-        0 => 'Domingo',
-        1 => 'Segunda-feira',
-        2 => 'Terça-feira',
-        3 => 'Quarta-feira',
-        4 => 'Quinta-feira',
-        5 => 'Sexta-feira',
-        6 => 'Sábado'
-    ];
-
-    // Handle NULL ambiente_id gracefully for FK constraint
-    $amb_sql = (!empty($ambiente_id) && intval($ambiente_id) > 0) ? intval($ambiente_id) : 'NULL';
-
-    $it = new DateTime($data_inicio);
-    $end = new DateTime($data_fim);
-
-    // FIX: normaliza ambas as datas para meia-noite para garantir comparação
-    // puramente por data, sem interferência de horário residual.
-    $it->setTime(0, 0, 0);
-    $end->setTime(0, 0, 0);
-
-    while ($it->format('Y-m-d') <= $end->format('Y-m-d')) {
-        $w = (int) $it->format('w');
-        $dayName = $daysMap[$w] ?? '';
-
-        if (in_array($dayName, $dias_arr)) {
-            $dateStr = $it->format('Y-m-d');
-
-            // Skip holidays (national/institutional)
-            if (isHoliday($conn, $dateStr)) {
-                $it->modify('+1 day');
-                continue;
-            }
-
-            $dia_esc = mysqli_real_escape_string($conn, $dayName);
-            $periodo_esc = mysqli_real_escape_string($conn, $periodo);
-
-            if (!empty($docentes_ids)) {
-                foreach ($docentes_ids as $doc_id) {
-                    $doc_val = (int) $doc_id;
-                    // Skip if this specific docente is on vacation
-                    if (isVacation($conn, $doc_val, $dateStr)) {
-                        continue;
-                    }
-                    mysqli_query($conn, "INSERT INTO agenda (turma_id, docente_id, ambiente_id, dia_semana, periodo, horario_inicio, horario_fim, data, status)
-                                         VALUES ('$turma_id', $doc_val, $amb_sql, '$dia_esc', '$periodo_esc', '$h_inicio', '$h_fim', '$dateStr', 'CONFIRMADO')");
-                }
-            } else {
-                mysqli_query($conn, "INSERT INTO agenda (turma_id, docente_id, ambiente_id, dia_semana, periodo, horario_inicio, horario_fim, data, status)
-                                     VALUES ('$turma_id', NULL, $amb_sql, '$dia_esc', '$periodo_esc', '$h_inicio', '$h_fim', '$dateStr', 'CONFIRMADO')");
-            }
-        }
-        $it->modify('+1 day');
-    }
-}
-
 header("Location: ../views/turmas.php");
 
 /**

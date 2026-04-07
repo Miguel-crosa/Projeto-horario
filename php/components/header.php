@@ -144,11 +144,24 @@ $prefix = $is_in_subdir ? '../../' : '';
         </div>
 
         <div class="div-links">
-            <a href="<?= $prefix ?>index.php" class="links <?= $current_page == 'index.php' ? 'ativo' : '' ?>">
-                <i class="bi bi-house-door-fill" style="margin-right: 10px;"></i> Dashboard
-            </a>
-
-            <?php if (isAdmin() || isGestor()): ?>
+            <?php 
+            $dashboard_pages = ['index.php', 'dashboard_vendas.php'];
+            $is_dashboard_active = in_array($current_page, $dashboard_pages);
+            ?>
+            <?php if (isCRI()): ?>
+                <!-- CRI vê apenas Dashboard Vendas, Agenda Professores e Gerenciar Reservas -->
+                <a href="<?= $prefix ?>php/views/dashboard_vendas.php" class="links <?= $current_page == 'dashboard_vendas.php' ? 'ativo' : '' ?>">
+                    <i class="bi bi-chart-line" style="margin-right: 10px;"></i> Dashboard Vendas
+                </a>
+                <a href="<?= $prefix ?>php/views/agenda_professores.php"
+                    class="links <?= $current_page == 'agenda_professores.php' ? 'ativo' : '' ?>">
+                    <i class="bi bi-calendar-week" style="margin-right: 10px;"></i> Agenda Professores
+                </a>
+                <a href="<?= $prefix ?>php/views/gerenciar_reservas.php"
+                    class="links <?= $current_page == 'gerenciar_reservas.php' ? 'ativo' : '' ?>">
+                    <i class="bi bi-calendar2-heart" style="margin-right: 10px;"></i> Gerenciar Reservas
+                </a>
+            <?php elseif (isAdmin() || isGestor()): ?>
                 <a href="<?= $prefix ?>php/views/professores.php"
                     class="links <?= $current_page == 'professores.php' ? 'ativo' : '' ?>">
                     <i class="bi bi-person-workspace" style="margin-right: 10px;"></i> Docentes
@@ -178,41 +191,35 @@ $prefix = $is_in_subdir ? '../../' : '';
                     <i class="bi bi-briefcase-fill" style="margin-right: 10px;"></i> Preparação/Atestados
                 </a>
             <?php endif; ?>
-            <?php if (isCRI()): ?>
-                <a href="<?= $prefix ?>php/views/agenda_professores.php"
-                    class="links <?= $current_page == 'agenda_professores.php' ? 'ativo' : '' ?>">
-                    <i class="bi bi-calendar-week" style="margin-right: 10px;"></i> Calendário
-                </a>
-                <a href="<?= $prefix ?>php/views/gerenciar_reservas.php"
-                    class="links <?= $current_page == 'gerenciar_reservas.php' ? 'ativo' : '' ?>">
-                    <i class="bi bi-calendar2-heart" style="margin-right: 10px;"></i> Gerenciar Reservas
-                </a>
-            <?php else: ?>
-                <?php
-                $planejamento_pages = ['agenda_professores.php', 'agenda_salas.php', 'gerenciar_reservas.php'];
-                $is_planejamento_active = in_array($current_page, $planejamento_pages);
-                ?>
-                <div class="menu-manutencao <?= $is_planejamento_active ? 'aberto' : '' ?>">
-                    <a href="<?= $prefix ?>php/views/agenda_professores.php"
-                        class="links manutencao-btn <?= $is_planejamento_active ? 'ativo' : '' ?>">
-                        <i class="bi bi-tools" style="margin-right: 10px;"></i> Planejamento <i
-                            class="bi bi-caret-down-fill seta"></i>
-                    </a>
-                    <div class="submenu <?= $is_planejamento_active ? 'aberto' : '' ?>" id="submenu-manutencao">
+
+            <?php if (!isCRI()): ?>
+                <?php if (isAdmin() || isGestor() || isProfessor()): ?>
+                    <?php
+                    $planejamento_pages = ['agenda_professores.php', 'agenda_salas.php', 'gerenciar_reservas.php'];
+                    $is_planejamento_active = in_array($current_page, $planejamento_pages);
+                    ?>
+                    <div class="menu-manutencao <?= $is_planejamento_active ? 'aberto' : '' ?>">
                         <a href="<?= $prefix ?>php/views/agenda_professores.php"
-                            class="links-sub <?= $current_page == 'agenda_professores.php' ? 'active-sub' : '' ?>">
-                            <i class="bi bi-calendar-check" style="margin-right: 8px;"></i> Agenda Professores
+                            class="links manutencao-btn <?= $is_planejamento_active ? 'ativo' : '' ?>">
+                            <i class="bi bi-tools" style="margin-right: 10px;"></i> Planejamento <i
+                                class="bi bi-caret-down-fill seta"></i>
                         </a>
-                        <a href="<?= $prefix ?>php/views/agenda_salas.php"
-                            class="links-sub <?= $current_page == 'agenda_salas.php' ? 'active-sub' : '' ?>">
-                            <i class="bi bi-building-check" style="margin-right: 8px;"></i> Agenda Salas
-                        </a>
-                        <a href="<?= $prefix ?>php/views/gerenciar_reservas.php"
-                            class="links-sub <?= $current_page == 'gerenciar_reservas.php' ? 'active-sub' : '' ?>">
-                            <i class="bi bi-calendar2-heart" style="margin-right: 8px;"></i> Gerenciar Reservas
-                        </a>
+                        <div class="submenu <?= $is_planejamento_active ? 'aberto' : '' ?>" id="submenu-manutencao">
+                            <a href="<?= $prefix ?>php/views/agenda_professores.php"
+                                class="links-sub <?= $current_page == 'agenda_professores.php' ? 'active-sub' : '' ?>">
+                                <i class="bi bi-calendar-check" style="margin-right: 8px;"></i> Agenda Professores
+                            </a>
+                            <a href="<?= $prefix ?>php/views/agenda_salas.php"
+                                class="links-sub <?= $current_page == 'agenda_salas.php' ? 'active-sub' : '' ?>">
+                                <i class="bi bi-building-check" style="margin-right: 8px;"></i> Agenda Salas
+                            </a>
+                            <a href="<?= $prefix ?>php/views/gerenciar_reservas.php"
+                                class="links-sub <?= $current_page == 'gerenciar_reservas.php' ? 'active-sub' : '' ?>">
+                                <i class="bi bi-calendar2-heart" style="margin-right: 8px;"></i> Gerenciar Reservas
+                            </a>
+                        </div>
                     </div>
-                </div>
+                <?php endif; ?>
             <?php endif; ?>
             <?php if (isAdmin() || isGestor()): ?>
                 <a href="<?= $prefix ?>php/views/usuarios.php"

@@ -6,12 +6,9 @@
 require_once __DIR__ . '/../configs/db.php';
 require_once __DIR__ . '/../configs/auth.php';
 
-// Apenas gestores/admins e CRI (limitado) podem acessar. Gestores/Admins gerenciam, CRI apenas visualiza os seus.
+// Apenas gestores/admins e CRI podem acessar. Gestores/Admins gerenciam, CRI apenas visualiza.
 if (!can_edit() && !isCRI()) {
-    $path_parts = explode('/', trim($_SERVER['PHP_SELF'], '/'));
-    $is_in_subdir = !empty(array_intersect(['views', 'controllers'], $path_parts));
-    $prefix = $is_in_subdir ? '../../' : '';
-    header('Location: ' . $prefix . 'index.php');
+    header('Location: dashboard_vendas.php');
     exit;
 }
 
@@ -37,7 +34,7 @@ $where = "WHERE r.status = ?";
 $params = [$status_filter];
 $types = 's';
 
-if ($owner_filter === 'mine' || isCRI()) {
+if ($owner_filter === 'mine') {
     $where .= " AND r.usuario_id = ?";
     $params[] = $auth_user_id;
     $types .= 'i';

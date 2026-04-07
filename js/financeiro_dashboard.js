@@ -92,18 +92,25 @@ function closeFinanceiroModal(id) {
 }
 
 function updateTotalRessarcido() {
-    const total = financeiroData.ressarcido.reduce((acc, curr) => acc + parseFloat(curr.total), 0);
-    const totalEl = document.getElementById('total-ressarcido-geral');
-    if (totalEl) {
-        totalEl.innerText = 'R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    }
+    const totalReal = financeiroData.ressarcido.reduce((acc, curr) => acc + parseFloat(curr.total), 0);
+    const totalPipeline = parseFloat(financeiroData.total_pipeline_ress || 0);
+
+    const realEl = document.getElementById('total-ressarcido-geral');
+    const pipeEl = document.getElementById('total-ressarcido-pipeline');
+
+    if (realEl) realEl.innerText = 'R$ ' + totalReal.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    if (pipeEl) pipeEl.innerText = 'R$ ' + totalPipeline.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 }
 
 function updateTotalDespesas() {
-    const totalEl = document.getElementById('total-previsao-despesas');
-    if (totalEl) {
-        totalEl.innerText = 'R$ ' + parseFloat(financeiroData.total_despesas).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    }
+    const totalReal = parseFloat(financeiroData.total_despesas || 0);
+    const totalPipeline = parseFloat(financeiroData.total_pipeline_despesas || 0);
+
+    const realEl = document.getElementById('total-previsao-despesas');
+    const pipeEl = document.getElementById('total-previsao-despesas-pipeline');
+
+    if (realEl) realEl.innerText = 'R$ ' + totalReal.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    if (pipeEl) pipeEl.innerText = 'R$ ' + totalPipeline.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 }
 
 function renderRessarcidoChart() {

@@ -4,7 +4,7 @@ include __DIR__ . '/../components/header.php';
 
 // Apenas admin/gestor
 if (!isAdmin() && !isGestor()) {
-    header("Location: ../../index.php");
+    header("Location: dashboard_vendas.php");
     exit;
 }
 

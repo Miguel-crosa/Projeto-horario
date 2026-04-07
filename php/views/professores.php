@@ -1,5 +1,13 @@
 <?php
 require_once __DIR__ . '/../configs/db.php';
+require_once __DIR__ . '/../configs/auth.php';
+
+// Somente Admin e Gestor acessam esta página
+if (!isAdmin() && !isGestor()) {
+    header("Location: dashboard_vendas.php");
+    exit;
+}
+
 include __DIR__ . '/../components/header.php';
 
 $show_inactive = isset($_GET['show_inactive']) && $_GET['show_inactive'] == '1';

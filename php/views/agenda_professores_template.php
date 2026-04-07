@@ -127,7 +127,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
         <button type="button" class="btn btn-primary" id="btn-confirmar-reserva" style="display: none; background: #2e7d32; border-color: #1b5e20; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="confirmReservations()">
             <i class="fas fa-check" style="margin-right: 8px;"></i> Confirmar Reserva
         </button>
-        <?php if (isAdmin()): ?>
+        <?php if (isAdmin() || isGestor()): ?>
             <button type="button" class="btn btn-secondary" id="btn-remover-selecionados" style="display: none; background: #d32f2f; border-color: #c62828; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="batchRemoveReservations()">
                 <i class="fas fa-trash-alt" style="margin-right: 8px;"></i> Remover Selecionados
             </button>
@@ -145,9 +145,11 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
 
     <div class="avail-footer avail-status-footer">
         <div id="avail-status-text" style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);"></div>
-        <button class="btn btn-agendar-bar" id="btn-agendar-bar" onclick="openCalendarScheduleModal()" style="display: none; background: #2196f3; border-color: #1976d2; color: #fff; padding: 8px 20px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; align-items: center; gap: 8px;">
-            <i class="fas fa-plus-circle"></i> Cadastrar Horário
-        </button>
+        <?php if (!isCRI()): ?>
+            <button class="btn btn-agendar-bar" id="btn-agendar-bar" onclick="openCalendarScheduleModal()" style="display: none; background: #2196f3; border-color: #1976d2; color: #fff; padding: 8px 20px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; align-items: center; gap: 8px;">
+                <i class="fas fa-plus-circle"></i> Cadastrar Horário
+            </button>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -522,9 +524,31 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                          <?php if ($clickable): ?>onclick="handleBarClick(<?php echo $p['id']; ?>, '<?php echo addslashes($p['nome']); ?>', '<?php echo $ddt; ?>', this, event)"<?php endif; ?>>
                                         <div class="sem-day-num-label"><?php echo $dd; ?></div>
                                         <div class="sem-day-bars-container">
-                                            <div style="height:2px; background:<?=$p_m_c?>; border-radius:1px;"></div>
-                                            <div style="height:2px; background:<?=$p_t_c?>; border-radius:1px;"></div>
-                                            <div style="height:2px; background:<?=$p_n_c?>; border-radius:1px;"></div>
+                                            <div style="height:2px; background:<?php 
+                                                if ($is_sunday) echo '#555';
+                                                elseif ($is_feriado_s) echo '#1565c0';
+                                                elseif (isset($sem_turno[$ddt]['M']) && $sem_turno[$ddt]['M'] === 'RESERVADO') echo '#f9a825';
+                                                elseif (isset($sem_turno[$ddt]['M']) && $sem_turno[$ddt]['M'] === 'OFF_SCHEDULE') echo '#555';
+                                                elseif (!empty($sem_turno[$ddt]['M'])) echo '#e53935';
+                                                else echo '#4caf50';
+                                            ?>; border-radius:1px;"></div>
+                                            <div style="height:2px; background:<?php 
+                                                if ($is_sunday) echo '#555';
+                                                elseif ($is_feriado_s) echo '#1565c0';
+                                                elseif (isset($sem_turno[$ddt]['T']) && $sem_turno[$ddt]['T'] === 'RESERVADO') echo '#f9a825';
+                                                elseif (isset($sem_turno[$ddt]['T']) && $sem_turno[$ddt]['T'] === 'OFF_SCHEDULE') echo '#555';
+                                                elseif (!empty($sem_turno[$ddt]['T'])) echo '#e53935';
+                                                else echo '#4caf50';
+                                            ?>; border-radius:1px;"></div>
+                                            <div style="height:2px; background:<?php 
+                                                if ($is_sunday) echo '#555';
+                                                elseif ($is_feriado_s) echo '#1565c0';
+                                                elseif ($dow == 6) echo 'rgba(0,0,0,0.2)'; // Sábado Noite
+                                                elseif (isset($sem_turno[$ddt]['N']) && $sem_turno[$ddt]['N'] === 'RESERVADO') echo '#f9a825';
+                                                elseif (isset($sem_turno[$ddt]['N']) && $sem_turno[$ddt]['N'] === 'OFF_SCHEDULE') echo '#555';
+                                                elseif (!empty($sem_turno[$ddt]['N'])) echo '#e53935';
+                                                else echo '#4caf50';
+                                            ?>; border-radius:1px;"></div>
                                         </div>
                                     </div>
                                 <?php endfor; ?>
@@ -677,7 +701,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                                 <?php foreach (['M', 'T', 'N'] as $pk):
                                                     if ($dow == 7) $bar_color = '#555';
                                                     elseif ($is_feriado_tl) $bar_color = '#1565c0';
-                                                    elseif ($is_reserved_tl && !$is_reserved_tl['own']) $bar_color = '#f9a825';
+                                                    elseif (isset($t_detail[$pk]) && $t_detail[$pk] === 'RESERVADO') $bar_color = '#f9a825';
                                                     elseif ($dow == 6 && $pk === 'N') $bar_color = '#ccc';
                                                     elseif ($t_detail[$pk] === 'OFF_SCHEDULE') $bar_color = '#555';
                                                     elseif ($t_detail[$pk]) $bar_color = '#e53935';

@@ -356,6 +356,62 @@
                 </div>
                 <div id="modal-cal-data-fim-info" style="font-size: 0.82rem; color: var(--text-muted); margin-top: -15px; margin-bottom: 20px; font-weight: 500;"></div>
 
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                    <div class="form-group">
+                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">TIPO DE CUSTEIO</label>
+                        <select name="tipo_custeio" id="modal-cal-tipo-custeio" class="form-input" onchange="toggleModalCusteioFields()">
+                            <option value="Gratuidade">Gratuidade</option>
+                            <option value="Ressarcido">Ressarcido</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">PREVISÃO DE DESPESA</label>
+                        <input type="number" step="0.01" name="previsao_despesa" class="form-input" placeholder="0.00">
+                    </div>
+                </div>
+
+                <div class="form-group" id="modal-cal-group-valor" style="display: none; margin-bottom: 20px;">
+                    <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--primary-red); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">VALOR DA TURMA (ARRECADADO)</label>
+                    <input type="number" step="0.01" name="valor_turma" class="form-input" placeholder="R$ 0.00">
+                </div>
+
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                    <div class="form-group">
+                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">Nº PROPOSTA</label>
+                        <input type="text" name="numero_proposta" class="form-input" placeholder="Ex: 123/2026">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">ATENDIMENTO</label>
+                        <select name="tipo_atendimento" id="modal-cal-atendimento" class="form-input" onchange="toggleModalAtendimentoFields()">
+                            <option value="Balcão">Balcão</option>
+                            <option value="Empresa">Empresa</option>
+                            <option value="Entidade">Entidade</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="modal-cal-group-parceria" style="display: none; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">PARCEIRO</label>
+                        <input type="text" name="parceiro" class="form-input" placeholder="Nome da Empresa">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">CONTATO</label>
+                        <input type="text" name="contato_parceiro" class="form-input" placeholder="Nome / Telefone">
+                    </div>
+                </div>
+
+                <script>
+                    function toggleModalCusteioFields() {
+                        const type = document.getElementById('modal-cal-tipo-custeio').value;
+                        document.getElementById('modal-cal-group-valor').style.display = (type === 'Ressarcido') ? 'block' : 'none';
+                    }
+                    function toggleModalAtendimentoFields() {
+                        const type = document.getElementById('modal-cal-atendimento').value;
+                        document.getElementById('modal-cal-group-parceria').style.display = (type === 'Balcão') ? 'none' : 'grid';
+                    }
+                </script>
+
                 <div class="form-grid" id="horario-fields" style="display: none; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                     <div>
                         <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">HORÁRIO INÍCIO</label>

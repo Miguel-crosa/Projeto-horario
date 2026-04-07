@@ -94,45 +94,59 @@ if ($action === 'adicionar_aluno') {
 }
 
 if ($action === 'get_financeiro_data') {
-    // 1. Dados de Ressarcimento por Curso
+    // 1. Dados de Ressarcimento por Curso (Real)
     $q_ress = "SELECT c.nome as curso, SUM(t.valor_turma) as total 
                FROM turma t 
                JOIN curso c ON t.curso_id = c.id 
-               WHERE t.tipo_custeio = 'Ressarcido' 
+               WHERE t.tipo_custeio = 'Ressarcido' AND t.ativo = 1
                GROUP BY c.id 
                HAVING total > 0 
                ORDER BY total DESC";
     $res_ress = mysqli_query($conn, $q_ress);
     $ressarcido = mysqli_fetch_all($res_ress, MYSQLI_ASSOC);
 
-    // 1.1 Detalhamento de Ressarcimento (Turmas Individuais)
-    $q_ress_det = "SELECT c.nome as curso, t.sigla, t.valor_turma as valor 
-                   FROM turma t 
-                   JOIN curso c ON t.curso_id = c.id 
-                   WHERE t.tipo_custeio = 'Ressarcido' AND t.valor_turma > 0
-                   ORDER BY t.valor_turma DESC";
-    $res_ress_det = mysqli_query($conn, $q_ress_det);
-    $ressarcido_detalhe = mysqli_fetch_all($res_ress_det, MYSQLI_ASSOC);
-
-    // 2. Previsão de Despesas por Turma
+    // 2. Previsão de Despesas por Turma (Real)
     $q_desp = "SELECT c.nome as curso, t.sigla, t.previsao_despesa as valor 
                FROM turma t 
                JOIN curso c ON t.curso_id = c.id 
-               WHERE t.previsao_despesa > 0 
+               WHERE t.previsao_despesa > 0 AND t.ativo = 1
                ORDER BY t.previsao_despesa DESC";
     $res_desp = mysqli_query($conn, $q_desp);
     $despesas = mysqli_fetch_all($res_desp, MYSQLI_ASSOC);
     
+    // 3. Pipeline (Reservas PENDENTES e APROVADAS)
+    $q_pipe = "SELECT c.nome as curso, r.sigla, r.previsao_despesa as valor, r.status
+               FROM reservas r
+               JOIN curso c ON r.curso_id = c.id
+               WHERE r.previsao_despesa > 0 AND r.status IN ('PENDENTE', 'APROVADA')
+               ORDER BY r.previsao_despesa DESC";
+    $res_pipe = mysqli_query($conn, $q_pipe);
+    $pipeline_despesas = mysqli_fetch_all($res_pipe, MYSQLI_ASSOC);
+
+    $q_pipe_ress = "SELECT c.nome as curso, r.sigla, r.valor_turma as valor, r.status
+                    FROM reservas r
+                    JOIN curso c ON r.curso_id = c.id
+                    WHERE r.valor_turma > 0 AND r.status IN ('PENDENTE', 'APROVADA')";
+    $res_pipe_ress = mysqli_query($conn, $q_pipe_ress);
+    $pipeline_ressarcido = mysqli_fetch_all($res_pipe_ress, MYSQLI_ASSOC);
+
     $total_geral_despesas = 0;
-    foreach($despesas as $d) {
-        $total_geral_despesas += (float)$d['valor'];
-    }
+    foreach($despesas as $d) $total_geral_despesas += (float)$d['valor'];
+
+    $total_pipeline_despesas = 0;
+    foreach($pipeline_despesas as $p) $total_pipeline_despesas += (float)$p['valor'];
+
+    $total_pipeline_ress = 0;
+    foreach($pipeline_ressarcido as $p) $total_pipeline_ress += (float)$p['valor'];
 
     echo json_encode([
         'ressarcido' => $ressarcido,
-        'ressarcido_detalhe' => $ressarcido_detalhe,
         'despesas' => $despesas,
-        'total_despesas' => $total_geral_despesas
+        'pipeline_despesas' => $pipeline_despesas,
+        'pipeline_ressarcido' => $pipeline_ressarcido,
+        'total_despesas' => $total_geral_despesas,
+        'total_pipeline_despesas' => $total_pipeline_despesas,
+        'total_pipeline_ress' => $total_pipeline_ress
     ]);
     exit;
 }

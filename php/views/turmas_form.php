@@ -415,39 +415,12 @@ function filterCursosByArea(area, forcedCursoId = null) {
     if (!select) return;
     
     const groups = select.querySelectorAll('optgroup');
-    let hasMatch = false;
-
     groups.forEach(group => {
-        const groupArea = group.dataset.area ? normalizeString(group.dataset.area) : '';
-        const targetAreaFull = area ? normalizeString(area) : '';
-
-        // Lista de áreas que devem estar SEMPRE visíveis (Cursos customizados/importados)
-        const areasSempreVisiveis = ['outros', 'personalizado', 'customizado', 'customizados', 'personalizados'];
-
-        // Novo: Verifica se o grupo contém o curso forçado (curso da turma sendo editada)
-        const containsForcedCurso = forcedCursoId && group.querySelector(`option[value="${forcedCursoId}"]`);
-
-        if (!targetAreaFull || areasSempreVisiveis.includes(groupArea) || containsForcedCurso) {
-            group.style.display = '';
-            hasMatch = true;
-        } else {
-            // Divide as áreas do docente por / ou ,
-            const targetAreas = targetAreaFull.split(/[\/,]/).map(a => a.trim());
-            if (targetAreas.some(ta => ta === groupArea)) {
-                group.style.display = '';
-                hasMatch = true;
-            } else {
-                group.style.display = 'none';
-            }
-        }
+        // Remove a limitação: Sempre exibe todos os cursos
+        group.style.display = '';
     });
 
-    // Se o curso atualmente selecionado for o forçado, NÃO reseta o select
-    const selectedOption = select.options[select.selectedIndex];
-    if (selectedOption && selectedOption.value !== "" && selectedOption.value != forcedCursoId && selectedOption.parentElement.style.display === 'none') {
-        select.value = "";
-        if(typeof calcularDataFim === 'function') calcularDataFim();
-    }
+    // Removido o reset do select caso o curso não batesse com a área
 }
 
 function toggleCusteioFields() {

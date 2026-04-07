@@ -9,6 +9,11 @@ if (!isset($_GET['ajax_render'])) {
     echo '<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>';
 }
 
+if (isCRI()) {
+    header("Location: php/views/dashboard_vendas.php");
+    exit;
+}
+
 $count_prof = mysqli_fetch_row(mysqli_query($conn, "SELECT COUNT(*) FROM docente WHERE ativo = 1"))[0];
 $count_salas = mysqli_fetch_row(mysqli_query($conn, "SELECT COUNT(*) FROM ambiente"))[0];
 $count_turmas = mysqli_fetch_row(mysqli_query($conn, "SELECT COUNT(*) FROM turma"))[0];
@@ -879,14 +884,16 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     style="color: white;">&times;</button>
             </div>
             <div class="modal-producao-body">
-                <div class="producao-kpi-container" onclick="openRessarcimentoListaModal()" style="cursor: pointer;"
-                    title="Clique para ver o detalhamento por turma">
-                    <div class="producao-kpi-card"
-                        style="border-left-color: #388e3c; background: linear-gradient(135deg, #388e3c, #2e7d32);">
-                        <span class="kpi-label">Arrecadação Total Estimada</span>
+                <div class="producao-kpi-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="producao-kpi-card" onclick="openRessarcimentoListaModal()" style="cursor: pointer; border-left-color: #388e3c; background: linear-gradient(135deg, #388e3c, #2e7d32);">
+                        <span class="kpi-label">Arrecadação Real (Confirmada)</span>
                         <span class="kpi-value" id="total-ressarcido-geral">R$ 0,00</span>
-                        <span class="kpi-subtext"><i class="fas fa-search-plus"></i> Clique para ver o detalhamento
-                            individual</span>
+                        <span class="kpi-subtext"><i class="fas fa-search-plus"></i> Ver detalhamento real</span>
+                    </div>
+                    <div class="producao-kpi-card" style="border-left-color: #fb8c00; background: linear-gradient(135deg, #fb8c00, #ef6c00);">
+                        <span class="kpi-label">Pipeline (Reservas)</span>
+                        <span class="kpi-value" id="total-ressarcido-pipeline">R$ 0,00</span>
+                        <span class="kpi-subtext"><i class="fas fa-info-circle"></i> Turmas em negociação</span>
                     </div>
                 </div>
                 <div class="producao-chart-section">
@@ -928,14 +935,16 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     style="color: white;">&times;</button>
             </div>
             <div class="modal-producao-body">
-                <div class="producao-kpi-container" onclick="openDespesasListaModal()" style="cursor: pointer;"
-                    title="Clique para ver o detalhamento por turma">
-                    <div class="producao-kpi-card"
-                        style="border-left-color: #e65100; background: linear-gradient(135deg, #e65100, #bf360c);">
-                        <span class="kpi-label">Gasto Total Previsto</span>
+                <div class="producao-kpi-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="producao-kpi-card" onclick="openDespesasListaModal()" style="cursor: pointer; border-left-color: #e65100; background: linear-gradient(135deg, #e65100, #bf360c);">
+                        <span class="kpi-label">Gasto Real (Confirmado)</span>
                         <span class="kpi-value" id="total-previsao-despesas">R$ 0,00</span>
-                        <span class="kpi-subtext"><i class="fas fa-search-plus"></i> Clique para ver o detalhamento
-                            individual</span>
+                        <span class="kpi-subtext"><i class="fas fa-search-plus"></i> Ver detalhamento real</span>
+                    </div>
+                    <div class="producao-kpi-card" style="border-left-color: #546e7a; background: linear-gradient(135deg, #78909c, #546e7a);">
+                        <span class="kpi-label">Pipeline de Despesas (Reservas)</span>
+                        <span class="kpi-value" id="total-previsao-despesas-pipeline">R$ 0,00</span>
+                        <span class="kpi-subtext"><i class="fas fa-info-circle"></i> Previsão para reservas</span>
                     </div>
                 </div>
                 <div class="producao-chart-section">
