@@ -7,7 +7,26 @@ $tables_to_check = ['turma'];
 $columns_needed = [
     'turma' => [
         'horario_inicio' => "TIME DEFAULT '07:30' AFTER local",
-        'horario_fim' => "TIME DEFAULT '11:30' AFTER horario_inicio"
+        'horario_fim' => "TIME DEFAULT '11:30' AFTER horario_inicio",
+        'tipo_custeio' => "ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade'",
+        'previsao_despesa' => "DECIMAL(10,2) DEFAULT 0.00",
+        'valor_turma' => "DECIMAL(10,2) DEFAULT 0.00",
+        'numero_proposta' => "VARCHAR(100) DEFAULT ''",
+        'tipo_atendimento' => "ENUM('Empresa','Entidade','Balcão') DEFAULT 'Balcão'",
+        'parceiro' => "VARCHAR(255) DEFAULT ''",
+        'contato_parceiro' => "VARCHAR(255) DEFAULT ''",
+        'ativo' => "TINYINT(1) DEFAULT 1"
+    ],
+    'reservas' => [
+        'periodo' => "VARCHAR(20) DEFAULT 'Manhã' AFTER hora_fim",
+        'sigla' => "VARCHAR(100) DEFAULT '' AFTER periodo ",
+        'tipo_custeio' => "ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade'",
+        'previsao_despesa' => "DECIMAL(10,2) DEFAULT 0.00",
+        'valor_turma' => "DECIMAL(10,2) DEFAULT 0.00",
+        'numero_proposta' => "VARCHAR(100) DEFAULT ''",
+        'tipo_atendimento' => "ENUM('Empresa','Entidade','Balcão') DEFAULT 'Balcão'",
+        'parceiro' => "VARCHAR(255) DEFAULT ''",
+        'contato_parceiro' => "VARCHAR(255) DEFAULT ''"
     ]
 ];
 

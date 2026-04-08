@@ -4,14 +4,14 @@ requireAuth();
 checkForcePasswordChange();
 
 $current_page = basename($_SERVER['PHP_SELF']);
-$theme = $_COOKIE['theme'] ?? 'light';
+$theme = $_COOKIE['tema'] ?? 'claro';
 
 $path_parts = explode('/', trim($_SERVER['PHP_SELF'], '/'));
 $is_in_subdir = !empty(array_intersect(['views', 'controllers', 'components', 'configs'], $path_parts));
 $prefix = $is_in_subdir ? '../../' : '';
 ?>
 <!DOCTYPE html>
-<html lang="pt-br" data-tema="claro">
+<html lang="pt-br" data-tema="<?= htmlspecialchars($theme) ?>">
 
 <head>
     <meta charset="UTF-8">
@@ -144,11 +144,47 @@ $prefix = $is_in_subdir ? '../../' : '';
         </div>
 
         <div class="div-links">
-            <a href="<?= $prefix ?>index.php" class="links <?= $current_page == 'index.php' ? 'ativo' : '' ?>">
-                <i class="bi bi-house-door-fill" style="margin-right: 10px;"></i> Dashboard
-            </a>
+            <?php
+            $dashboard_pages = ['index.php', 'dashboard_vendas.php'];
+            $is_dashboard_active = in_array($current_page, $dashboard_pages);
+            ?>
+            <?php if (isCRI()): ?>
+                <!-- CRI vê apenas Dashboard Vendas, Agenda Professores e Gerenciar Reservas -->
+                <a href="<?= $prefix ?>php/views/dashboard_vendas.php"
+                    class="links <?= $current_page == 'dashboard_vendas.php' ? 'ativo' : '' ?>">
+                    <i class="bi bi-bar-chart-line" style="margin-right: 10px;"></i> Dashboard Vendas
+                </a>
+                <a href="<?= $prefix ?>php/views/agenda_professores.php"
+                    class="links <?= $current_page == 'agenda_professores.php' ? 'ativo' : '' ?>">
+                    <i class="bi bi-calendar-week" style="margin-right: 10px;"></i> Agenda Professores
+                </a>
+                <a href="<?= $prefix ?>php/views/gerenciar_reservas.php"
+                    class="links <?= $current_page == 'gerenciar_reservas.php' ? 'ativo' : '' ?>">
+                    <i class="bi bi-calendar2-heart" style="margin-right: 10px;"></i> Gerenciar Reservas
+                </a>
+            <?php elseif (isAdmin() || isGestor()): ?>
+                <?php
+                $dashboard_open_cookie = $_COOKIE['menu_open_dashboard'] ?? null;
+                $is_dashboard_open = $dashboard_open_cookie === 'open' || ($dashboard_open_cookie === null && $is_dashboard_active);
+                ?>
+                <div class="menu-manutencao <?= $is_dashboard_open ? 'aberto' : '' ?>" data-menu-id="dashboard">
+                    <a href="<?= $prefix ?>index.php"
+                        class="links manutencao-btn <?= $is_dashboard_active ? 'ativo' : '' ?>">
+                        <i class="bi bi-speedometer2" style="margin-right: 10px;"></i> Dashboard <i
+                            class="bi bi-caret-down-fill seta"></i>
+                    </a>
+                    <div class="submenu <?= $is_dashboard_open ? 'aberto' : '' ?>">
+                        <a href="<?= $prefix ?>index.php"
+                            class="links-sub <?= $current_page == 'index.php' ? 'active-sub' : '' ?>">
+                            <i class="bi bi-speedometer" style="margin-right: 8px;"></i> Gestão
+                        </a>
+                        <a href="<?= $prefix ?>php/views/dashboard_vendas.php"
+                            class="links-sub <?= $current_page == 'dashboard_vendas.php' ? 'active-sub' : '' ?>">
+                            <i class="bi bi-bar-chart-line" style="margin-right: 8px;"></i> Vendas
+                        </a>
+                    </div>
+                </div>
 
-            <?php if (isAdmin() || isGestor()): ?>
                 <a href="<?= $prefix ?>php/views/professores.php"
                     class="links <?= $current_page == 'professores.php' ? 'ativo' : '' ?>">
                     <i class="bi bi-person-workspace" style="margin-right: 10px;"></i> Docentes
@@ -178,41 +214,39 @@ $prefix = $is_in_subdir ? '../../' : '';
                     <i class="bi bi-briefcase-fill" style="margin-right: 10px;"></i> Preparação/Atestados
                 </a>
             <?php endif; ?>
-            <?php if (isCRI()): ?>
-                <a href="<?= $prefix ?>php/views/agenda_professores.php"
-                    class="links <?= $current_page == 'agenda_professores.php' ? 'ativo' : '' ?>">
-                    <i class="bi bi-calendar-week" style="margin-right: 10px;"></i> Calendário
-                </a>
-                <a href="<?= $prefix ?>php/views/gerenciar_reservas.php"
-                    class="links <?= $current_page == 'gerenciar_reservas.php' ? 'ativo' : '' ?>">
-                    <i class="bi bi-calendar2-heart" style="margin-right: 10px;"></i> Gerenciar Reservas
-                </a>
-            <?php else: ?>
-                <?php
-                $planejamento_pages = ['agenda_professores.php', 'agenda_salas.php', 'gerenciar_reservas.php'];
-                $is_planejamento_active = in_array($current_page, $planejamento_pages);
-                ?>
-                <div class="menu-manutencao <?= $is_planejamento_active ? 'aberto' : '' ?>">
-                    <a href="<?= $prefix ?>php/views/agenda_professores.php"
-                        class="links manutencao-btn <?= $is_planejamento_active ? 'ativo' : '' ?>">
-                        <i class="bi bi-tools" style="margin-right: 10px;"></i> Planejamento <i
-                            class="bi bi-caret-down-fill seta"></i>
-                    </a>
-                    <div class="submenu <?= $is_planejamento_active ? 'aberto' : '' ?>" id="submenu-manutencao">
+
+            <?php if (!isCRI()): ?>
+                <?php if (isAdmin() || isGestor() || isProfessor()): ?>
+                    <?php
+                    $planejamento_pages = ['agenda_professores.php', 'agenda_salas.php', 'gerenciar_reservas.php'];
+                    $is_planejamento_active = in_array($current_page, $planejamento_pages);
+                    ?>
+                    <?php
+                    $planejamento_open_cookie = $_COOKIE['menu_open_planejamento'] ?? null;
+                    $is_planejamento_open = $planejamento_open_cookie === 'open' || ($planejamento_open_cookie === null && $is_planejamento_active);
+                    ?>
+                    <div class="menu-manutencao <?= $is_planejamento_open ? 'aberto' : '' ?>" data-menu-id="planejamento">
                         <a href="<?= $prefix ?>php/views/agenda_professores.php"
-                            class="links-sub <?= $current_page == 'agenda_professores.php' ? 'active-sub' : '' ?>">
-                            <i class="bi bi-calendar-check" style="margin-right: 8px;"></i> Agenda Professores
+                            class="links manutencao-btn <?= $is_planejamento_active ? 'ativo' : '' ?>">
+                            <i class="bi bi-tools" style="margin-right: 10px;"></i> Planejamento <i
+                                class="bi bi-caret-down-fill seta"></i>
                         </a>
-                        <a href="<?= $prefix ?>php/views/agenda_salas.php"
-                            class="links-sub <?= $current_page == 'agenda_salas.php' ? 'active-sub' : '' ?>">
-                            <i class="bi bi-building-check" style="margin-right: 8px;"></i> Agenda Salas
-                        </a>
-                        <a href="<?= $prefix ?>php/views/gerenciar_reservas.php"
-                            class="links-sub <?= $current_page == 'gerenciar_reservas.php' ? 'active-sub' : '' ?>">
-                            <i class="bi bi-calendar2-heart" style="margin-right: 8px;"></i> Gerenciar Reservas
-                        </a>
+                        <div class="submenu <?= $is_planejamento_open ? 'aberto' : '' ?>" id="submenu-manutencao">
+                            <a href="<?= $prefix ?>php/views/agenda_professores.php"
+                                class="links-sub <?= $current_page == 'agenda_professores.php' ? 'active-sub' : '' ?>">
+                                <i class="bi bi-calendar-check" style="margin-right: 8px;"></i> Agenda Professores
+                            </a>
+                            <a href="<?= $prefix ?>php/views/agenda_salas.php"
+                                class="links-sub <?= $current_page == 'agenda_salas.php' ? 'active-sub' : '' ?>">
+                                <i class="bi bi-building-check" style="margin-right: 8px;"></i> Agenda Salas
+                            </a>
+                            <a href="<?= $prefix ?>php/views/gerenciar_reservas.php"
+                                class="links-sub <?= $current_page == 'gerenciar_reservas.php' ? 'active-sub' : '' ?>">
+                                <i class="bi bi-calendar2-heart" style="margin-right: 8px;"></i> Gerenciar Reservas
+                            </a>
+                        </div>
                     </div>
-                </div>
+                <?php endif; ?>
             <?php endif; ?>
             <?php if (isAdmin() || isGestor()): ?>
                 <a href="<?= $prefix ?>php/views/usuarios.php"
@@ -223,13 +257,17 @@ $prefix = $is_in_subdir ? '../../' : '';
                 $exportacao_pages = ['dados_exportacao.php', 'import_excel.php'];
                 $is_exportacao_active = in_array($current_page, $exportacao_pages);
                 ?>
-                <div class="menu-manutencao <?= $is_exportacao_active ? 'aberto' : '' ?>">
+                <?php
+                $exportacao_open_cookie = $_COOKIE['menu_open_exportacao'] ?? null;
+                $is_exportacao_open = $exportacao_open_cookie === 'open' || ($exportacao_open_cookie === null && $is_exportacao_active);
+                ?>
+                <div class="menu-manutencao <?= $is_exportacao_open ? 'aberto' : '' ?>" data-menu-id="exportacao">
                     <a href="<?= $prefix ?>php/views/dados_exportacao.php"
                         class="links manutencao-btn <?= $is_exportacao_active ? 'ativo' : '' ?>">
                         <i class="bi bi-cloud-download-fill" style="margin-right: 10px;"></i> Exportar/Importar <i
                             class="bi bi-caret-down-fill seta"></i>
                     </a>
-                    <div class="submenu <?= $is_exportacao_active ? 'aberto' : '' ?>">
+                    <div class="submenu <?= $is_exportacao_open ? 'aberto' : '' ?>">
                         <a href="<?= $prefix ?>php/views/dados_exportacao.php"
                             class="links-sub <?= $current_page == 'dados_exportacao.php' ? 'active-sub' : '' ?>">
                             <i class="bi bi-cloud-download-fill" style="margin-right: 8px;"></i> Exportar
@@ -243,7 +281,9 @@ $prefix = $is_in_subdir ? '../../' : '';
             <?php endif; ?>
         </div>
         <div class="div-configs">
-            <button id="tema" onclick="changeTheme()"><i class="bi bi-brightness-high-fill"></i></button>
+            <button id="tema" onclick="changeTheme()">
+                <?= $theme === 'escuro' ? '<i class="bi bi-moon-stars-fill"></i>' : '<i class="bi bi-brightness-high-fill"></i>' ?>
+            </button>
             <a href="<?= $prefix ?>php/controllers/logout.php" class="sair" title="Sair do sistema">
                 Sair <i class="bi bi-door-closed-fill"></i>
             </a>

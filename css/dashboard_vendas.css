@@ -1,0 +1,356 @@
+/* css/dashboard_vendas.css */
+
+:root {
+    --gantt-row-height: 95px; /* Aumentado */
+    --gantt-name-width: 360px;
+    --gantt-day-width: 80px; /* Largura fixa para alinhamento perfeito */
+    --color-occupied: #ef5350; /* Vermelho */
+    --color-reserved: #fbc02d; /* Amarelo */
+    --color-holiday: #42a5f5;  /* Azul */
+    --color-unavailable: #64748b; /* Slate Gray - Mais visível */
+    --color-available: #4caf50; /* Verde */
+    --color-indisponivel: #9c27b0; /* Roxo / Magenta */
+    --gantt-name-width: 250px;
+    --gantt-bg: #fff;
+    --gantt-header-bg: #f8f9fa;
+    --gantt-sidebar-bg: #f1f5f9;
+    --gantt-text: #334155;
+    --gantt-border: #e2e8f0;
+}
+
+[data-tema="escuro"] {
+    --gantt-bg: #1e293b;
+    --gantt-header-bg: #0f172a;
+    --gantt-sidebar-bg: #1e293b;
+    --gantt-text: #f1f5f9;
+    --gantt-border: #334155;
+}
+
+.dashboard-vendas-hero {
+    text-align: center;
+    padding: 30px 20px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.vendas-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--text-color);
+    margin-bottom: 20px;
+}
+
+.vendas-legend-container {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    margin-bottom: 20px;
+}
+
+.legend-item { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem; color: var(--text-muted); }
+.dot { width: 14px; height: 14px; border-radius: 3px; }
+.dot.orange { background: var(--color-occupied); }
+.dot.yellow { background: var(--color-reserved); }
+.dot.blue { background: var(--color-holiday); }
+.dot.gray { background: var(--color-unavailable); }
+.dot.purple { background: var(--color-indisponivel); }
+.dot.green-light { background: var(--color-available); }
+
+.vendas-search-box {
+    max-width: 600px;
+    margin: 0 auto;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-color);
+    border-radius: 30px;
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.vendas-search-box input { background: transparent; border: none; width: 100%; color: var(--text-color); outline: none; }
+
+/* Controles */
+.gantt-controls-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.month-selector-vendas {
+    display: flex;
+    align-items: center;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    padding: 5px 15px;
+    border-radius: 30px;
+    gap: 15px;
+}
+
+.month-selector-vendas span { font-weight: 800; min-width: 140px; text-align: center; color: var(--text-color); }
+.btn-nav { background: transparent; border: none; color: var(--primary-red); cursor: pointer; font-size: 1.2rem; }
+
+/* Gantt Chart Wrapper */
+.gantt-vendas-container {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.gantt-vendas-wrapper {
+    overflow: auto;
+    background: var(--card-bg);
+    cursor: grab;
+    user-select: none;
+    max-height: 65vh; /* Scrollbar Interna Apenas no Gráfico */
+    position: relative;
+}
+
+.gantt-vendas-wrapper:active { cursor: grabbing; }
+
+.gantt-table {
+    border-collapse: collapse;
+    table-layout: fixed; /* Força larguras fixas */
+}
+
+.gantt-day-header, .gantt-day-cell {
+    width: var(--gantt-day-width);
+    min-width: var(--gantt-day-width);
+    border: 1px solid var(--border-color);
+    text-align: center;
+    vertical-align: middle;
+}
+
+.gantt-day-cell {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.gantt-day-cell:hover {
+    background: var(--bg-hover) !important;
+}
+
+/* Header Fixo (Sticky) */
+.gantt-table thead tr:first-child th {
+    position: sticky;
+    top: 0;
+    z-index: 110;
+    background: var(--gantt-header-bg) !important;
+    color: var(--gantt-text);
+    border-bottom: 2px solid var(--gantt-border);
+}
+
+/* Canto superior esquerdo (DOCENTE) */
+.gantt-table thead tr:first-child th.gantt-name-column {
+    z-index: 150;
+    background: var(--gantt-sidebar-bg) !important;
+    color: var(--gantt-text);
+    left: 0;
+}
+
+.gantt-name-column {
+    width: var(--gantt-name-width);
+    min-width: var(--gantt-name-width);
+    position: sticky;
+    left: 0;
+    z-index: 105;
+    background: var(--gantt-sidebar-bg) !important;
+    color: var(--gantt-text);
+    padding: 10px;
+    border-right: 1px solid var(--gantt-border);
+}
+
+[data-tema="escuro"] .gantt-name-column { background: #1e293b !important; }
+
+.gantt-name-inner {
+    padding: 15px 25px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-right: 2px solid rgba(255,255,255,0.1);
+}
+
+.gantt-name-inner strong { font-size: 1rem; text-transform: uppercase; }
+.gantt-name-inner span { font-size: 0.75rem; opacity: 0.8; margin-top: 4px; }
+
+.gantt-day-header {
+    height: 50px;
+    background: var(--bg-hover) !important;
+    font-weight: 800;
+    color: var(--text-color);
+}
+
+.gantt-day-header.weekend { background: var(--border-color) !important; opacity: 0.6; }
+
+.gantt-row { height: var(--gantt-row-height); }
+
+.gantt-track-container {
+    height: 100%;
+    background: rgba(76, 175, 80, 0.05); /* Disponível */
+}
+
+.gantt-track { height: 100%; position: relative; display: flex; align-items: center; }
+
+/* Barras Ganz Estilo Seta */
+.gantt-bar {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    color: #fff;
+    cursor: pointer;
+    z-index: 10;
+    transition: transform 0.2s, filter 0.2s;
+    clip-path: polygon(0% 0%, calc(100% - 15px) 0%, 100% 50%, calc(100% - 15px) 100%, 0% 100%, 12px 50%);
+}
+
+.gantt-bar:hover { filter: brightness(1.15); z-index: 20; transform: scaleY(1.05); }
+
+.gantt-bar.occupied { background: var(--color-occupied); }
+.gantt-bar.reserved { background: var(--color-reserved); color: #333; }
+.gantt-bar.holiday { background: var(--color-holiday); }
+.gantt-bar.unavailable { 
+    background: var(--color-unavailable); 
+    border: 1px solid rgba(255,255,255,0.1); /* Borda para destaque */
+}
+.gantt-bar.indisponivel { 
+    background: var(--color-indisponivel); 
+    color: #fff;
+}
+.gantt-bar.available { 
+    background: var(--color-available); 
+    color: #fff;
+}
+
+/* Alturas Proporcionais - Ajustadas para maior visibilidade */
+.gantt-bar.height-p1 { height: 40%; align-self: center; }
+.gantt-bar.height-p2 { height: 65%; align-self: center; }
+.gantt-bar.height-p3 { height: 95%; align-self: center; } /* Quase cheia */
+
+.gantt-label-rich {
+    line-height: 1.3;
+    padding-left: 5px;
+    width: 100%;
+}
+
+.gantt-label-rich strong { display: block; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gantt-label-rich span { font-size: 0.75rem; opacity: 0.95; white-space: nowrap; }
+
+.gantt-loading { padding: 100px; text-align: center; }
+.gantt-tooltip { position: fixed; background: #333; color: #fff; padding: 10px; border-radius: 4px; z-index: 1000; pointer-events: none; display: none; font-size: 0.8rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+
+/* Responsividade Abrangente - Movida para o final para garantir prioridade */
+
+@media (max-width: 1024px) {
+    .vendas-legend-container {
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --gantt-name-width: 140px;
+        --gantt-row-height: 80px;
+        --gantt-day-width: 60px;
+    }
+
+    .vendas-title {
+        font-size: 1.6rem;
+    }
+
+    .vendas-legend-container {
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .legend-item {
+        font-size: 0.75rem;
+    }
+
+    .gantt-controls-container {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+
+    .month-selector-vendas {
+        justify-content: space-between;
+    }
+
+    .view-mode-badge {
+        text-align: center;
+    }
+
+    .gantt-name-inner {
+        padding: 5px 10px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        height: 100% !important;
+    }
+
+    .gantt-name-inner strong {
+        font-size: 0.78rem !important;
+        line-height: 1.2 !important;
+        word-break: break-word !important;
+        display: block !important;
+        margin-bottom: 2px !important;
+        color: var(--gantt-text) !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .gantt-name-inner span {
+        font-size: 0.65rem !important;
+        margin-top: 0 !important;
+        display: block !important;
+        opacity: 0.8 !important;
+        color: var(--gantt-text) !important;
+    }
+}
+
+@media (max-width: 480px) {
+    :root {
+        --gantt-name-width: 95px;
+        --gantt-day-width: 50px;
+        --gantt-row-height: 100px; /* Aumentado para celular para caber nome + area */
+    }
+
+    .gantt-name-inner strong {
+        font-size: 0.7rem !important;
+    }
+
+    .dashboard-vendas-hero {
+        padding: 20px 10px;
+    }
+
+    .vendas-title {
+        font-size: 1.3rem;
+    }
+
+    .vendas-legend-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        text-align: left;
+    }
+
+    .legend-item {
+        font-size: 0.7rem;
+    }
+
+    .month-selector-vendas span {
+        font-size: 0.9rem;
+        min-width: 100px;
+    }
+    
+    .gantt-vendas-wrapper {
+        max-height: 55vh;
+    }
+}

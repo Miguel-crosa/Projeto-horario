@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Sync with global calendar period state
             window.calendarCurrentPeriod = this.dataset.periodo || null;
 
-            if (docenteSelect.value) updatePeriodStatus(docenteSelect.value);
+            if (docenteSelect && docenteSelect.value) updatePeriodStatus(docenteSelect.value);
 
             // Re-render calendar to show chosen period logic/highlight if needed
             if (window.renderCalendar) window.renderCalendar();
@@ -142,19 +142,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!matched) periodBtns[0].click();
     }
 
-    docenteSelect.addEventListener('change', function () {
-        if (this.value) {
-            availSection.style.display = 'block';
-            const btnAgendar = document.getElementById('btn-agendar-bar');
-            if (btnAgendar) btnAgendar.style.display = 'inline-flex';
-            updatePeriodStatus(this.value);
-            if (typeof loadDocenteAgenda === 'function') loadDocenteAgenda(this.value);
-        } else {
-            availSection.style.display = 'none';
-            const btnAgendar = document.getElementById('btn-agendar-bar');
-            if (btnAgendar) btnAgendar.style.display = 'none';
-        }
-    });
+    if (docenteSelect) {
+        docenteSelect.addEventListener('change', function () {
+            if (this.value) {
+                if (availSection) availSection.style.display = 'block';
+                const btnAgendar = document.getElementById('btn-agendar-bar');
+                if (btnAgendar) btnAgendar.style.display = 'inline-flex';
+                updatePeriodStatus(this.value);
+                if (typeof loadDocenteAgenda === 'function') loadDocenteAgenda(this.value);
+            } else {
+                if (availSection) availSection.style.display = 'none';
+                const btnAgendar = document.getElementById('btn-agendar-bar');
+                if (btnAgendar) btnAgendar.style.display = 'none';
+            }
+        });
+    }
 
     // Refresh icons when dates change in modal
     document.addEventListener('change', (e) => {

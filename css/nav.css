@@ -19,6 +19,8 @@
 .sidebar {
     width: 275px;
     height: 100vh;
+    height: 100dvh; /* Altura dinâmica para mobile */
+    min-height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -26,10 +28,10 @@
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 999;
+    z-index: 9999; /* Aumentado para garantir sobreposição */
     background: var(--corDestaque);
     padding: 20px 0px;
-    transition: width 0.3s ease;
+    transition: transform 0.3s ease, width 0.3s ease;
 }
 
 body.sidebar-closed .sidebar {
@@ -128,15 +130,21 @@ body.sidebar-closed .sidebar {
 
 .submenu {
     width: 90%;
-    display: none;
+    display: flex;
     flex-direction: column;
     gap: 4px;
-    margin-top: 4px;
-    padding-left: 10px;
+    margin-top: 0;
+    padding: 0 5px;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin 0.3s ease, padding 0.3s ease;
 }
 
 .submenu.aberto {
-    display: flex;
+    max-height: 500px;
+    opacity: 1;
+    margin-top: 4px;
     margin-bottom: 15px;
     background: rgba(0, 0, 0, 0.15);
     border-radius: 8px;

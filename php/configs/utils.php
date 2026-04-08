@@ -242,7 +242,7 @@ function getDailyStatusForMonth($conn, $did, $month)
         }
 
         $mapped_status = 'Ocupado';
-        if ($type === 'RESERVA' || $type === 'RESERVA_LEGADO' || $item['status'] === 'RESERVADO') {
+        if ($type === 'RESERVA' || $type === 'RESERVA_LEGADO' || ($item['status'] ?? '') === 'RESERVADO') {
             $mapped_status = 'Reservado';
         }
 

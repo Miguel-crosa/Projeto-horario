@@ -1,8 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Theme Management
-    let tema = localStorage.getItem('tema') || 'claro';
-    document.documentElement.setAttribute("data-tema", tema);
-    updateThemeIcon(tema);
+    // Theme Management - A inicialização agora é feita pelo PHP no header.php para evitar flashes.
 
     // Sidebar Toggle
     const sidebarToggle = document.getElementById("mobile-sidebar-toggle");
@@ -41,8 +38,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const menu = btn.closest('.menu-manutencao');
             const submenu = menu ? menu.querySelector('.submenu') : null;
             if (!menu || !submenu) return;
-            submenu.classList.toggle('aberto');
+            
+            const isOpen = submenu.classList.toggle('aberto');
             menu.classList.toggle('aberto');
+
+            // Persistência via cookie para o PHP reconhecer no reload
+            const menuId = menu.dataset.menuId;
+            if (menuId) {
+                document.cookie = `menu_open_${menuId}=${isOpen ? 'open' : 'closed'}; path=/; max-age=${60 * 60 * 24 * 30}`;
+            }
         });
     });
 });
@@ -53,6 +57,10 @@ function changeTheme() {
 
     document.documentElement.setAttribute("data-tema", next);
     localStorage.setItem('tema', next);
+    
+    // Define o cookie para que o PHP reconheça o tema no próximo carregamento (expira em 1 ano)
+    document.cookie = `tema=${next}; path=/; max-age=${60 * 60 * 24 * 365}`;
+    
     updateThemeIcon(next);
 }
 

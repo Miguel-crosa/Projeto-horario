@@ -307,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Deduplicar entradas do tooltip por chave única
                     const tooltipSeen = new Set();
                     const tooltipEntries = realEntries.filter(a => {
-                        const key = `${a.type}-${(a.curso_nome || a.turma_nome || '').trim()}-${(a.horario_inicio || '').substring(0,5)}-${(a.horario_fim || '').substring(0,5)}`;
+                        const key = `${a.type}-${(a.curso_nome || a.turma_nome || '').trim()}-${(a.horario_inicio || '').substring(0, 5)}-${(a.horario_fim || '').substring(0, 5)}`;
                         if (tooltipSeen.has(key)) return false;
                         tooltipSeen.add(key);
                         return true;
@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const cellSeen = new Set();
                     const uniqueEntries = entriesToDisplay.filter(a => {
                         const name = a.curso_nome || a.turma_nome || a.sigla || '';
-                        const key = `${a.type}-${name.trim()}-${(a.horario_inicio || '').substring(0,5)}`;
+                        const key = `${a.type}-${name.trim()}-${(a.horario_inicio || '').substring(0, 5)}`;
                         if (cellSeen.has(key)) return false;
                         cellSeen.add(key);
                         return true;
@@ -400,6 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${conflictLabel}
                     ${isSunday ? '<span class="cal-sunday-label">Indisponível</span>' : ''}
                     ${statusClass.includes('off-schedule') ? '<span class="cal-sunday-label" style="background:none; color:var(--text-muted); opacity:0.7;">Indisponível</span>' : ''}
+                    ${(!hasRealAula && !hasFeriado && !isSunday && !statusClass.includes('off-schedule') && currentDocente) ? '<span class="cal-available-label">Disponível</span>' : ''}
                 </div>`;
             }
             html += `</div></div>`;
@@ -939,58 +940,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const m = document.getElementById('modal-agendar-calendar');
         if (!m || !currentDocente) return;
 
+        // Limpa alertas anteriores
+        const alertBox = document.getElementById('form-alert-container');
+        if (alertBox) alertBox.style.display = 'none';
+
         const isReserva = forceReserva || reservationMode || window.userIsCRI;
 
-        // Atualiza a interface do modal para o modo
-        const modalTitle = document.getElementById('modal-cal-title');
-        const modalIcon = document.getElementById('modal-cal-icon');
-        const modalWarning = document.getElementById('modal-cal-reservation-warning');
-        const btnSubmitText = document.getElementById('btn-modal-cal-text');
-        const inputIsReserva = document.getElementById('modal-cal-is-reserva');
-        const cursoSelect = document.getElementById('modal-cal-curso-id');
-        const ambienteSelect = document.getElementById('modal-cal-ambiente-id');
+        // Prepara os dados para o formulário unificado
+        const formData = {
+            id: null,
+            is_reserva: isReserva,
+            docentes: [currentDocente],
+            data_inicio: startISO,
+            data_fim: endISO,
+            periodo: window.calendarCurrentPeriod || 'Manhã',
+            dias_semana: []
+        };
 
-        if (isReserva) {
-            modalTitle.textContent = 'Nova Reserva';
-            modalIcon.className = 'fas fa-bookmark';
-            modalIcon.style.color = '#ffb300';
-            modalWarning.style.display = 'block';
-            btnSubmitText.textContent = 'Solicitar Reserva';
-            inputIsReserva.value = '1';
-
-            // Opcional em reserva
-            if (cursoSelect) cursoSelect.required = false;
-            if (ambienteSelect) ambienteSelect.required = false;
-        } else {
-            modalTitle.textContent = 'Salvar Turma';
-            modalIcon.className = 'fas fa-calendar-plus';
-            modalIcon.style.color = 'var(--primary-red)';
-            modalWarning.style.display = 'none';
-            btnSubmitText.textContent = 'Salvar Turma';
-            inputIsReserva.value = '0';
-
-            // Obrigatório em turma
-            if (cursoSelect) cursoSelect.required = true;
-            if (ambienteSelect) ambienteSelect.required = true;
-        }
-
-        document.getElementById('modal-cal-docente-nome').textContent = currentDocente.nome;
-        document.getElementById('modal-cal-docente-id').value = currentDocente.id;
-
-        if (startISO) document.getElementById('modal-cal-data-inicio').value = startISO;
-        if (endISO) document.getElementById('modal-cal-data-fim').value = endISO;
-
-        // Redefine todos os checkboxes primeiro
-        document.querySelectorAll('#form-agendar-calendar input[name="dias_semana[]"]').forEach(cb => cb.checked = false);
-
-        // Se for uma NOVA reserva a partir do botão (sem data inicial específica)
-        if (isReserva && !startISO) {
+        // Lógica de sugestão de datas caso não venha startISO
+        if (!startISO) {
             const today = new Date();
             let suggestedDate = new Date(today);
             let firstWorkingDay = null;
             let found = false;
 
-            // Tenta encontrar o primeiro dia disponível nos próximos 60 dias
             const periodToMatch = window.calendarCurrentPeriod || 'Manhã';
 
             for (let i = 0; i < 60; i++) {
@@ -1018,7 +991,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
 
                     if (!isBlocked) {
-                        // 3. Verifica se já não tem aula (opcional, mas recomendado)
+                        // 3. Verifica se já não tem aula
                         const hasClass = (window.docenteAgendas || []).some(a =>
                             a.status === 'CONFIRMADO' &&
                             a.data === isoStr &&
@@ -1035,102 +1008,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            const startVal = suggestedDate.toISOString().slice(0, 10);
-            const monthLater = new Date(suggestedDate);
-            monthLater.setDate(suggestedDate.getDate() + 30);
-
-            document.getElementById('modal-cal-data-inicio').value = startVal;
-            document.getElementById('modal-cal-data-fim').value = monthLater.toISOString().slice(0, 10);
-
-            // Marca apenas o dia sugerido
-            document.querySelectorAll('#form-agendar-calendar input[name="dias_semana[]"]').forEach(cb => {
-                cb.checked = (cb.value === firstWorkingDay);
-            });
-
-            // Se não encontrou nada em 60 dias, volta pro padrão hoje (seg-sex)
-            if (!found) {
-                document.getElementById('modal-cal-data-inicio').value = today.toISOString().slice(0, 10);
-                document.querySelectorAll('#form-agendar-calendar input[name="dias_semana[]"]').forEach(cb => {
-                    const monFri = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira'];
-                    cb.checked = monFri.includes(cb.value);
-                });
-            }
-        }
-
-        // Marca automaticamente o(s) dia(s) clicado(s)
-        if (startISO) {
-            let daysToSelect = new Set();
-            const isReservedClick = docenteAgendas.some(a => a.status === 'RESERVADO' && a.data_inicio === startISO);
-
-            if (isReservedClick) {
-                // Encontra todas as datas reservadas na mesma semana
-                const clickedDate = new Date(startISO + 'T00:00:00');
-                const dayOfWeek = clickedDate.getDay();
-                const diffToMon = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-                const weekStart = new Date(clickedDate);
-                weekStart.setDate(clickedDate.getDate() - diffToMon);
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekStart.getDate() + 6);
-
-                let minDateIso = startISO;
-                let maxDateIso = startISO;
-
-                docenteAgendas.filter(a => {
-                    if (a.status !== 'RESERVADO') return false;
-                    const aDate = new Date(a.data_inicio + 'T00:00:00');
-                    return aDate >= weekStart && aDate <= weekEnd;
-                }).forEach(a => {
-                    daysToSelect.add(a.dia_semana);
-                    if (a.data_inicio > maxDateIso) maxDateIso = a.data_inicio;
-                    if (a.data_inicio < minDateIso) minDateIso = a.data_inicio;
-                });
-
-                document.querySelector('#form-agendar-calendar input[name="data_inicio"]').value = minDateIso;
-                document.querySelector('#form-agendar-calendar input[name="data_fim"]').value = maxDateIso;
+            if (found) {
+                formData.data_inicio = suggestedDate.toISOString().slice(0, 10);
+                formData.dias_semana = [firstWorkingDay];
             } else {
-                const dateObj = new Date(startISO + 'T00:00:00');
-                const dayName = diasSemanaFull[dateObj.getDay()];
-                daysToSelect.add(dayName);
+                formData.data_inicio = today.toISOString().slice(0, 10);
+                formData.dias_semana = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira'];
             }
-
-            document.querySelectorAll('#form-agendar-calendar input[name="dias_semana[]"]').forEach(cb => {
-                cb.checked = daysToSelect.has(cb.value);
-            });
+        } else {
+            // Se tem data de início, descobre o dia da semana
+            const dateObj = new Date(startISO + 'T00:00:00');
+            const dayName = diasSemanaFull[dateObj.getDay()];
+            formData.dias_semana = [dayName];
         }
 
-        // Define o período a partir do seletor global ou da reserva
-        const periodSelect = document.getElementById('modal-cal-periodo');
-        if (periodSelect) {
-            let periodToSet = window.calendarCurrentPeriod;
-
-            // Se não houver filtro global, tenta obter da reserva clicada
-            if (!periodToSet && startISO) {
-                const resFound = docenteAgendas.find(a => a.status === 'RESERVADO' && a.data_inicio === startISO);
-                if (resFound) periodToSet = resFound.periodo;
-            }
-
-            if (periodToSet) {
-                periodSelect.value = periodToSet;
-                applyPeriodToForm(periodToSet);
-            }
+        // Preenche o formulário via função exportada pelo componente
+        if (window.fillUnifiedForm) {
+            window.fillUnifiedForm(formData);
         }
 
-        // Prevenção de Conflitos
-        disableOccupiedDays(startISO, endISO);
-
-        // Restrição de Sala
-        filterRoomsByCourse();
-
-        // Atualização inicial do dropdown de professores
-        updateTeacherDropdowns();
-
-        // Ações do Admin
+        // Ações do Admin (Remover Reserva)
         const adminSection = document.getElementById('admin-reservation-actions');
         if (adminSection) {
-            const isReserved = docenteAgendas.some(a => a.status === 'RESERVADO' && a.data_inicio === startISO && (currentPeriod ? a.periodo === currentPeriod : true));
+            const isReserved = docenteAgendas.some(a => a.status === 'RESERVADO' && a.data === startISO && (window.calendarCurrentPeriod ? a.periodo === window.calendarCurrentPeriod : true));
             adminSection.style.display = (window.__isAdmin && isReserved) ? 'block' : 'none';
 
-            // Reconfigura o listener de clique para evitar duplicatas
             const btnRemover = document.getElementById('btn-remover-reserva');
             if (btnRemover) {
                 btnRemover.onclick = () => {
@@ -1139,12 +1041,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         data.append('action', 'remove_reservation');
                         data.append('docente_id', currentDocente.id);
                         data.append('data', startISO);
+                        data.append('periodo', window.calendarCurrentPeriod || '');
 
-                        // Usa efetivamente o período selecionado no modal
-                        const modalPeriod = document.getElementById('modal-cal-periodo')?.value;
-                        data.append('periodo', modalPeriod || currentPeriod || '');
-
-                        fetch(apiBase, { method: 'POST', body: data })
+                        fetch('api_agenda.php', { method: 'POST', body: data })
                             .then(r => r.json())
                             .then(res => {
                                 if (res.success) {
@@ -1160,33 +1059,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        enforceSaturdayNightConstraint();
         m.classList.add('active');
     };
 
+
     function enforceSaturdayNightConstraint() {
-        const periodSelect = document.getElementById('modal-cal-periodo');
-        const checkboxes = document.querySelectorAll('#form-agendar-calendar input[name="dias_semana[]"]');
+        const periodSelect = document.getElementById('periodo-select-unified');
+        const checkboxes = document.querySelectorAll('#dias-semana-container-unified input[name="dias_semana[]"]');
         const sabCheckbox = Array.from(checkboxes).find(cb => cb.value === 'Sábado');
         if (!periodSelect || !sabCheckbox) return;
 
         const isNoite = periodSelect.value === 'Noite';
-        const isSabChecked = sabCheckbox.checked;
 
-        // Restrição 1: Se Noite estiver selecionada, Sáb não pode ser marcado
         if (isNoite) {
             sabCheckbox.disabled = true;
             if (sabCheckbox.checked) {
                 sabCheckbox.checked = false;
+                if (typeof calcularDataFimUnified === 'function') calcularDataFimUnified();
             }
             const label = sabCheckbox.closest('label') || sabCheckbox.parentElement;
             if (label) {
                 label.style.opacity = '0.4';
                 label.title = 'Não é permitido aulas no período Noite aos Sábados.';
-                label.classList.add('info-tooltip'); // Assumindo que você tem ou adicionará estilo para isso
             }
         } else {
-            // Reativa Sáb se não estiver bloqueado por outra lógica (disableOccupiedDays)
             if (!sabCheckbox.dataset.occupied) {
                 sabCheckbox.disabled = false;
                 const label = sabCheckbox.closest('label') || sabCheckbox.parentElement;
@@ -1197,14 +1093,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Restrição 2: Se Sáb estiver marcado, opção Noite é desabilitada
         const noiteOption = Array.from(periodSelect.options).find(opt => opt.value === 'Noite');
         if (noiteOption) {
-            if (isSabChecked) {
+            if (sabCheckbox.checked) {
                 noiteOption.disabled = true;
                 if (periodSelect.value === 'Noite') {
-                    periodSelect.value = ''; // Reset if it was Noite
-                    alert('Aviso: Período "Noite" não é permitido aos Sábados. Por favor, selecione outro período.');
+                    periodSelect.value = '';
+                    showNotification('Aviso: Período "Noite" não é permitido aos Sábados.', 'warning');
                 }
             } else {
                 noiteOption.disabled = false;
@@ -1227,7 +1122,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        document.querySelectorAll('#form-agendar-calendar input[name="dias_semana[]"]').forEach(cb => {
+        document.querySelectorAll('#dias-semana-container-unified input[name="dias_semana[]"]').forEach(cb => {
             const label = cb.closest('label') || cb.parentElement;
             if (occupiedDays.has(cb.value)) {
                 cb.disabled = true;
@@ -1249,13 +1144,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const config = periodConfig[periodo];
         if (!config) return;
 
-        const hInicio = document.querySelector('#form-agendar-calendar input[name="horario_inicio"]');
-        const hFim = document.querySelector('#form-agendar-calendar input[name="horario_fim"]');
-        const horarioFields = document.getElementById('horario-fields');
+        const hInicio = document.getElementById('horario_inicio_unified');
+        const hFim = document.getElementById('horario_fim_unified');
 
         if (hInicio) { hInicio.value = config.inicio; hInicio.min = config.min; hInicio.max = config.max; }
         if (hFim) { hFim.value = config.fim; hFim.min = config.min; hFim.max = config.max; }
-        if (horarioFields) horarioFields.style.display = '';
+
+        // Sincroniza restrição de Sábado Noite com o novo form
+        enforceSaturdayNightConstraint();
     }
 
     // Mudança na seleção de período no modal
@@ -1417,89 +1313,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (formModal) {
-        document.getElementById('modal-cal-curso-id')?.addEventListener('change', calcularDataFimModal);
-        document.getElementById('modal-cal-data-inicio')?.addEventListener('change', calcularDataFimModal);
-        document.getElementById('modal-cal-periodo')?.addEventListener('change', calcularDataFimModal);
-        document.querySelectorAll('#form-agendar-calendar input[name="dias_semana[]"]').forEach(cb => {
-            cb.addEventListener('change', calcularDataFimModal);
+        document.getElementById('curso-select-unified')?.addEventListener('change', () => {
+            if (typeof calcularDataFimUnified === 'function') calcularDataFimUnified();
+        });
+        document.getElementById('data-inicio-unified')?.addEventListener('change', () => {
+            if (typeof calcularDataFimUnified === 'function') calcularDataFimUnified();
+            disableOccupiedDays(document.getElementById('data-inicio-unified').value, document.getElementById('data-fim-unified')?.value);
+        });
+        document.getElementById('data-fim-unified')?.addEventListener('change', () => {
+            disableOccupiedDays(document.getElementById('data-inicio-unified')?.value, document.getElementById('data-fim-unified').value);
+        });
+        document.getElementById('periodo-select-unified')?.addEventListener('change', function () {
+            const p = this.value;
+            if (p && periodConfig[p]) applyPeriodToForm(p);
+            if (typeof calcularDataFimUnified === 'function') calcularDataFimUnified();
+        });
+        document.querySelectorAll('#dias-semana-container-unified input[name="dias_semana[]"]').forEach(cb => {
+            cb.addEventListener('change', () => {
+                enforceSaturdayNightConstraint();
+                if (typeof calcularDataFimUnified === 'function') calcularDataFimUnified();
+            });
         });
     }
 
-    // ============================================================
-    // ENVIO DO FORMULÁRIO
-    // ============================================================
-    if (formModal) {
-        const ii = document.getElementById('modal-cal-data-inicio');
-        const ifim = document.getElementById('modal-cal-data-fim');
-        if (ii) ii.addEventListener('change', () => disableOccupiedDays(ii.value, ifim?.value));
-        if (ifim) ifim.addEventListener('change', () => disableOccupiedDays(ii?.value, ifim.value));
-
-        formModal.addEventListener('submit', function (e) {
-            e.preventDefault();
-
-            // Verificação final para a restrição de Sábado à Noite
-            const periodValue = document.getElementById('modal-cal-periodo')?.value;
-            const checkboxes = document.querySelectorAll('#form-agendar-calendar input[name="dias_semana[]"]');
-            const isSabChecked = Array.from(checkboxes).some(cb => cb.value === 'Sábado' && cb.checked);
-
-            if (periodValue === 'Noite' && isSabChecked) {
-                alert('ERRO: Não é permitido agendar aulas no período "Noite" aos Sábados. Por favor, ajuste o período ou os dias selecionados.');
-                return;
-            }
-
-            const fd = new FormData(this);
-
-            // Correção: converte array dias_semana[] em string separada por vírgula para o backend
-            const dias_selecionados = Array.from(this.querySelectorAll('input[name="dias_semana[]"]:checked')).map(cb => cb.value).join(',');
-            fd.delete('dias_semana[]'); // remove o formato de array
-            fd.append('dias_semana', dias_selecionados); // adiciona como string esperada por reservas_process.php
-            const isSim = document.getElementById('simulacao-toggle')?.checked;
-            const resDiv = document.getElementById('simulation-results');
-
-            fd.append('action', 'salvar_horario');
-            if (isSim) fd.append('is_simulation', '1');
-            if (document.getElementById('modal-cal-is-reserva').value === '1') {
-                fd.append('is_reserva', '1');
-            }
-
-            fetch(apiBase, { method: 'POST', body: fd }).then(r => r.json()).then(data => {
-                if (isSim) {
-                    resDiv.style.display = 'block';
-                    resDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    if (data.success) {
-                        resDiv.innerHTML = `<div style="background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 10px; border: 2px solid #2e7d32; font-weight: 700; margin-bottom: 10px; animation: fadeIn 0.3s;">
-                            <i class="fas fa-check-circle" style="font-size: 1.2rem; margin-right: 8px;"></i> Simulação OK: Nenhum conflito encontrado.
-                        </div>`;
-                    } else {
-                        const msgs = data.message.split(' | ');
-                        resDiv.innerHTML = `<div style="background: #ffebee; color: var(--primary-red); padding: 15px; border-radius: 10px; border: 2px solid var(--primary-red); margin-bottom: 10px; animation: shake 0.4s;">
-                            <strong style="display: block; margin-bottom: 10px; font-size: 1rem;"><i class="fas fa-exclamation-triangle"></i> Conflitos Identificados:</strong>
-                            <ul style="margin: 0; padding-left: 20px; font-size: 0.9rem; line-height: 1.4;">
-                                ${msgs.map(m => `<li style="margin-bottom: 5px;">${escapeHtml(m)}</li>`).join('')}
-                            </ul>
-                            <p style="margin-top: 10px; font-size: 0.8rem; font-style: italic; opacity: 0.8;">Ajuste as datas ou horários para prosseguir com o agendamento real.</p>
-                        </div>`;
-                    }
-                    return;
-                }
-
-                if (data.success) {
-                    modalCal.classList.remove('active');
-                    showNotification(data.message, 'success');
-
-                    // Se estávamos no modo de reserva, saia dele
-                    if (reservationMode) {
-                        cancelReservationMode();
-                    }
-
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
-                }
-                else showNotification(data.message, 'error');
-            }).catch(() => showNotification('Erro de conexão', 'error'));
-        });
-    }
+    // BLOCO DE SUBMISSÃO REMOVIDO: O formulário unificado (turma-form-unified) 
+    // agora gerencia sua própria submissão com feedback visual integrado.
 
     // ============================================================
     // NOTIFICAÇÕES
@@ -1588,155 +1426,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- Novo Seletor de Docentes para Modal de Calendário (v4) ---
-    let selectedModalDocentes = [];
-
-    window.renderSelectedModalDocentes = function () {
-        const container = document.getElementById('modal-cal-selected-docentes-container');
-        if (!container) return;
-        container.innerHTML = '';
-
-        selectedModalDocentes.forEach((doc, index) => {
-            const card = document.createElement('div');
-            card.className = 'docente-card-v4';
-            card.style.cssText = `
-                display: flex; justify-content: space-between; align-items: center; 
-                padding: 10px 15px; background: var(--bg-hover); border: 1px solid var(--border-color); 
-                border-radius: 10px; margin-bottom: 10px; animation: slideIn 0.3s ease-out;
-            `;
-            card.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 35px; height: 35px; border-radius: 50%; background: var(--primary-red); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
-                        <i class="fas fa-user"></i>
-                    </div>
-                    <div>
-                        <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-color);">${escapeHtml(doc.nome)}</div>
-                        <div style="font-size: 0.7rem; color: var(--text-muted);">${escapeHtml(doc.area_conhecimento || 'Área não definida')}</div>
-                    </div>
-                </div>
-                <button type="button" onclick="removeModalDocente(${index})" style="background: none; border: none; color: #ef5350; cursor: pointer; padding: 5px; transition: all 0.2s;">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            `;
-            container.appendChild(card);
-        });
-
-        // Atualiza campos ocultos (Garante que os IDs sejam enviados corretamente)
-        for (let i = 1; i <= 4; i++) {
-            const el = document.getElementById(`modal-cal-hidden-docente-${i}`);
-            if (el) {
-                const docId = selectedModalDocentes[i - 1] ? selectedModalDocentes[i - 1].id : '';
-                el.value = docId;
-            }
-        }
-
-        const btnAdd = document.getElementById('btn-modal-cal-abrir-docentes');
-        if (btnAdd) {
-            if (selectedModalDocentes.length >= 4) {
-                btnAdd.style.display = 'none';
-            } else {
-                btnAdd.style.display = 'flex';
-                btnAdd.innerHTML = `<i class="fas fa-plus-circle"></i> ADICIONAR DOCENTE (${selectedModalDocentes.length}/4)`;
-            }
-        }
-
-        // --- FILTRO DE CURSOS POR ÁREA ---
-        const firstDoc = selectedModalDocentes[0];
-        const cursoSelect = document.getElementById('modal-cal-curso-id');
-        if (cursoSelect && firstDoc) {
-            const area = (firstDoc.area_conhecimento || '').trim().toLowerCase();
-            const options = cursoSelect.querySelectorAll('option[data-area]');
-            const groups = cursoSelect.querySelectorAll('optgroup');
-
-            let currentValid = false;
-            options.forEach(opt => {
-                const optArea = (opt.dataset.area || '').trim().toLowerCase();
-                if (!area || optArea === area) {
-                    opt.style.display = '';
-                    opt.disabled = false;
-                    if (opt.value === cursoSelect.value) currentValid = true;
-                } else {
-                    opt.style.display = 'none';
-                    opt.disabled = true;
-                }
-            });
-
-            groups.forEach(group => {
-                const visible = Array.from(group.querySelectorAll('option')).some(o => o.style.display !== 'none');
-                group.style.display = visible ? '' : 'none';
-            });
-
-            if (!currentValid && cursoSelect.value) cursoSelect.value = '';
-        }
-    };
-
-    window.removeModalDocente = function (index) {
-        selectedModalDocentes.splice(index, 1);
-        renderSelectedModalDocentes();
-    };
-
-    // Inicialização do botão de adicionar docente na modal
-    const btnAddModalDoc = document.getElementById('btn-modal-cal-abrir-docentes');
-    if (btnAddModalDoc) {
-        btnAddModalDoc.onclick = () => {
-            if (profModal) {
-                profModal.classList.add('active');
-                // Sobrescreve temporariamente o comportamento de clique do resultado da busca
-                window.__isModalCalTarget = true;
-                if (profSearchInput) {
-                    profSearchInput.value = '';
-                    renderProfessorResults();
-                }
-            }
-        };
-    }
-
-    // Modificando renderProfessorResults para suportar o novo alvo
-    const originalRenderResults = renderProfessorResults;
-    renderProfessorResults = function () {
-        originalRenderResults();
-        if (window.__isModalCalTarget) {
-            profSearchResults.querySelectorAll('.prof-result-item').forEach(item => {
-                // Clonar para remover listeners antigos e adicionar o novo
-                const newItem = item.cloneNode(true);
-                item.parentNode.replaceChild(newItem, item);
-
-                newItem.onclick = function () {
-                    const id = this.dataset.id;
-                    const doc = (window.__docentesData || []).find(d => String(d.id) === String(id));
-                    if (doc && selectedModalDocentes.length < 4) {
-                        // Comparação rigorosa para evitar duplicatas (mesmo com tipos diferentes)
-                        const isDuplicate = selectedModalDocentes.some(sd => String(sd.id) === String(doc.id));
-                        if (!isDuplicate) {
-                            selectedModalDocentes.push(doc);
-                        } else {
-                            if (typeof showNotification === 'function') showNotification('Este docente já foi adicionado.', 'error');
-                        }
-                        renderSelectedModalDocentes();
-                        profModal.classList.remove('active');
-                        window.__isModalCalTarget = false;
-                    }
-                };
-            });
-        }
-    };
-
-    // No openCalendarScheduleModal, inicializar a lista com o professor principal (objeto completo)
-    const originalOpenModal = window.openCalendarScheduleModal;
+    // Lógica antiga de multi-docente removida: o formulário unificado gerencia isso.
     window.openCalendarScheduleModal = function (start, end, isReserva = false) {
-        selectedModalDocentes = [];
-        if (currentDocente) {
-            // Busca o objeto completo para evitar "professor falso" / Área não definida
-            const fullDoc = (window.__docentesData || []).find(d => String(d.id) === String(currentDocente.id));
-            if (fullDoc) {
-                currentDocente = fullDoc;
-                selectedModalDocentes.push(fullDoc);
-            } else {
-                selectedModalDocentes.push(currentDocente);
-            }
+        // Se estamos em modo reserva ou criação global, permitimos abrir sem professor (usuário seleciona no form)
+        if (!currentDocente && !isReserva) {
+            showNotification('Selecione um professor primeiro.', 'error');
+            return;
         }
-        renderSelectedModalDocentes();
-        originalOpenModal(start, end, isReserva);
+
+        const m = document.getElementById('modal-agendar-calendar');
+        if (!m) return;
+
+        const formData = {
+            id: null,
+            is_reserva: isReserva,
+            docentes: currentDocente ? [currentDocente] : [],
+            data_inicio: start || new Date().toISOString().slice(0, 10),
+            data_fim: end || start || new Date().toISOString().slice(0, 10),
+            periodo: window.calendarCurrentPeriod || 'Manhã',
+            dias_semana: []
+        };
+
+        if (start) {
+            const dateObj = new Date(start + 'T00:00:00');
+            formData.dias_semana = [diasSemanaFull[dateObj.getDay()]];
+        } else {
+            formData.dias_semana = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira'];
+        }
+
+        if (window.fillUnifiedForm) {
+            window.fillUnifiedForm(formData);
+        }
+
+        m.classList.add('active');
+
+        setTimeout(() => {
+            disableOccupiedDays(formData.data_inicio, formData.data_fim);
+            enforceSaturdayNightConstraint();
+        }, 100);
     };
 
     window.handleBarClick = function (profId, profNome, dateStr, element, event) {

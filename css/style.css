@@ -1673,6 +1673,15 @@ tbody tr:nth-child(n+6) {
     font-style: italic;
 }
 
+.cal-available-label {
+    display: block;
+    font-size: .65rem;
+    font-weight: 800;
+    color: #2e7d32;
+    margin-top: 4px;
+    text-transform: uppercase;
+}
+
 .cal-day-num {
     font-size: .85rem;
     font-weight: 600;

@@ -153,7 +153,7 @@
     </div>
 </div>
 
-<!-- 3. Select Professor Modal (Planejamento) -->
+<!-- 3. Select Professor Modal (Planejamento - Navegação) -->
 <div class="modal-overlay" id="modal-selecionar-professor">
     <div class="modal-content" style="max-width: 550px;">
         <div class="modal-header">
@@ -190,216 +190,58 @@
     </div>
 </div>
 
-<!-- 4. Schedule/Turma Modal (Planejamento) -->
-<div class="modal-overlay" id="modal-agendar-calendar">
-    <div class="modal-content" style="max-width: 750px; padding: 0; border: none; overflow: hidden;">
-        <div class="modal-header" style="padding: 20px 25px; background: var(--bg-hover); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; color: var(--text-color);">
-                <i id="modal-cal-icon" class="fas fa-calendar-plus" style="color: var(--primary-red);"></i> 
-                <span id="modal-cal-title">Salvar Turma</span>
-            </h3>
-            <button class="modal-close" id="modal-cal-close" onclick="closeModal('modal-agendar-calendar')" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted);"><i class="fas fa-times"></i></button>
+<!-- 3.1. Select Professor Modal (Unified Form - Selection) -->
+<div class="modal-overlay" id="modal-selecionar-professor-unified">
+    <div class="modal-content" style="max-width: 550px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-chalkboard-teacher" style="color: var(--primary-red); margin-right: 12px;"></i>
+                Adicionar Professor à Turma</h3>
+            <button class="modal-close" id="modal-prof-close-unified"
+                onclick="closeModal('modal-selecionar-professor-unified')"><i class="fas fa-times"></i></button>
         </div>
-
-        <div id="modal-cal-reservation-warning" style="display: none; background: rgba(255,179,0,0.1); color: #e65100; padding: 12px 25px; border-bottom: 1px solid rgba(255,179,0,0.2); font-size: 0.85rem; font-weight: 600;">
-            <i class="fas fa-info-circle"></i> Você está criando uma <strong>Reserva</strong> (Agendamento Provisório).
-        </div>
-
-        <div class="modal-body-scroll" style="max-height: calc(100vh - 150px); overflow-y: auto; padding: 25px;">
-            <div class="modal-info" style="margin-bottom: 20px; padding: 12px 15px; background: var(--bg-color); border-radius: 8px; border-left: 4px solid var(--primary-red);">
-                <span style="font-size: 0.9rem; color: var(--text-color);">Professor Principal: <strong id="modal-cal-docente-nome" style="color: var(--primary-red);"></strong></span>
+        <div style="padding: 0 25px 10px;">
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label class="form-label">Buscar por nome</label>
+                <input type="text" id="prof-search-input-unified" class="form-input"
+                    placeholder="Digite o nome do professor..." autocomplete="off">
             </div>
-
-            <form id="form-agendar-calendar">
-                <input type="hidden" name="docente_id" id="modal-cal-docente-id">
-
-                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                    <div class="form-group">
-                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">CURSO</label>
-                        <select name="curso_id" id="modal-cal-curso-id" class="form-input">
-                            <option value="">Selecione o curso...</option>
-                            <?php
-                            $cursos_ag = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome, carga_horaria_total, area, tipo FROM curso ORDER BY area ASC, nome ASC"), MYSQLI_ASSOC);
-                            $grouped_cursos_ag = [];
-                            foreach ($cursos_ag as $c_ag) {
-                                $area_ag = $c_ag['area'] ?: 'Outros';
-                                $grouped_cursos_ag[$area_ag][] = $c_ag;
-                            }
-                            foreach ($grouped_cursos_ag as $area_label => $lista_ag): ?>
-                                <optgroup label="<?= htmlspecialchars(mb_strtoupper($area_label, 'UTF-8')) ?>">
-                                    <?php foreach ($lista_ag as $c_ag): ?>
-                                        <option value="<?= $c_ag['id'] ?>" data-area="<?= htmlspecialchars($c_ag['area'] ?? '') ?>"
-                                            data-ch="<?= $c_ag['carga_horaria_total'] ?>">
-                                            <?= htmlspecialchars($c_ag['nome']) ?> (<?= htmlspecialchars($c_ag['tipo'] ?? '') ?>) -
-                                            <?= $c_ag['carga_horaria_total'] ?>h
-                                        </option>
-                                    <?php endforeach; ?>
-                                </optgroup>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">SIGLA DA TURMA <span style="font-weight: normal; opacity: 0.7;">(Opcional)</span></label>
-                        <input type="text" name="sigla" class="form-input" placeholder="Ex: TI-2026-123">
-                    </div>
-                </div>
-
-                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                    <div class="form-group">
-                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">VAGAS</label>
-                        <input type="number" name="vagas" class="form-input" value="32" min="1" max="100">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">CARGA HORÁRIA</label>
-                        <input type="number" name="carga_horaria" id="modal-cal-ch" class="form-input" placeholder="0" min="1">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">LOCAL</label>
-                        <input type="text" name="local" class="form-input" placeholder="Ex: Unidade SJC" value="Sede">
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">AMBIENTE</label>
-                    <select name="ambiente_id" id="modal-cal-ambiente-id" class="form-input" required>
-                        <option value="">Selecione o ambiente...</option>
-                        <?php
-                        $ambientes_ag = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome, tipo FROM ambiente ORDER BY tipo ASC, nome ASC"), MYSQLI_ASSOC);
-                        $grouped_amb_ag = [];
-                        foreach ($ambientes_ag as $a_ag) {
-                            $tipo_ag = $a_ag['tipo'] ?: 'Outros';
-                            $grouped_amb_ag[$tipo_ag][] = $a_ag;
-                        }
-                        foreach ($grouped_amb_ag as $tipo_label => $lista_amb): ?>
-                            <optgroup label="<?= htmlspecialchars($tipo_label) ?>">
-                                <?php foreach ($lista_amb as $a_ag): ?>
-                                    <option value="<?= $a_ag['id'] ?>" data-tipo="<?= htmlspecialchars($a_ag['tipo'] ?? '') ?>">
-                                        <?= htmlspecialchars($a_ag['nome']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </optgroup>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label class="form-label" style="display: block; font-size: 0.9rem; color: var(--primary-red); font-weight: 800; border-bottom: 2px solid rgba(237,28,36,0.1); padding-bottom: 8px; margin-bottom: 15px; text-transform: uppercase;">
-                        <i class="fas fa-chalkboard-teacher"></i> Corpo Docente (Até 4)
-                    </label>
-                    
-                    <div id="modal-cal-selected-docentes-container" class="docentes-list-v4">
-                        <!-- Preenchido via JavaScript -->
-                    </div>
-
-                    <button type="button" class="add-docente-btn-v4" id="btn-modal-cal-abrir-docentes" style="display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 12px; background: var(--bg-hover); border: 1px dashed var(--border-color); border-radius: 8px; color: var(--text-color); font-weight: 700; cursor: pointer; transition: all 0.2s;">
-                        <i class="fas fa-plus-circle"></i> ADICIONAR DOCENTE
-                    </button>
-                    
-                    <!-- Campos Ocultos para o Formulário -->
-                    <input type="hidden" name="docente_id1" id="modal-cal-hidden-docente-1" value="">
-                    <input type="hidden" name="docente_id2" id="modal-cal-hidden-docente-2" value="">
-                    <input type="hidden" name="docente_id3" id="modal-cal-hidden-docente-3" value="">
-                    <input type="hidden" name="docente_id4" id="modal-cal-hidden-docente-4" value="">
-                </div>
-
-                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                    <div class="form-group">
-                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">PERÍODO</label>
-                        <select name="periodo" id="modal-cal-periodo" class="form-input" required>
-                            <option value="">Selecione o período...</option>
-                            <option value="Manhã">Manhã</option>
-                            <option value="Tarde">Tarde</option>
-                            <option value="Noite">Noite</option>
-                            <option value="Integral">Integral</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">TIPO</label>
-                        <select name="tipo" class="form-input">
-                            <option value="Presencial">Presencial</option>
-                            <option value="EAD">EAD</option>
-                            <option value="Híbrido">Híbrido</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-group-last" style="margin-bottom: 20px;">
-                    <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">DIAS DA SEMANA</label>
-                    <div class="dias-checkboxes" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <?php
-                        $dias_labels_ag = ['Seg' => 'Segunda-feira', 'Ter' => 'Terça-feira', 'Qua' => 'Quarta-feira', 'Qui' => 'Quinta-feira', 'Sex' => 'Sexta-feira', 'Sáb' => 'Sábado'];
-                        foreach ($dias_labels_ag as $short_ag => $full_ag): ?>
-                            <label class="dia-checkbox-label" style="flex: 1; min-width: 60px; height: 45px; border: 1px solid var(--border-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; position: relative; background: var(--bg-color);">
-                                <input type="checkbox" name="dias_semana[]" value="<?= $full_ag ?>" style="position: absolute; opacity: 0; cursor: pointer;">
-                                <span class="dia-checkbox-text" style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);"><?= $short_ag ?></span>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-
-                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                    <div>
-                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">DATA INÍCIO</label>
-                        <input type="date" id="modal-cal-data-inicio" name="data_inicio" class="form-input" required>
-                    </div>
-                    <div>
-                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">DATA FIM</label>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="date" id="modal-cal-data-fim" name="data_fim" class="form-input" required
-                                style="background: var(--bg-hover); cursor: not-allowed; flex: 1;" readonly>
-                            <label style="display: flex; align-items: center; gap: 5px; font-size: 0.8rem; white-space: nowrap; cursor: pointer; color: var(--text-color);">
-                                <input type="checkbox" id="modal-cal-calc-auto" checked style="width: 16px; height: 16px;">
-                                Auto
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div id="modal-cal-data-fim-info" style="font-size: 0.82rem; color: var(--text-muted); margin-top: -15px; margin-bottom: 20px; font-weight: 500;"></div>
-
-                <div class="form-grid" id="horario-fields" style="display: none; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                    <div>
-                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">HORÁRIO INÍCIO</label>
-                        <input type="time" name="horario_inicio" class="form-input" value="07:30" min="07:30" id="res_horario_inicio">
-                    </div>
-                    <div>
-                        <label class="form-label" style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">HORÁRIO FIM</label>
-                        <input type="time" name="horario_fim" class="form-input" value="11:30" id="res_horario_fim">
-                    </div>
-                </div>
-
-                <div class="sim-toggle-container" style="margin-bottom: 20px; padding: 12px 15px; background: rgba(46, 125, 50, 0.05); border-radius: 10px; border: 1px solid rgba(46, 125, 50, 0.1);">
-                    <label class="sim-toggle-label" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                        <input type="checkbox" name="simulacao" id="simulacao-toggle" value="1" style="width: 18px; height: 18px;">
-                        <span class="sim-toggle-text" style="font-size: 0.9rem; font-weight: 600; color: #2e7d32;">
-                            <i class="fas fa-vial"></i> Modo Simulação (Verificar Conflitos)
-                        </span>
-                    </label>
-                </div>
-
-                <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin'): ?>
-                    <div id="admin-reservation-actions" style="display: none; margin-top: 15px; border-top: 1px dashed var(--border-color); padding-top: 20px; text-align: center;">
-                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; font-weight: 600;">Ações de Administrador:</p>
-                        <button type="button" id="btn-remover-reserva" class="btn"
-                            style="background: #ef5350; color: white; width: 100%; border: none; padding: 12px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s;">
-                            <i class="fas fa-trash-alt" style="margin-right: 8px;"></i> Remover Reserva deste Dia
-                        </button>
-                    </div>
-                <?php endif; ?>
-
-                <div id="simulation-results" style="margin-top: 15px; display: none;"></div>
-
-                <div class="form-actions" style="margin-top: 30px;">
-                    <input type="hidden" name="is_reserva" id="modal-cal-is-reserva" value="0">
-                    <button type="submit" id="btn-modal-cal-submit" class="btn btn-primary"
-                        style="width: 100%; justify-content: center; padding: 15px; font-size: 1.05rem; font-weight: 800; background: var(--primary-red); border: none; border-radius: 10px; color: white; cursor: pointer; box-shadow: 0 4px 15px rgba(237,28,36,0.2); display: flex; align-items: center; gap: 10px; transition: all 0.3s;">
-                        <i class="fas fa-calendar-check" style="font-size: 1.2rem;"></i> 
-                        <span id="btn-modal-cal-text">Salvar Turma</span>
-                    </button>
-                </div>
-            </form>
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label class="form-label">Filtrar por área</label>
+                <select id="prof-area-filter-unified" class="form-input">
+                    <option value="">Todas as áreas</option>
+                    <?php
+                    // Re-utilizando as mesmas áreas já buscadas para o modal anterior
+                    foreach ($areas_unique as $area_u): ?>
+                        <option value="<?= htmlspecialchars($area_u) ?>">
+                            <?= htmlspecialchars($area_u) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+        <div id="prof-search-results-unified" style="max-height: 350px; overflow-y: auto; padding: 0 25px 20px;">
+            <!-- Dynamically populated by form_turma_unificado.php scripts -->
         </div>
     </div>
 </div>
+
+<!-- 4. Schedule/Turma Modal (Planejamento) -->
+<div class="modal-overlay" id="modal-agendar-calendar">
+    <div class="modal-content" style="max-width: 750px; padding: 0; border: none; overflow: hidden;">
+        <div class="modal-header"
+            style="padding: 20px 25px; background: var(--bg-hover); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; color: var(--text-color);">
+                <i id="modal-cal-icon" class="fas fa-calendar-plus" style="color: var(--primary-red);"></i>
+                <span id="modal-cal-title">Salvar Turma</span>
+            </h3>
+            <button class="modal-close" id="modal-cal-close" onclick="closeModal('modal-agendar-calendar')"
+                style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted);"><i
+                    class="fas fa-times"></i></button>
+        </div>
+
+        <div class="modal-body-scroll" style="max-height: calc(100vh - 150px); overflow-y: auto; padding: 25px;">
+            <?php include __DIR__ . '/../form_turma_unificado.php'; ?>
+        </div>
     </div>
 </div>
 
@@ -559,3 +401,76 @@
         </div>
     </div>
 </div>
+
+<!-- 9. GitHub-Style Delete Confirmation Modal (Turmas) -->
+<div id="modal-confirm-hard-delete" class="modal-overlay">
+    <div class="modal-content" style="max-width: 450px; border-top: 5px solid #d32f2f;">
+        <div class="modal-header"
+            style="justify-content: space-between; align-items: center; display: flex; padding: 15px 20px; border-bottom: 1px solid var(--border-color);">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; color: var(--text-color);">
+                <i class="fas fa-exclamation-triangle" style="color: #d32f2f;"></i> Deletar permanentemente?
+            </h3>
+            <button class="modal-close" onclick="closeModal('modal-confirm-hard-delete')"
+                style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted);"><i
+                    class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="padding: 25px;">
+            <div
+                style="background: rgba(211, 47, 47, 0.05); border-left: 4px solid #d32f2f; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                <p style="color: #d32f2f; font-weight: 600; margin: 0; font-size: 0.95rem;">
+                    Esta ação não pode ser desfeita.
+                </p>
+                <p style="margin: 5px 0 0; font-size: 0.85rem; color: var(--text-muted);">
+                    Isso excluirá os registros da turma e toda a sua agenda permanentemente.
+                </p>
+            </div>
+
+            <p style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-color);">Para confirmar, digite a sigla
+                da turma abaixo:</p>
+            <p id="delete-expected-sigla"
+                style="font-family: 'Courier New', Courier, monospace; background: var(--bg-hover); padding: 12px; border-radius: 6px; text-align: center; font-weight: 700; border: 2px dashed #d32f2f; margin-bottom: 20px; color: #d32f2f; font-size: 1.2rem; letter-spacing: 1px;">
+            </p>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <input type="text" id="delete-confirm-input" class="form-input"
+                    style="width: 100%; border: 2px solid var(--border-color); padding: 12px; border-radius: 8px; font-size: 1rem; text-align: center;"
+                    placeholder="Digite a sigla para confirmar..." autocomplete="off"
+                    oninput="checkDeleteSiglaConsistency()">
+            </div>
+
+            <div style="margin-top: 25px;">
+                <button id="btn-confirm-delete-permanent" class="btn btn-delete"
+                    style="width: 100%; justify-content: center; padding: 15px; background: #d32f2f; color: white; opacity: 0.5; border-radius: 8px; border: none; cursor: not-allowed; font-weight: 700; transition: all 0.2s;"
+                    disabled onclick="executePermanentDelete()">
+                    <i class="fas fa-trash-alt" style="margin-right: 8px;"></i> Entendo as consequências, excluir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentDeleteId = null;
+    let expectedSigla = "";
+
+    function checkDeleteSiglaConsistency() {
+        const input = document.getElementById('delete-confirm-input').value;
+        const btn = document.getElementById('btn-confirm-delete-permanent');
+        if (input === expectedSigla) {
+            btn.disabled = false;
+            btn.style.opacity = "1";
+            btn.style.cursor = "pointer";
+            btn.style.background = "#b71c1c";
+        } else {
+            btn.disabled = true;
+            btn.style.opacity = "0.5";
+            btn.style.cursor = "not-allowed";
+            btn.style.background = "#d32f2f";
+        }
+    }
+
+    function executePermanentDelete() {
+        if (!currentDeleteId) return;
+        window.location.href = `../controllers/turmas_process.php?action=delete&id=${currentDeleteId}&confirm=permanent`;
+    }
+</script>

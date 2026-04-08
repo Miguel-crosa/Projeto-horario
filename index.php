@@ -1,6 +1,12 @@
 <?php
 require_once __DIR__ . '/php/configs/db.php';
 require_once __DIR__ . '/php/configs/utils.php';
+require_once __DIR__ . '/php/configs/auth.php';
+
+if (isCRI()) {
+    header("Location: php/views/dashboard_vendas.php");
+    exit;
+}
 
 if (!isset($_GET['ajax_render'])) {
     include __DIR__ . '/php/components/header.php';
@@ -174,7 +180,9 @@ foreach ($areas_raw as $ar) {
     }
 }
 sort($unique_areas);
-$areas_list = array_map(function($a) { return ['area_conhecimento' => $a]; }, $unique_areas);
+$areas_list = array_map(function ($a) {
+    return ['area_conhecimento' => $a];
+}, $unique_areas);
 
 $turmas_cidade = mysqli_fetch_all(mysqli_query($conn, "
     SELECT COALESCE(amb.cidade, 'Sede') AS cidade, COUNT(t.id) AS total
@@ -339,31 +347,34 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
 
         <!-- Filtros por Área -->
         <?php if (!empty($areas_list)): ?>
-        <div class="area-filter-bar" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; padding: 16px 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; align-items: center;">
-            <span style="font-weight: 800; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-right: 8px; display: flex; align-items: center; gap: 6px;">
-                <i class="fas fa-filter"></i> Filtrar por Área:
-            </span>
-            <a href="?mes_sel=<?= urlencode($mes_sel) ?>&docente_id=<?= urlencode($filtro_docente_id) ?>&prof_page=1"
-                class="area-filter-btn <?= empty($filtro_area) ? 'active' : '' ?>"
-                style="padding: 7px 18px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-decoration: none; transition: all 0.25s ease; border: 1.5px solid <?= empty($filtro_area) ? 'var(--primary-red)' : 'var(--border-color)' ?>; background: <?= empty($filtro_area) ? 'var(--primary-red)' : 'var(--card-bg)' ?>; color: <?= empty($filtro_area) ? '#fff' : 'var(--text-color)' ?>; cursor: pointer;">
-                Todos
-            </a>
-            <?php foreach ($areas_list as $al): 
-                $area_val = $al['area_conhecimento'];
-                $is_active = ($filtro_area === $area_val);
-                // Conta docentes nessa área
-                $area_count_esc = mysqli_real_escape_string($conn, $area_val);
-                $area_count_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM docente WHERE ativo = 1 AND area_conhecimento LIKE '%$area_count_esc%'");
-                $area_count = mysqli_fetch_assoc($area_count_q)['c'];
-            ?>
-                <a href="?filtro_area=<?= urlencode($area_val) ?>&mes_sel=<?= urlencode($mes_sel) ?>&docente_id=<?= urlencode($filtro_docente_id) ?>&prof_page=1"
-                    class="area-filter-btn <?= $is_active ? 'active' : '' ?>"
-                    style="padding: 7px 18px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-decoration: none; transition: all 0.25s ease; border: 1.5px solid <?= $is_active ? 'var(--primary-red)' : 'var(--border-color)' ?>; background: <?= $is_active ? 'var(--primary-red)' : 'var(--card-bg)' ?>; color: <?= $is_active ? '#fff' : 'var(--text-color)' ?>; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                    <?= htmlspecialchars($area_val) ?>
-                    <span style="background: <?= $is_active ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.08)' ?>; padding: 1px 7px; border-radius: 10px; font-size: 0.7rem;"><?= $area_count ?></span>
+            <div class="area-filter-bar"
+                style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; padding: 16px 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; align-items: center;">
+                <span
+                    style="font-weight: 800; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-right: 8px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-filter"></i> Filtrar por Área:
+                </span>
+                <a href="?mes_sel=<?= urlencode($mes_sel) ?>&docente_id=<?= urlencode($filtro_docente_id) ?>&prof_page=1"
+                    class="area-filter-btn <?= empty($filtro_area) ? 'active' : '' ?>"
+                    style="padding: 7px 18px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-decoration: none; transition: all 0.25s ease; border: 1.5px solid <?= empty($filtro_area) ? 'var(--primary-red)' : 'var(--border-color)' ?>; background: <?= empty($filtro_area) ? 'var(--primary-red)' : 'var(--card-bg)' ?>; color: <?= empty($filtro_area) ? '#fff' : 'var(--text-color)' ?>; cursor: pointer;">
+                    Todos
                 </a>
-            <?php endforeach; ?>
-        </div>
+                <?php foreach ($areas_list as $al):
+                    $area_val = $al['area_conhecimento'];
+                    $is_active = ($filtro_area === $area_val);
+                    // Conta docentes nessa área
+                    $area_count_esc = mysqli_real_escape_string($conn, $area_val);
+                    $area_count_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM docente WHERE ativo = 1 AND area_conhecimento LIKE '%$area_count_esc%'");
+                    $area_count = mysqli_fetch_assoc($area_count_q)['c'];
+                    ?>
+                    <a href="?filtro_area=<?= urlencode($area_val) ?>&mes_sel=<?= urlencode($mes_sel) ?>&docente_id=<?= urlencode($filtro_docente_id) ?>&prof_page=1"
+                        class="area-filter-btn <?= $is_active ? 'active' : '' ?>"
+                        style="padding: 7px 18px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-decoration: none; transition: all 0.25s ease; border: 1.5px solid <?= $is_active ? 'var(--primary-red)' : 'var(--border-color)' ?>; background: <?= $is_active ? 'var(--primary-red)' : 'var(--card-bg)' ?>; color: <?= $is_active ? '#fff' : 'var(--text-color)' ?>; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                        <?= htmlspecialchars($area_val) ?>
+                        <span
+                            style="background: <?= $is_active ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.08)' ?>; padding: 1px 7px; border-radius: 10px; font-size: 0.7rem;"><?= $area_count ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
 
         <div class="dashboard-grid">
@@ -879,14 +890,18 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     style="color: white;">&times;</button>
             </div>
             <div class="modal-producao-body">
-                <div class="producao-kpi-container" onclick="openRessarcimentoListaModal()" style="cursor: pointer;"
-                    title="Clique para ver o detalhamento por turma">
-                    <div class="producao-kpi-card"
-                        style="border-left-color: #388e3c; background: linear-gradient(135deg, #388e3c, #2e7d32);">
-                        <span class="kpi-label">Arrecadação Total Estimada</span>
+                <div class="producao-kpi-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="producao-kpi-card" onclick="openRessarcimentoListaModal()"
+                        style="cursor: pointer; border-left-color: #388e3c; background: linear-gradient(135deg, #388e3c, #2e7d32);">
+                        <span class="kpi-label">Arrecadação Real (Confirmada)</span>
                         <span class="kpi-value" id="total-ressarcido-geral">R$ 0,00</span>
-                        <span class="kpi-subtext"><i class="fas fa-search-plus"></i> Clique para ver o detalhamento
-                            individual</span>
+                        <span class="kpi-subtext"><i class="fas fa-search-plus"></i> Ver detalhamento real</span>
+                    </div>
+                    <div class="producao-kpi-card"
+                        style="border-left-color: #fb8c00; background: linear-gradient(135deg, #fb8c00, #ef6c00);">
+                        <span class="kpi-label">Pipeline (Reservas)</span>
+                        <span class="kpi-value" id="total-ressarcido-pipeline">R$ 0,00</span>
+                        <span class="kpi-subtext"><i class="fas fa-info-circle"></i> Turmas em negociação</span>
                     </div>
                 </div>
                 <div class="producao-chart-section">
@@ -928,14 +943,18 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     style="color: white;">&times;</button>
             </div>
             <div class="modal-producao-body">
-                <div class="producao-kpi-container" onclick="openDespesasListaModal()" style="cursor: pointer;"
-                    title="Clique para ver o detalhamento por turma">
-                    <div class="producao-kpi-card"
-                        style="border-left-color: #e65100; background: linear-gradient(135deg, #e65100, #bf360c);">
-                        <span class="kpi-label">Gasto Total Previsto</span>
+                <div class="producao-kpi-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="producao-kpi-card" onclick="openDespesasListaModal()"
+                        style="cursor: pointer; border-left-color: #e65100; background: linear-gradient(135deg, #e65100, #bf360c);">
+                        <span class="kpi-label">Gasto Real (Confirmado)</span>
                         <span class="kpi-value" id="total-previsao-despesas">R$ 0,00</span>
-                        <span class="kpi-subtext"><i class="fas fa-search-plus"></i> Clique para ver o detalhamento
-                            individual</span>
+                        <span class="kpi-subtext"><i class="fas fa-search-plus"></i> Ver detalhamento real</span>
+                    </div>
+                    <div class="producao-kpi-card"
+                        style="border-left-color: #546e7a; background: linear-gradient(135deg, #78909c, #546e7a);">
+                        <span class="kpi-label">Pipeline de Despesas (Reservas)</span>
+                        <span class="kpi-value" id="total-previsao-despesas-pipeline">R$ 0,00</span>
+                        <span class="kpi-subtext"><i class="fas fa-info-circle"></i> Previsão para reservas</span>
                     </div>
                 </div>
                 <div class="producao-chart-section">
