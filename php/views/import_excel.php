@@ -939,10 +939,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
 
                             $periodo = $r['periodo'] ?? $r['turno'] ?? '';
                             $horario = $r['horario'] ?? $r['horarios'] ?? $r['horariodetrabalho'] ?? '';
+                            
+                            // NOVOS CAMPOS: Vigência e Ano
+                            $dt_ini = parseExcelDate($r['datainicio'] ?? $r['data_inicio'] ?? $r['inicio'] ?? '');
+                            $dt_fim = parseExcelDate($r['datafim'] ?? $r['data_fim'] ?? $r['fim'] ?? '');
+                            $ano = (int) ($r['ano'] ?? 0);
+                            
+                            // Fallbacks
+                            if (!$ano && $dt_ini) $ano = (int) date('Y', strtotime($dt_ini));
+                            if (!$ano) $ano = (int) date('Y');
+                            if (!$dt_ini) $dt_ini = $ano . '-01-01';
+                            if (!$dt_fim) $dt_fim = $ano . '-12-31';
 
-                            // A MÁGICA AQUI: Se a linha não tem um professor ou não tem dias, 
-                            // nós assumimos que é lixo do Excel (linhas em branco com formatação, 
-                            // totalizadores, anotações soltas) e pulamos ela silenciosamente.
                             if (empty($pname) || empty($dias_str)) {
                                 continue;
                             }
@@ -954,6 +962,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                             $did_ht = $sp->get_result()->fetch_row()[0] ?? null;
 
                             if ($did_ht) {
+                                // Limpa apenas na primeira vez que o professor aparece na planilha
                                 if (!isset($ht_cleared_profs[$did_ht])) {
                                     $mysqli->query("DELETE FROM horario_trabalho WHERE docente_id = $did_ht");
                                     $ht_cleared_profs[$did_ht] = true;
@@ -968,12 +977,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                                 }
 
                                 if (!empty($dias_str)) {
-                                    $stmt_ht = $mysqli->prepare("INSERT INTO horario_trabalho (docente_id, dias, periodo, horario) VALUES (?, ?, ?, ?)");
-                                    $stmt_ht->bind_param('isss', $did_ht, $dias_str, $periodo, $horario);
+                                    $stmt_ht = $mysqli->prepare("INSERT INTO horario_trabalho (docente_id, dias, periodo, horario, data_inicio, data_fim, ano) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                                    $stmt_ht->bind_param('isssssi', $did_ht, $dias_str, $periodo, $horario, $dt_ini, $dt_fim, $ano);
                                     $stmt_ht->execute();
                                 }
                             } else {
-                                // O erro agora só aparece se a linha for válida, mas você digitou um professor que não existe no banco
                                 throw new Exception("Docente \"$pname\" não encontrado no banco de dados. Cadastre-o primeiro.");
                             }
                         }

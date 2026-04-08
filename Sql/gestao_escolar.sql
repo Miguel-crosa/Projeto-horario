@@ -56,16 +56,23 @@ CREATE TABLE IF NOT EXISTS docente (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================
--- 3.1 HORÁRIO DE TRABALHO
+-- 3.1 HORÁRIO DE TRABALHO (com suporte a Blocos Sazonais por Ano/Intervalo)
+-- Cada linha representa uma regra de disponibilidade dentro de um "Bloco".
+-- Um "Bloco" é definido por data_inicio e data_fim.
+-- Múltiplos blocos permitem horários diferentes em períodos distintos do ano.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS horario_trabalho (
     id INT(11) NOT NULL AUTO_INCREMENT,
     docente_id INT(11) NOT NULL,
-    dias VARCHAR(255) DEFAULT NULL,
-    periodo VARCHAR(50) DEFAULT NULL,
-    horario VARCHAR(50) DEFAULT NULL,
+    dias VARCHAR(255) DEFAULT NULL,           -- Dias da semana autorizados (ex: "Segunda-feira,Quarta-feira")
+    periodo VARCHAR(50) DEFAULT NULL,         -- Período: Manhã, Tarde ou Noite
+    horario VARCHAR(50) DEFAULT NULL,         -- Horário (ex: "07:30 as 11:30")
+    data_inicio DATE DEFAULT NULL,            -- Início da vigência do bloco (ex: 2026-01-01)
+    data_fim DATE DEFAULT NULL,               -- Fim da vigência do bloco    (ex: 2026-04-30)
+    ano YEAR DEFAULT NULL,                    -- Ano do bloco (derivado de data_inicio para agrupamento na UI)
     PRIMARY KEY (id),
     INDEX (docente_id),
+    INDEX idx_ht_bloco (docente_id, data_inicio, data_fim),
     FOREIGN KEY (docente_id) REFERENCES docente(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -129,6 +136,7 @@ CREATE TABLE IF NOT EXISTS turma (
     contato_parceiro VARCHAR(255) DEFAULT NULL,
     horario_inicio TIME DEFAULT '07:30',
     horario_fim TIME DEFAULT '11:30',
+    ativo TINYINT(1) DEFAULT 1,
     PRIMARY KEY (id),
     FOREIGN KEY (curso_id) REFERENCES curso(id),
     FOREIGN KEY (ambiente_id) REFERENCES ambiente(id)
@@ -284,3 +292,29 @@ VALUES ('roberto', 'roberto@senai.br', '$2y$10$XFjAiGRelFifZrzlE.pWheJrBhacywoE.
 -- ADD COLUMN tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão' AFTER numero_proposta,
 -- ADD COLUMN parceiro VARCHAR(255) DEFAULT NULL AFTER tipo_atendimento,
 -- ADD COLUMN contato_parceiro VARCHAR(255) DEFAULT NULL AFTER parceiro;
+
+-- ============================================================
+-- MIGRATION (08/04/2026) - BLOCOS SAZONAIS DE HORÁRIO DE TRABALHO
+-- Execute estes comandos se seu banco já estiver criado.
+-- São IDEMPOTENTES: podem ser rodados múltiplas vezes sem erro.
+-- ============================================================
+
+-- 1. Adicionar novas colunas na tabela horario_trabalho (somente se não existirem)
+-- ALTER TABLE horario_trabalho
+-- ADD COLUMN IF NOT EXISTS data_inicio DATE DEFAULT NULL COMMENT 'Início da vigência do bloco',
+-- ADD COLUMN IF NOT EXISTS data_fim    DATE DEFAULT NULL COMMENT 'Fim da vigência do bloco',
+-- ADD COLUMN IF NOT EXISTS ano         YEAR DEFAULT NULL COMMENT 'Ano do bloco para agrupamento na UI';
+
+-- 2. Criar índice de performance (ignora erro se já existir)
+-- ALTER TABLE horario_trabalho
+-- ADD INDEX IF NOT EXISTS idx_ht_bloco (docente_id, data_inicio, data_fim);
+
+-- 3. Migrar registros LEGADOS (sem data_inicio/data_fim) para um bloco padrão do ano corrente.
+-- Isso garante que horários já cadastrados continuem funcionando normalmente.
+
+-- UPDATE horario_trabalho
+-- SET
+-- data_inicio = CONCAT(YEAR(CURDATE()), '-01-01'),
+-- data_fim    = CONCAT(YEAR(CURDATE()), '-12-31'),
+-- ano         = YEAR(CURDATE())
+-- WHERE data_inicio IS NULL OR data_fim IS NULL;

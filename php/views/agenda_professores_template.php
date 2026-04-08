@@ -79,11 +79,23 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
         </div>
 
         <div class="month-nav-group" <?php if ($view_mode == 'calendar'): ?>style="display:none;"<?php endif; ?>>
-            <label class="period-label-text">Navegação por Mês</label>
-            <div class="month-nav-controls">
-                <button onclick="navigateMonth(-1)" class="month-btn-nav" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-chevron-left" style="font-size:0.75rem;"></i></button>
-                <span id="global-month-label" style="font-weight: 800; font-size: 0.95rem; min-width: 140px; text-align: center; text-transform: capitalize; color: var(--text-color);"><?php echo $month_label; ?></span>
-                <button onclick="navigateMonth(1)" class="month-btn-nav" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-chevron-right" style="font-size:0.75rem;"></i></button>
+            <label class="period-label-text">Período de Exibição</label>
+            <div class="month-nav-controls" style="display: flex; gap: 15px; align-items: center;">
+                <!-- Seletor de Mês -->
+                <div class="sub-nav-group" style="display: flex; align-items: center; gap: 8px;">
+                    <button onclick="navigateMonth(-1)" class="month-btn-nav" title="Mês Anterior" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-chevron-left" style="font-size:0.75rem;"></i></button>
+                    <span id="global-month-label" style="font-weight: 800; font-size: 0.95rem; min-width: 110px; text-align: center; text-transform: capitalize; color: var(--text-color);"><?php echo $months_pt[$m_num]; ?></span>
+                    <button onclick="navigateMonth(1)" class="month-btn-nav" title="Próximo Mês" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-chevron-right" style="font-size:0.75rem;"></i></button>
+                </div>
+
+                <div style="width: 1px; height: 24px; background: var(--border-color);"></div>
+
+                <!-- NOVO: Seletor de Ano -->
+                <div class="sub-nav-group" style="display: flex; align-items: center; gap: 8px;">
+                    <button onclick="navigateYear(-1)" class="month-btn-nav" title="Ano Anterior" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-angle-double-left" style="font-size:0.75rem;"></i></button>
+                    <span id="global-year-label" style="font-weight: 800; font-size: 0.95rem; min-width: 50px; text-align: center; color: var(--text-color); cursor:pointer;" onclick="openGlobalAnoModal()"><?php echo $m_year; ?></span>
+                    <button onclick="navigateYear(1)" class="month-btn-nav" title="Próximo Ano" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-angle-double-right" style="font-size:0.75rem;"></i></button>
+                </div>
             </div>
         </div>
     </div>
@@ -163,20 +175,30 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
 
     function navigateMonth(offset) {
         const [year, month] = window.__currentMonth.split('-').map(Number);
-        // Semestral utiliza um salto de 6 meses
         const actualOffset = window.__viewMode === 'semestral' ? offset * 6 : offset;
         const date = new Date(year, month - 1 + actualOffset, 1);
+        updateDateAndReload(date);
+    }
+
+    function navigateYear(offset) {
+        const [year, month] = window.__currentMonth.split('-').map(Number);
+        const date = new Date(year + offset, month - 1, 1);
+        updateDateAndReload(date);
+    }
+
+    function updateDateAndReload(date) {
         const nextMonth = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+        const monthsPt = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const monthsPtFull = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
         
         const labelEl = document.getElementById('global-month-label');
-        const monthsPt = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        const yearEl = document.getElementById('global-year-label');
         
         const prevYear = window.__currentMonth.split('-')[0];
         const newYear = nextMonth.split('-')[0];
 
         if (window.__viewMode === 'timeline') {
-            // Timeline Anual: Apenas rolar se for o mesmo ano, senão recarregar
-            if (prevYear !== newYear) {
+            if (prevYear != newYear) {
                 location.href = updateUrlParam(window.location.href, 'month', nextMonth);
                 return;
             }
@@ -186,39 +208,36 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                 document.querySelectorAll('.timeline-grid').forEach(grid => {
                     grid.scrollTo({ left: targetMonth.offsetLeft, behavior: 'smooth' });
                 });
-                if (labelEl) labelEl.textContent = monthsPt[date.getMonth()] + ' ' + date.getFullYear();
+                if (labelEl) labelEl.textContent = monthsPtFull[date.getMonth()];
+                if (yearEl) yearEl.textContent = date.getFullYear();
                 window.__currentMonth = nextMonth;
                 updateUrlMonth(nextMonth);
             } else {
                 location.href = updateUrlParam(window.location.href, 'month', nextMonth);
             }
         } else if (window.__viewMode === 'calendar') {
-             // Calendário: atualiza a currentDate e renderiza novamente
              if (window.currentDate && typeof window.renderCalendar === 'function') {
                  window.currentDate = date;
                  window.__currentMonth = nextMonth;
                  
-                 // Se mudou o ano, recarrega os dados da API
-                 if (prevYear !== newYear && typeof window.loadDocenteAgenda === 'function' && window.currentDocenteId) {
+                 if (prevYear != newYear && typeof window.loadDocenteAgenda === 'function' && window.currentDocenteId) {
                      window.loadDocenteAgenda(window.currentDocenteId, nextMonth).then(() => {
+                         let l = monthsPtFull[date.getMonth()];
+                         if (labelEl) labelEl.textContent = l;
+                         if (yearEl) yearEl.textContent = date.getFullYear();
                          window.renderCalendar();
-                         if (typeof window.updateAvailabilityBar === 'function') window.updateAvailabilityBar();
                      });
                  } else {
+                     let l = monthsPtFull[date.getMonth()];
+                     if (labelEl) labelEl.textContent = l;
+                     if (yearEl) yearEl.textContent = date.getFullYear();
                      window.renderCalendar();
-                     if (typeof window.updateAvailabilityBar === 'function') window.updateAvailabilityBar();
                  }
-
-                 const newLabel = monthsPt[date.getMonth()] + ' ' + date.getFullYear();
-                 if (labelEl) labelEl.textContent = newLabel;
-                 const labelElBottom = document.getElementById('global-month-label-bottom');
-                 if (labelElBottom) labelElBottom.textContent = newLabel;
                  updateUrlMonth(nextMonth);
              } else {
                  location.href = updateUrlParam(window.location.href, 'month', nextMonth);
              }
         } else {
-            // Blocos ou Semestral: carrega conteúdo parcial via AJAX
             const url = new URL(window.location.href);
             url.searchParams.set('month', nextMonth);
             url.searchParams.set('ajax_render', '1');
@@ -233,18 +252,21 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                         document.querySelector('.table-container').replaceWith(newTable);
                         window.__currentMonth = nextMonth;
                         if (labelEl) {
-                           // Para o semestral, o rótulo pode ser diferente
-                           const mNum = date.getMonth() + 1;
                            if (window.__viewMode === 'semestral') {
+                               const mNum = date.getMonth() + 1;
                                const semNum = (mNum <= 6) ? 1 : 2;
-                               labelEl.textContent = semNum + 'º Semestre ' + date.getFullYear() + (semNum == 1 ? ' (Jan–Jun)' : ' (Jul–Dez)');
+                               labelEl.textContent = semNum + 'º Semestre';
                            } else {
-                               labelEl.textContent = monthsPt[date.getMonth()] + ' ' + date.getFullYear();
+                               labelEl.textContent = monthsPtFull[date.getMonth()];
                            }
                         }
+                        if (yearEl) yearEl.textContent = date.getFullYear();
                         updateUrlMonth(nextMonth);
                     }
                 });
+        }
+    }
+    });
         }
     }
 
@@ -288,6 +310,24 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
         });
         const btnModo = document.getElementById('btn-modo-reserva-unificado');
         if (btnModo) btnModo.style.display = 'inline-flex';
+    }
+
+    // Modal de Ano Global para a Agenda
+    function openGlobalAnoModal() {
+        const [year, month] = window.__currentMonth.split('-').map(Number);
+        
+        // Modal genérico de seleção de ano (Reaproveitado do professores_form ou customizado aqui)
+        // Por simplificação UX, vamos usar um prompt ou se você quiser a mesma estética, criamos o modal:
+        if (typeof showCustomYearPicker === 'function') {
+            showCustomYearPicker(year, (newYear) => {
+                navigateYear(newYear - year);
+            });
+        } else {
+            const y = prompt("Digite o ano (1926-2126):", year);
+            if (y && y >= 1926 && y <= 2126) {
+                navigateYear(parseInt(y) - year);
+            }
+        }
     }
 </script>
 

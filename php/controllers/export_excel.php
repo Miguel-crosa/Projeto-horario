@@ -384,12 +384,15 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
         d.nome AS Docente,
         h.dias AS Dias,
         h.periodo AS Período,
-        h.horario AS Horário
+        h.horario AS Horário,
+        h.data_inicio AS `Data Início`,
+        h.data_fim AS `Data Fim`,
+        h.ano AS Ano
     FROM horario_trabalho h
     JOIN docente d ON h.docente_id = d.id
-    ORDER BY d.nome ASC
+    ORDER BY d.nome ASC, h.data_inicio ASC
 ";
-  renderWorksheet("HORARIO_TRABALHO", $q_ht, $conn);
+  renderWorksheet("HORARIO_TRABALHO", $q_ht, $conn, ['Data Início', 'Data Fim']);
 
   // 11. Bloqueios
   $q_bloqueios = "

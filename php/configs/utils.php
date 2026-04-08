@@ -576,15 +576,24 @@ function isWithinWorkSchedule($conn, $did, $date, $periodo)
     $daysMap = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
     $w = (int) date('w', strtotime($date));
     $nome_dia = $daysMap[$w];
+    $date_esc = mysqli_real_escape_string($conn, $date);
 
     foreach ($check_periods as $p) {
-        $p_esc = mysqli_real_escape_string($conn, $p);
+        $p_esc   = mysqli_real_escape_string($conn, $p);
         $dia_esc = mysqli_real_escape_string($conn, $nome_dia);
 
-        $q = "SELECT id FROM horario_trabalho 
-              WHERE docente_id = $did 
-              AND periodo = '$p_esc' 
-              AND (dias = '$dia_esc' OR FIND_IN_SET('$dia_esc', dias) > 0 OR dias LIKE '%$dia_esc%')";
+        // Verifica se existe um bloco ativo para a data que autoriza esse dia/período
+        $q = "SELECT id FROM horario_trabalho
+              WHERE docente_id = $did
+              AND periodo = '$p_esc'
+              AND (dias = '$dia_esc' OR FIND_IN_SET('$dia_esc', dias) > 0 OR dias LIKE '%$dia_esc%')
+              AND (
+                  -- Bloco legado (sem datas) = sempre válido
+                  (data_inicio IS NULL AND data_fim IS NULL)
+                  OR
+                  -- Bloco sazonal: a data deve estar dentro do intervalo
+                  ('$date_esc' BETWEEN data_inicio AND data_fim)
+              )";
         $res = mysqli_query($conn, $q);
         if (!$res || mysqli_num_rows($res) == 0) {
             return false;
@@ -611,13 +620,34 @@ function checkDocenteWorkSchedule($conn, $did, $data_start, $data_end, $days_arr
             $pts_esc = mysqli_real_escape_string($conn, $pts);
             $dia_esc = mysqli_real_escape_string($conn, $dia_nome);
 
-            $q = "SELECT id FROM horario_trabalho 
-                  WHERE docente_id = $did 
-                  AND periodo = '$pts_esc' 
-                  AND (dias = '$dia_esc' OR FIND_IN_SET('$dia_esc', dias) > 0 OR dias LIKE '%$dia_esc%')";
-            $res = mysqli_query($conn, $q);
-            if (!$res || mysqli_num_rows($res) == 0) {
-                return "Bloqueio: O docente $doc_name não possui autorização de trabalho (horario_trabalho) cadastrada para o período $pts na $dia_nome.";
+            // Precisamos verificar para CADA DATA dentro do intervalo da turma que cai nesse dia.
+            // Para performance, verificamos apenas as datas extremas do intervalo.
+            // Se a turma cruza múltiplos blocos, cada data deve estar coberta.
+            $dates_to_check = [$data_start, $data_end];
+            // Adiciona o 1º dia do bloco intermediário para turmas longas (simples)
+            $mid_ts = (strtotime($data_start) + strtotime($data_end)) / 2;
+            $dates_to_check[] = date('Y-m-d', (int)$mid_ts);
+
+            foreach ($dates_to_check as $check_date) {
+                $dow = (int) date('w', strtotime($check_date));
+                $check_day_name = [0=>'Domingo',1=>'Segunda-feira',2=>'Terça-feira',3=>'Quarta-feira',4=>'Quinta-feira',5=>'Sexta-feira',6=>'Sábado'][$dow];
+                if (mb_strtolower($check_day_name, 'UTF-8') !== mb_strtolower($dia_nome, 'UTF-8'))
+                    continue;
+
+                $check_esc = mysqli_real_escape_string($conn, $check_date);
+                $q = "SELECT id FROM horario_trabalho
+                      WHERE docente_id = $did
+                      AND periodo = '$pts_esc'
+                      AND (dias = '$dia_esc' OR FIND_IN_SET('$dia_esc', dias) > 0 OR dias LIKE '%$dia_esc%')
+                      AND (
+                          (data_inicio IS NULL AND data_fim IS NULL)
+                          OR ('$check_esc' BETWEEN data_inicio AND data_fim)
+                      )";
+                $res = mysqli_query($conn, $q);
+                if (!$res || mysqli_num_rows($res) == 0) {
+                    return "Bloqueio: O docente $doc_name não possui autorização de trabalho (bloco de horário) para o período $pts na $dia_nome em " . date('d/m/Y', strtotime($check_date)) . ".";
+                }
+                break; // basta verificar a primeira data válida do dia
             }
         }
     }

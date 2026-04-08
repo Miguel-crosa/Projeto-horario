@@ -163,8 +163,20 @@ class AgendaModel
             }
         }
 
-        // 7. Horário de Trabalho (Tabela horario_trabalho)
-        $query_ht = "SELECT docente_id, dias, periodo, 'WORK_SCHEDULE' as type FROM horario_trabalho WHERE docente_id IN ($ids_str)";
+        // 7. Horário de Trabalho — Blocos Sazonais
+        // Inclui data_inicio e data_fim para filtrar o intervalo correto de cada bloco.
+        $query_ht = "
+            SELECT docente_id, dias, periodo, horario, data_inicio, data_fim, ano, 'WORK_SCHEDULE' as type
+            FROM horario_trabalho
+            WHERE docente_id IN ($ids_str)
+              AND (
+                  -- Bloco sem datas (legado): inclui sempre
+                  (data_inicio IS NULL AND data_fim IS NULL)
+                  OR
+                  -- Bloco com datas: inclui somente se sobrepõe o intervalo consultado
+                  (data_inicio <= '$end_esc' AND data_fim >= '$start_esc')
+              )
+        ";
         $res_ht = mysqli_query($this->conn, $query_ht);
         if ($res_ht) {
             while ($row = mysqli_fetch_assoc($res_ht)) {
@@ -316,17 +328,22 @@ class AgendaModel
                     $cur->modify('+1 day');
                 }
 
-                // --- HORÁRIO DE TRABALHO ---
+                // --- HORÁRIO DE TRABALHO (Blocos Sazonais) ---
             } elseif ($item['type'] === 'WORK_SCHEDULE') {
-                $cur = new DateTime($start_date);
-                $cur->setTime(0, 0, 0); // FIX
-                $last = new DateTime($end_date);
-                $last->setTime(0, 0, 0); // FIX
+                // Determina o intervalo efetivo do bloco conforme as datas de vigência
+                $bloco_ini = !empty($item['data_inicio']) ? $item['data_inicio'] : $start_date;
+                $bloco_fim = !empty($item['data_fim'])    ? $item['data_fim']    : $end_date;
+
+                // Intersecta com o intervalo consultado
+                $cur  = new DateTime(max($bloco_ini, $start_date));
+                $cur->setTime(0, 0, 0);
+                $last = new DateTime(min($bloco_fim, $end_date));
+                $last->setTime(0, 0, 0);
 
                 $days_list = array_map('trim', explode(',', $item['dias'] ?? ''));
 
-                while ($cur->format('Y-m-d') <= $last->format('Y-m-d')) { // FIX
-                    $dow = (int) $cur->format('N');
+                while ($cur->format('Y-m-d') <= $last->format('Y-m-d')) {
+                    $dow     = (int) $cur->format('N');
                     $dayName = $this->getDiaSemanaName($dow);
 
                     $match = false;
