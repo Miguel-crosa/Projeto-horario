@@ -392,7 +392,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                html += `<div class="${classes}" ${hasAula ? `data-tooltip="${escapeAttr(tooltipContent)}"` : ''} data-date="${dateISO}">
+                // Tenta encontrar o ID da turma ou reserva principal para este dia no período selecionado
+                let entryId = null;
+                let entryType = null;
+                if (hasAula) {
+                    const primary = realEntries.find(a => a.periodo === window.calendarCurrentPeriod) || realEntries[0];
+                    if (primary) {
+                        entryId = primary.id;
+                        // Usa o tipo retornado pelo AgendaModel para decidir qual API chamar
+                        if (primary.type === 'RESERVA' || primary.status === 'RESERVADO') {
+                            entryType = 'reserva';
+                        } else {
+                            entryType = 'turma';
+                        }
+                    }
+                }
+
+                html += `<div class="${classes}" ${hasAula ? `data-tooltip="${escapeAttr(tooltipContent)}"` : ''} data-date="${dateISO}" ${entryId ? `data-entry-id="${entryId}" data-entry-type="${entryType}"` : ''}>
                     <span class="cal-day-num">${day}</span>
                     ${hasAula && currentDocente ? `<span class="cal-prof-name">${escapeHtml(currentDocente.nome.split(' ')[0])}</span>` : ''}
                     ${classTimesHtml}
@@ -445,6 +461,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // 2. Identifica se é um dia "Livre" (verde) ou ocupado
+                const entryId = this.dataset.entryId;
+                const entryType = this.dataset.entryType;
                 const isFree = !this.classList.contains('has-aula') && !this.classList.contains('reservado');
 
                 if (isFree) {
@@ -458,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } else {
                     // Clicar em um slot ocupado ou reserva confirmada abre o modal padrão
-                    window.openCalendarScheduleModal(dateISO, dateISO);
+                    window.openCalendarScheduleModal(dateISO, dateISO, entryType === 'reserva', entryId);
                 }
             });
         });
@@ -1427,7 +1445,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Lógica antiga de multi-docente removida: o formulário unificado gerencia isso.
-    window.openCalendarScheduleModal = function (start, end, isReserva = false) {
+    window.openCalendarScheduleModal = async function (start, end, isReserva = false, id = null) {
         // Se estamos em modo reserva ou criação global, permitimos abrir sem professor (usuário seleciona no form)
         if (!currentDocente && !isReserva) {
             showNotification('Selecione um professor primeiro.', 'error');
@@ -1437,8 +1455,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const m = document.getElementById('modal-agendar-calendar');
         if (!m) return;
 
-        const formData = {
-            id: null,
+        let formData = {
+            id: id,
             is_reserva: isReserva,
             docentes: currentDocente ? [currentDocente] : [],
             data_inicio: start || new Date().toISOString().slice(0, 10),
@@ -1447,7 +1465,60 @@ document.addEventListener('DOMContentLoaded', () => {
             dias_semana: []
         };
 
-        if (start) {
+        // Se tiver ID, busca dados atualizados do servidor antes de preencher
+        if (id) {
+            try {
+                const action = isReserva ? 'get_reserva' : 'get_turma';
+                const response = await fetch(`${apiBase}?action=${action}&id=${id}`);
+                const result = await response.json();
+                if (result.success) {
+                    const d = result.data;
+                    formData = {
+                        id: d.id,
+                        is_reserva: isReserva,
+                        docentes: [], // Será preenchido abaixo
+                        data_inicio: d.data_inicio,
+                        data_fim: d.data_fim,
+                        periodo: d.periodo,
+                        dias_semana: d.dias_semana ? d.dias_semana.split(',').map(s => s.trim()) : [],
+                        sigla: d.sigla,
+                        vagas: d.vagas,
+                        curso_id: d.curso_id,
+                        ambiente_id: d.ambiente_id,
+                        horario_inicio: d.horario_inicio ? d.horario_inicio.substring(0, 5) : null,
+                        horario_fim: d.horario_fim ? d.horario_fim.substring(0, 5) : null,
+                        tipo_custeio: d.tipo_custeio,
+                        previsao_despesa: d.previsao_despesa,
+                        valor_turma: d.valor_turma,
+                        numero_proposta: d.numero_proposta,
+                        tipo_atendimento: d.tipo_atendimento,
+                        parceiro: d.parceiro,
+                        contato_parceiro: d.contato_parceiro
+                    };
+
+                    // Adiciona docentes (para reservas é um, para turmas podem ser vários)
+                    if (isReserva) {
+                        // Reserva usa docente_id
+                        const dId = d.docente_id || d.docente_id1;
+                        const dNome = d.docente_nome || d.docente1_nome;
+                        if (dId) formData.docentes = [{ id: dId, nome: dNome || "Professor Desconhecido" }];
+                    } else {
+                        // Turma usa docente_id1, id2, etc.
+                        if (d.docente_id1) formData.docentes.push({ id: d.docente_id1, nome: d.docente1_nome || d.docente_nome || "Professor 1" });
+                        if (d.docente_id2) formData.docentes.push({ id: d.docente_id2, nome: d.docente2_nome || "Professor 2" });
+                        if (d.docente_id3) formData.docentes.push({ id: d.docente_id3, nome: d.docente3_nome || "Professor 3" });
+                        if (d.docente_id4) formData.docentes.push({ id: d.docente_id4, nome: d.docente4_nome || "Professor 4" });
+                        
+                        // Caso a turma tenha apenas docente_id (em migrações), tenta capturar tbm
+                        if (formData.docentes.length === 0 && d.docente_id) {
+                            formData.docentes.push({ id: d.docente_id, nome: d.docente_nome || "Professor" });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Erro ao buscar detalhes:", err);
+            }
+        } else if (start) {
             const dateObj = new Date(start + 'T00:00:00');
             formData.dias_semana = [diasSemanaFull[dateObj.getDay()]];
         } else {

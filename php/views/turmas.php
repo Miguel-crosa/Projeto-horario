@@ -20,58 +20,46 @@ $query = "SELECT t.*, c.nome as curso_nome,
 $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
 ?>
 
-<div class="page-header"
-    style="flex-direction: column; align-items: flex-start; gap: 15px; padding: 25px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 25px;">
-    <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-        <h2 style="margin: 0; font-size: 1.8rem; font-weight: 800; color: var(--text-color);">Gestão de Turmas</h2>
-        <div style="display: flex; gap: 10px;">
-            <a href="fix_turmas_loading.php" class="btn btn-warning"
-                style="background: rgba(255,179,0,0.1); border-color: rgba(255,179,0,0.2); color: #ffb300; font-size: 0.8rem; height: 36px; display: flex; align-items: center; text-decoration: none; padding: 0 12px; border-radius: 6px;">
-                <i class="fas fa-magic" style="margin-right: 6px;"></i> Ajustar horários
+<div class="page-header">
+    <h2>Gestão de Turmas</h2>
+
+</div>
+
+<div class="filter-bar"
+    style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: flex-end; background: transparent; padding: 0; border: none; box-shadow: none;">
+    <input type="text" id="filter-sigla" placeholder="Filtrar por Sigla ou Curso..." class="form-input"
+        style="width: 250px;" onkeyup="filterTurmas()">
+    <input type="text" id="filter-docente" placeholder="Filtrar por Docente..." class="form-input" style="width: 200px;"
+        onkeyup="filterTurmas()">
+    <select id="filter-periodo" class="form-input" style="width: 160px;" onchange="filterTurmas()">
+        <option value="">Todos Períodos</option>
+        <option value="Manhã">Manhã</option>
+        <option value="Tarde">Tarde</option>
+        <option value="Noite">Noite</option>
+        <option value="Integral">Integral</option>
+    </select>
+    <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <div style="display: flex; gap: 8px;">
+            <a href="fix_turmas_loading.php" class="btn" style="color: var(--text-muted); font-size: 0.85rem;"
+                title="Ajustar horários">
+                <i class="fas fa-magic"></i> Ajustar horários
             </a>
+            <button type="button" onclick="openGlobalReserva()" class="btn btn-warning"
+                style="background: #ffb300; border: none; color: #5d4037; font-weight: 700; height: 38px;">
+                <i class="fas fa-bookmark"></i> RESERVA
+            </button>
+            <a href="turmas_form.php" class="btn btn-primary" style="font-weight: 700;"><i class="fas fa-plus"></i> NOVA
+                TURMA</a>
             <?php if ($is_archived_view): ?>
-                <a href="turmas.php" class="btn btn-secondary" style="background: var(--primary-green); color: white;"><i
-                        class="fas fa-check-circle"></i> Ver Ativas</a>
+                <a href="turmas.php" class="btn btn-secondary"><i class="fas fa-check-circle"></i> Ver Ativas</a>
             <?php else: ?>
                 <a href="turmas.php?view=archived" class="btn btn-secondary"><i class="fas fa-archive"></i> Ver
                     Arquivadas</a>
             <?php endif; ?>
         </div>
     </div>
-
-    <div class="header-actions"
-        style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; width: 100%; padding-top: 15px; border-top: 1px solid var(--border-color);">
-        <div class="search-box" style="flex: 1; min-width: 200px;">
-            <i class="fas fa-search"
-                style="position: absolute; margin-left: 12px; color: var(--text-muted); pointer-events: none;"></i>
-            <input type="text" id="filter-sigla" placeholder="Filtrar por Sigla ou Curso..." class="form-input"
-                style="padding-left: 35px; width: 100%;" onkeyup="filterTurmas()">
-        </div>
-        <div class="search-box" style="flex: 1; min-width: 180px;">
-            <i class="fas fa-user-tie"
-                style="position: absolute; margin-left: 12px; color: var(--text-muted); pointer-events: none;"></i>
-            <input type="text" id="filter-docente" placeholder="Filtrar por Docente..." class="form-input"
-                style="padding-left: 35px; width: 100%;" onkeyup="filterTurmas()">
-        </div>
-        <select id="filter-periodo" class="form-input" style="width: 160px;" onchange="filterTurmas()">
-            <option value="">Todos Períodos</option>
-            <option value="Manhã">Manhã</option>
-            <option value="Tarde">Tarde</option>
-            <option value="Noite">Noite</option>
-            <option value="Integral">Integral</option>
-        </select>
-        <div style="display: flex; gap: 8px;">
-            <button type="button" onclick="openGlobalReserva()" class="btn btn-warning"
-                style="background: #ffb300; border-color: #ffa000; color: #5d4037; font-weight: 700;">
-                <i class="fas fa-bookmark"></i> RESERVA
-            </button>
-            <a href="turmas_form.php" class="btn btn-primary"
-                style="font-weight: 700; background: var(--primary-red); border-color: var(--primary-red);">
-                <i class="fas fa-plus"></i> NOVA TURMA
-            </a>
-        </div>
-    </div>
 </div>
+
 <script>
     let currentPage = 1;
     const itemsPerPage = 20;
@@ -224,22 +212,22 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         <thead>
             <tr>
                 <th style="width: 50px;">#</th>
-                <th onclick="sortTable(1)" style="cursor:pointer;">Sigla <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(1)" style="cursor:pointer;">SIGLA <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(2)" style="cursor:pointer;">Curso <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(2)" style="cursor:pointer;">CURSO <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(3)" style="cursor:pointer;">Período <span class="sort-icon"><i
+                <th onclick="sortTable(3)" style="cursor:pointer;">PERÍODO <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
-                <th>Horário</th>
-                <th onclick="sortTable(5)" style="cursor:pointer;">Docente(s) <span class="sort-icon"><i
+                <th>HORÁRIO</th>
+                <th onclick="sortTable(5)" style="cursor:pointer;">DOCENTE(S) <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(6)" style="cursor:pointer;">Início <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(6)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(7)" style="cursor:pointer;">Fim <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(7)" style="cursor:pointer;">FIM <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(8)" style="cursor:pointer;">Vagas <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(8)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th>Ações</th>
+                <th style="text-align: center;">AÇÕES</th>
             </tr>
         </thead>
         <tbody>
@@ -296,28 +284,30 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                         <td><?= !empty($t['data_inicio']) ? date('d/m/Y', strtotime($t['data_inicio'])) : '-' ?></td>
                         <td><?= !empty($t['data_fim']) ? date('d/m/Y', strtotime($t['data_fim'])) : '-' ?></td>
                         <td><?= $t['vagas'] ?></td>
-                        <td class="actions-cell">
-                            <?php if ($is_archived_view): ?>
-                                <a href="../controllers/turmas_process.php?action=activate&id=<?= $t['id'] ?>" class="btn btn-edit"
-                                    title="Reativar Turma"
-                                    style="background: var(--primary-green); border-color: var(--primary-green);"
-                                    onclick="return confirm('Deseja restaurar esta turma para o status ativo?')">
-                                    <i class="fas fa-undo"></i>
-                                </a>
-                                <button type="button" class="btn btn-delete" title="Excluir Permanentemente"
-                                    data-id="<?= $t['id'] ?>" data-sigla="<?= htmlspecialchars($t['sigla']) ?>"
-                                    data-fim="<?= $t['data_fim'] ?>" onclick="handleDeleteTurma(this)">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            <?php else: ?>
-                                <a href="turmas_form.php?id=<?= $t['id'] ?>" class="btn btn-edit" title="Editar"><i
-                                        class="fas fa-edit"></i></a>
-                                <button type="button" class="btn btn-delete" title="Excluir" data-id="<?= $t['id'] ?>"
-                                    data-sigla="<?= htmlspecialchars($t['sigla']) ?>" data-fim="<?= $t['data_fim'] ?>"
-                                    onclick="handleDeleteTurma(this)">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            <?php endif; ?>
+                        <td>
+                            <div style="display: flex; gap: 5px; justify-content: center; align-items: center;">
+                                <?php if ($is_archived_view): ?>
+                                    <a href="../controllers/turmas_process.php?action=activate&id=<?= $t['id'] ?>"
+                                        class="btn btn-edit" title="Reativar Turma"
+                                        style="background: var(--primary-green); border-color: var(--primary-green);"
+                                        onclick="return confirm('Deseja restaurar esta turma para o status ativo?')">
+                                        <i class="fas fa-undo"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-delete" title="Excluir Permanentemente"
+                                        data-id="<?= $t['id'] ?>" data-sigla="<?= htmlspecialchars($t['sigla']) ?>"
+                                        data-fim="<?= $t['data_fim'] ?>" onclick="handleDeleteTurma(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                <?php else: ?>
+                                    <a href="turmas_form.php?id=<?= $t['id'] ?>" class="btn btn-edit" title="Editar"><i
+                                            class="fas fa-edit"></i></a>
+                                    <button type="button" class="btn btn-delete" title="Excluir" data-id="<?= $t['id'] ?>"
+                                        data-sigla="<?= htmlspecialchars($t['sigla']) ?>" data-fim="<?= $t['data_fim'] ?>"
+                                        onclick="handleDeleteTurma(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -334,40 +324,13 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
 </div>
 
 <style>
-    .header-actions {
-        display: flex;
-        gap: 10px;
-    }
-
-    .actions-cell {
-        display: flex;
-        gap: 8px;
-        justify-content: center;
-        align-items: center;
-        height: 100%;
-        min-height: 45px;
-    }
-
-    #turmas-table table {
-        border-collapse: separate;
-        border-spacing: 0 4px;
-    }
-
-    #turmas-table tbody tr {
-        background: var(--card-bg);
-        transition: transform 0.2s;
-    }
-
-    #turmas-table tbody tr:hover {
-        background: var(--bg-hover) !important;
-        transform: scale(1.002);
-    }
-
-    #turmas-table td,
     #turmas-table th {
-        border: none;
-        border-bottom: 1px solid var(--border-color);
-        padding: 12px 10px;
+        vertical-align: middle;
+    }
+
+    #turmas-table td {
+        vertical-align: middle;
+        padding: 12px 15px;
     }
 </style>
 

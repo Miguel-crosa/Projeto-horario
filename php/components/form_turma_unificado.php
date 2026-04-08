@@ -3,6 +3,9 @@
  * FORMULÁRIO UNIFICADO DE TURMAS E RESERVAS
  * Este componente contém o HTML e o JavaScript consolidado para cadastro e edição.
  */
+// Impede o carregamento duplicado que causa conflitos de ID e trava o JavaScript
+if (defined('UNIFIED_FORM_LOADED')) return;
+define('UNIFIED_FORM_LOADED', true);
 
 // Se IDs ou outros parâmetros não estiverem definidos, define fallbacks sensatos
 $id = $id ?? null;
@@ -29,7 +32,8 @@ if (!isset($ambientes) && isset($conn)) {
     $ambientes = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome FROM ambiente ORDER BY nome ASC"), MYSQLI_ASSOC);
 }
 if (!isset($docentes) && isset($conn)) {
-    $docentes = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome, area_conhecimento FROM docente ORDER BY nome ASC"), MYSQLI_ASSOC);
+    $res_doc = mysqli_query($conn, "SELECT id, nome, area_conhecimento FROM docente ORDER BY nome ASC");
+    $docentes = $res_doc ? mysqli_fetch_all($res_doc, MYSQLI_ASSOC) : [];
 }
 if (!isset($feriados_data) && isset($conn)) {
     $feriados_res = mysqli_query($conn, "
@@ -39,7 +43,7 @@ if (!isset($feriados_data) && isset($conn)) {
         UNION ALL
         SELECT data AS data_inicio, data AS data_fim, docente_id, 'BLOCK' AS tipo FROM agenda WHERE status = 'RESERVADO' AND turma_id IS NULL
     ");
-    $feriados_data = mysqli_fetch_all($feriados_res, MYSQLI_ASSOC);
+    $feriados_data = $feriados_res ? mysqli_fetch_all($feriados_res, MYSQLI_ASSOC) : [];
 }
 ?>
 
@@ -265,8 +269,9 @@ if (!isset($feriados_data) && isset($conn)) {
 <script>
 // --- Script Unificado Adaptado ---
 (function() {
-    const docentesData = <?= json_encode($docentes) ?>;
-    const feriadosData = <?= json_encode($feriados_data) ?>;
+    // Garante que as variáveis sejam arrays mesmo que o PHP falhe
+    const docentesData = <?= json_encode($docentes ?: [], JSON_UNESCAPED_UNICODE) ?> || [];
+    const feriadosData = <?= json_encode($feriados_data ?: [], JSON_UNESCAPED_UNICODE) ?> || [];
     let selectedDocentes = [];
 
     let modalDoc, searchInput, resultsContainer, areaFilter;
@@ -280,9 +285,9 @@ if (!isset($feriados_data) && isset($conn)) {
         selectedDocentes = [];
         for (let i = 1; i <= 4; i++) {
             const el = document.getElementById(`hidden-docente-${i}-unified`);
-            if (el && el.value && el.value !== "" && el.value !== "NULL") {
+            if (el && el.value && el.value !== "" && el.value !== "NULL" && el.value !== "0") {
                 const docId = String(el.value);
-                const doc = docentesData.find(d => String(d.id) === docId);
+                const doc = Array.isArray(docentesData) ? docentesData.find(d => String(d.id) === docId) : null;
                 if (doc) {
                     // Evitar duplicatas na reconstrução inicial
                     if (!selectedDocentes.find(sd => String(sd.id) === docId)) {
@@ -611,7 +616,22 @@ if (!isset($feriados_data) && isset($conn)) {
                     
                     const fd = new FormData(form);
                     const response = await fetch(form.action, { method: 'POST', body: fd });
-                    const result = await response.json();
+                    const responseText = await response.text();
+                    
+                    let result;
+                    try {
+                        result = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('Resposta não-JSON:', responseText);
+                        btn.disabled = false;
+                        btn.innerHTML = isSimulation ? '<i class="fas fa-check-double"></i> Validar Disponibilidade' : '<i class="fas fa-save"></i> SALVAR';
+                        if (msgEl && alertBox) {
+                            msgEl.innerHTML = 'Erro técnico (não-JSON):<br><small style="font-family:monospace; font-size:10px; display:block; max-height:100px; overflow:auto;">' + 
+                                responseText.replace(/</g, "&lt;").substring(0, 500) + '...</small>';
+                            alertBox.style.display = 'block';
+                        }
+                        return;
+                    }
 
                     if (result.success) {
                         if (isSimulation) {
@@ -672,8 +692,8 @@ if (!isset($feriados_data) && isset($conn)) {
         }
 
         initSelectedDocentes();
-        toggleAtendimentoFieldsUnified();
-        calcularDataFimUnified();
+        if (window.toggleAtendimentoFieldsUnified) window.toggleAtendimentoFieldsUnified();
+        if (window.calcularDataFimUnified) window.calcularDataFimUnified();
     }
 
     if (document.readyState === 'loading') {
@@ -691,7 +711,8 @@ if (!isset($feriados_data) && isset($conn)) {
             const resEl = document.getElementById('unified-is-reserva');
             if(resEl) resEl.value = data.is_reserva ? '1' : '0';
             const finSec = document.getElementById('unified-financial-section');
-            if(finSec) finSec.style.display = data.is_reserva ? 'none' : 'block';
+            // Agora sempre mostramos a seção financeira, tanto para turmas quanto para reservas
+            if(finSec) finSec.style.display = 'block';
             
             const cursoSel = document.getElementById('curso-select-unified');
             if(cursoSel) {
@@ -735,6 +756,41 @@ if (!isset($feriados_data) && isset($conn)) {
             document.querySelectorAll('#dias-semana-container-unified input[name="dias_semana[]"]').forEach(cb => {
                 cb.checked = data.dias_semana.includes(cb.value);
             });
+        }
+        
+        if (data.tipo_custeio) {
+            const tc = document.getElementById('tipo-custeio-unified');
+            if(tc) {
+                tc.value = data.tipo_custeio;
+                toggleCusteioFieldsUnified();
+            }
+        }
+        if (data.previsao_despesa !== undefined) {
+            const pd = document.getElementById('unified-previsao-despesa');
+            if(pd) pd.value = data.previsao_despesa;
+        }
+        if (data.valor_turma !== undefined) {
+            const vt = document.getElementById('unified-valor-turma');
+            if(vt) vt.value = data.valor_turma;
+        }
+        if (data.numero_proposta !== undefined) {
+            const np = document.getElementById('unified-numero-proposta');
+            if(np) np.value = data.numero_proposta;
+        }
+        if (data.tipo_atendimento) {
+            const radios = document.querySelectorAll('input[name="tipo_atendimento"]');
+            radios.forEach(r => {
+                if(r.value === data.tipo_atendimento) r.checked = true;
+            });
+            toggleAtendimentoFieldsUnified();
+        }
+        if (data.parceiro) {
+            const p = document.getElementById('unified-parceiro');
+            if(p) p.value = data.parceiro;
+        }
+        if (data.contato_parceiro) {
+            const cp = document.getElementById('unified-contato-parceiro');
+            if(cp) cp.value = data.contato_parceiro;
         }
         
         calcularDataFimUnified();

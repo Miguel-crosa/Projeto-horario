@@ -3,7 +3,7 @@ require_once __DIR__ . '/../configs/db.php';
 
 echo "<h2>Diagnóstico e Ajuste de Banco de Dados</h2>";
 
-$tables_to_check = ['turma'];
+$tables_to_check = ['turma', 'reservas'];
 $columns_needed = [
     'turma' => [
         'horario_inicio' => "TIME DEFAULT '07:30' AFTER local",

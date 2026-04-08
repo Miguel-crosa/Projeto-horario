@@ -97,12 +97,24 @@ function updateTotalRessarcido() {
     if (totalEl) {
         totalEl.innerText = 'R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
     }
+
+    const totalPipeEl = document.getElementById('total-ressarcido-pipeline');
+    if (totalPipeEl) {
+        const totalPipe = parseFloat(financeiroData.total_ressarcido_pipeline || 0);
+        totalPipeEl.innerText = 'R$ ' + totalPipe.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    }
 }
 
 function updateTotalDespesas() {
     const totalEl = document.getElementById('total-previsao-despesas');
     if (totalEl) {
         totalEl.innerText = 'R$ ' + parseFloat(financeiroData.total_despesas).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    }
+
+    const totalPipeEl = document.getElementById('total-previsao-despesas-pipeline');
+    if (totalPipeEl) {
+        const totalPipe = parseFloat(financeiroData.total_despesas_pipeline || 0);
+        totalPipeEl.innerText = 'R$ ' + totalPipe.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
     }
 }
 

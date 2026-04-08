@@ -128,11 +128,30 @@ if ($action === 'get_financeiro_data') {
         $total_geral_despesas += (float)$d['valor'];
     }
 
+    // 3. Dados de Pipeline (Reservas)
+    // Ressarcimento Pipeline
+    $q_ress_pipe = "SELECT SUM(valor_turma) as total 
+                    FROM reservas 
+                    WHERE tipo_custeio = 'Ressarcido' AND status IN ('PENDENTE', 'APROVADA')";
+    $res_ress_pipe = mysqli_query($conn, $q_ress_pipe);
+    $row_ress_pipe = mysqli_fetch_assoc($res_ress_pipe);
+    $total_ressarcido_pipeline = (float)($row_ress_pipe['total'] ?? 0);
+
+    // Despesas Pipeline
+    $q_desp_pipe = "SELECT SUM(previsao_despesa) as total 
+                    FROM reservas 
+                    WHERE status IN ('PENDENTE', 'APROVADA')";
+    $res_desp_pipe = mysqli_query($conn, $q_desp_pipe);
+    $row_desp_pipe = mysqli_fetch_assoc($res_desp_pipe);
+    $total_despesas_pipeline = (float)($row_desp_pipe['total'] ?? 0);
+
     echo json_encode([
         'ressarcido' => $ressarcido,
         'ressarcido_detalhe' => $ressarcido_detalhe,
+        'total_ressarcido_pipeline' => $total_ressarcido_pipeline,
         'despesas' => $despesas,
-        'total_despesas' => $total_geral_despesas
+        'total_despesas' => $total_geral_despesas,
+        'total_despesas_pipeline' => $total_despesas_pipeline
     ]);
     exit;
 }

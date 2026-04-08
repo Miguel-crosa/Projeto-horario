@@ -173,6 +173,13 @@ CREATE TABLE IF NOT EXISTS reservas (
     vagas INT DEFAULT NULL,
     local VARCHAR(255) DEFAULT NULL,
     tipo VARCHAR(50) DEFAULT NULL,
+    tipo_custeio ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade',
+    previsao_despesa DECIMAL(10,2) DEFAULT 0.00,
+    valor_turma DECIMAL(10,2) DEFAULT 0.00,
+    numero_proposta VARCHAR(100) DEFAULT NULL,
+    tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão',
+    parceiro VARCHAR(255) DEFAULT NULL,
+    contato_parceiro VARCHAR(255) DEFAULT NULL,
     status ENUM('ativo', 'concluido', 'PENDENTE', 'APROVADA', 'REJEITADA', 'CONCLUIDA') NOT NULL DEFAULT 'PENDENTE',
     notas TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -262,6 +269,17 @@ VALUES ('roberto', 'roberto@senai.br', '$2y$10$XFjAiGRelFifZrzlE.pWheJrBhacywoE.
 -- MIGRATION (02/04/2026) - NOVOS CAMPOS TURMA
 -- ============================================================
 -- ALTER TABLE turma 
+-- ADD COLUMN numero_proposta VARCHAR(100) DEFAULT NULL AFTER valor_turma,
+-- ADD COLUMN tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão' AFTER numero_proposta,
+-- ADD COLUMN parceiro VARCHAR(255) DEFAULT NULL AFTER tipo_atendimento,
+-- ADD COLUMN IF NOT EXISTS ativo TINYINT(1) DEFAULT 1;
+-- ============================================================
+-- MIGRATION (08/04/2026) - UNIFICAÇÃO CAMPOS RESERVAS
+-- ============================================================
+-- ALTER TABLE reservas 
+-- ADD COLUMN tipo_custeio ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade' AFTER tipo,
+-- ADD COLUMN previsao_despesa DECIMAL(10,2) DEFAULT 0.00 AFTER tipo_custeio,
+-- ADD COLUMN valor_turma DECIMAL(10,2) DEFAULT 0.00 AFTER previsao_despesa,
 -- ADD COLUMN numero_proposta VARCHAR(100) DEFAULT NULL AFTER valor_turma,
 -- ADD COLUMN tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão' AFTER numero_proposta,
 -- ADD COLUMN parceiro VARCHAR(255) DEFAULT NULL AFTER tipo_atendimento,

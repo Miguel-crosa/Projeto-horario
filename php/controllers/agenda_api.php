@@ -662,8 +662,8 @@ switch ($action) {
 
             // 1. Create Turma
             $dias_arr = explode(',', $r['dias_semana']);
-            $sql_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, local) 
-                          VALUES ({$r['curso_id']}, '{$r['tipo']}', '{$r['sigla']}', {$r['vagas']}, '{$r['periodo']}', '{$r['data_inicio']}', '{$r['data_fim']}', '{$r['dias_semana']}', {$r['ambiente_id']}, {$r['docente_id']}, '{$r['local']}')";
+            $sql_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, local, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro) 
+                          VALUES ({$r['curso_id']}, '{$r['tipo']}', '{$r['sigla']}', {$r['vagas']}, '{$r['periodo']}', '{$r['data_inicio']}', '{$r['data_fim']}', '{$r['dias_semana']}', {$r['ambiente_id']}, {$r['docente_id']}, '{$r['local']}', '{$r['tipo_custeio']}', {$r['previsao_despesa']}, {$r['valor_turma']}, '{$r['numero_proposta']}', '{$r['tipo_atendimento']}', '{$r['parceiro']}', '{$r['contato_parceiro']}')";
             if (!mysqli_query($conn, $sql_turma))
                 throw new Exception("Erro ao criar turma: " . mysqli_error($conn));
             $turma_id = mysqli_insert_id($conn);
@@ -720,6 +720,45 @@ switch ($action) {
         } catch (Exception $e) {
             mysqli_rollback($conn);
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit;
+
+    case 'get_reserva':
+        $reserva_id = (int) ($_GET['id'] ?? 0);
+        if (!$reserva_id) {
+            echo json_encode(['success' => false, 'message' => 'ID inválido']);
+            exit;
+        }
+        $res = mysqli_query($conn, "SELECT r.*, d.nome as docente_nome FROM reservas r LEFT JOIN docente d ON r.docente_id = d.id WHERE r.id = $reserva_id");
+        $data = mysqli_fetch_assoc($res);
+        if ($data) {
+            echo json_encode(['success' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Reserva não encontrada']);
+        }
+        exit;
+
+    case 'get_turma':
+        $turma_id = (int) ($_GET['id'] ?? 0);
+        if (!$turma_id) {
+            echo json_encode(['success' => false, 'message' => 'ID inválido']);
+            exit;
+        }
+        $res = mysqli_query($conn, "SELECT t.*, 
+            d1.nome as docente1_nome, d2.nome as docente2_nome, 
+            d3.nome as docente3_nome, d4.nome as docente4_nome,
+            d1.nome as docente_nome 
+            FROM turma t 
+            LEFT JOIN docente d1 ON t.docente_id1 = d1.id
+            LEFT JOIN docente d2 ON t.docente_id2 = d2.id
+            LEFT JOIN docente d3 ON t.docente_id3 = d3.id
+            LEFT JOIN docente d4 ON t.docente_id4 = d4.id
+            WHERE t.id = $turma_id");
+        $data = mysqli_fetch_assoc($res);
+        if ($data) {
+            echo json_encode(['success' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Turma não encontrada']);
         }
         exit;
 

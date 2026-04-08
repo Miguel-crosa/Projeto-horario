@@ -776,3 +776,217 @@ function generateAgendaRecords($conn, $turma_id, $dias_arr, $periodo, $h_inicio,
         $it->modify('+1 day');
     }
 }
+
+/**
+ * Validates teacher limits against proposed turma schedule.
+ *
+ * FIX: Todas as comparações de DateTime agora usam format('Y-m-d') para evitar
+ * que o horário 00:00:00 faça o último dia ser cortado nas interseções de
+ * semana/mês.
+ */
+function checkDocenteLimits($conn, $docente_id, $turma_id_to_ignore, $data_start, $data_end, $days_arr, $h_start, $h_end)
+{
+    if (!$docente_id || $docente_id <= 0)
+        return true;
+
+    // 1. Get Teacher Info and Limits
+    $res = mysqli_query($conn, "SELECT nome, weekly_hours_limit, monthly_hours_limit FROM docente WHERE id = $docente_id");
+    $doc = mysqli_fetch_assoc($res);
+    if (!$doc)
+        return true;
+
+    $limit_w = (float) $doc['weekly_hours_limit'];
+    $limit_m = (float) $doc['monthly_hours_limit'];
+    $name = $doc['nome'];
+
+    if ($limit_w <= 0 && $limit_m <= 0) {
+        return "O docente $name possui carga horária zerada e não pode ser vinculado a turmas.";
+    }
+
+    // 2. Calculate New Class Duration (in hours)
+    $t1 = strtotime($h_start);
+    $t2 = strtotime($h_end);
+    $hours_per_class = ($t2 - $t1) / 3600;
+    if ($hours_per_class <= 0)
+        return true;
+
+    $it = new DateTime($data_start);
+    $end = new DateTime($data_end);
+
+    // FIX: normaliza para meia-noite
+    $it->setTime(0, 0, 0);
+    $end->setTime(0, 0, 0);
+
+    // 3. Check Weekly Limit
+    if ($limit_w > 0) {
+        $weeks_checked = [];
+        $temp_it = clone $it;
+
+        while ($temp_it->format('Y-m-d') <= $end->format('Y-m-d')) {
+            $yw = $temp_it->format('oW');
+
+            if (!in_array($yw, $weeks_checked)) {
+                $classes_this_week = 0;
+
+                $week_start = clone $temp_it;
+                $week_start->modify('Monday this week');
+                $week_start->setTime(0, 0, 0);
+
+                $week_end = clone $week_start;
+                $week_end->modify('+6 days');
+                $week_end->setTime(0, 0, 0);
+
+                // FIX: comparação por string de data, sem interferência de horário
+                $r_start = ($week_start->format('Y-m-d') > $it->format('Y-m-d')) ? $week_start : $it;
+                $r_end = ($week_end->format('Y-m-d') < $end->format('Y-m-d')) ? $week_end : $end;
+
+                $check_day = clone $r_start;
+                while ($check_day->format('Y-m-d') <= $r_end->format('Y-m-d')) {
+                    $curr_v = $check_day->format('Y-m-d');
+                    if (in_array(getDayNameString($check_day), $days_arr)) {
+                        if (!isHoliday($conn, $curr_v) && !isVacation($conn, $docente_id, $curr_v)) {
+                            $classes_this_week++;
+                        }
+                    }
+                    $check_day->modify('+1 day');
+                }
+
+                $new_hours_w = $classes_this_week * $hours_per_class;
+
+                $q = "SELECT SUM(TIMESTAMPDIFF(SECOND, horario_inicio, horario_fim))/3600 as total 
+                      FROM agenda 
+                      WHERE docente_id = $docente_id 
+                      AND YEARWEEK(data, 1) = $yw";
+                if ($turma_id_to_ignore)
+                    $q .= " AND turma_id != $turma_id_to_ignore";
+
+                $row = mysqli_fetch_assoc(mysqli_query($conn, $q));
+                $current_w = (float) ($row['total'] ?? 0);
+
+                if (($current_w + $new_hours_w) > ($limit_w + 0.01)) {
+                    return "O docente $name excedeu o limite semanal ($limit_w h). Total planejado: " . round($current_w + $new_hours_w, 1) . "h na semana de " . $r_start->format('d/m') . ".";
+                }
+                $weeks_checked[] = $yw;
+            }
+            $temp_it->modify('+1 day');
+        }
+    }
+
+    // 4. Check Monthly Limit
+    if ($limit_m > 0) {
+        $months_checked = [];
+        $temp_it = clone $it;
+
+        while ($temp_it->format('Y-m-d') <= $end->format('Y-m-d')) {
+            $month = $temp_it->format('Y-m');
+
+            if (!in_array($month, $months_checked)) {
+                $month_val = $temp_it->format('Ym');
+
+                $m_start = new DateTime($temp_it->format('Y-m-01'));
+                $m_start->setTime(0, 0, 0);
+
+                $m_end = new DateTime($temp_it->format('Y-m-t'));
+                $m_end->setTime(0, 0, 0);
+
+                // FIX: comparação por string de data
+                $r_start = ($m_start->format('Y-m-d') > $it->format('Y-m-d')) ? $m_start : $it;
+                $r_end = ($m_end->format('Y-m-d') < $end->format('Y-m-d')) ? $m_end : $end;
+
+                $classes_this_month = 0;
+                $check_day = clone $r_start;
+
+                while ($check_day->format('Y-m-d') <= $r_end->format('Y-m-d')) {
+                    $curr_v = $check_day->format('Y-m-d');
+                    if (in_array(getDayNameString($check_day), $days_arr)) {
+                        if (!isHoliday($conn, $curr_v) && !isVacation($conn, $docente_id, $curr_v)) {
+                            $classes_this_month++;
+                        }
+                    }
+                    $check_day->modify('+1 day');
+                }
+
+                $new_hours_m = $classes_this_month * $hours_per_class;
+
+                $q = "SELECT SUM(TIMESTAMPDIFF(SECOND, horario_inicio, horario_fim))/3600 as total 
+                      FROM agenda 
+                      WHERE docente_id = $docente_id 
+                      AND DATE_FORMAT(data, '%Y%m') = '$month_val'";
+                if ($turma_id_to_ignore)
+                    $q .= " AND turma_id != $turma_id_to_ignore";
+
+                $row = mysqli_fetch_assoc(mysqli_query($conn, $q));
+                $current_m = (float) ($row['total'] ?? 0);
+
+                if (($current_m + $new_hours_m) > ($limit_m + 0.01)) {
+                    return "O docente $name excedeu o limite mensal ($limit_m h). Total planejado: " . round($current_m + $new_hours_m, 1) . "h em " . $temp_it->format('m/Y') . ".";
+                }
+                $months_checked[] = $month;
+            }
+            $temp_it->modify('+1 day');
+        }
+    }
+
+    return true;
+}
+
+function getDayNameString($dateTime)
+{
+    $map = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
+    return $map[(int) $dateTime->format('w')];
+}
+
+/**
+ * Checks for schedule overlaps in agenda and reserves.
+ * (Sem alterações de lógica — o BETWEEN do SQL já é inclusivo nos dois extremos.)
+ */
+function checkDocenteConflicts($conn, $docente_id, $turma_id_to_ignore, $data_start, $data_end, $days_arr, $h_start, $h_end)
+{
+    if (!$docente_id || $docente_id <= 0)
+        return true;
+
+    $res_doc = mysqli_query($conn, "SELECT nome FROM docente WHERE id = $docente_id");
+    $doc_name = ($row_doc = mysqli_fetch_assoc($res_doc)) ? $row_doc['nome'] : "Docente #$docente_id";
+
+    // 1. Check existing agenda items (Aulas)
+    $q_agenda = "SELECT a.data, a.horario_inicio, a.horario_fim, t.sigla 
+                 FROM agenda a 
+                 JOIN turma t ON a.turma_id = t.id
+                 WHERE a.docente_id = $docente_id 
+                 AND a.data BETWEEN '$data_start' AND '$data_end'";
+    if ($turma_id_to_ignore)
+        $q_agenda .= " AND a.turma_id != $turma_id_to_ignore";
+
+    $res_agenda = mysqli_query($conn, $q_agenda);
+    while ($row = mysqli_fetch_assoc($res_agenda)) {
+        $day_name = getDayNameString(new DateTime($row['data']));
+        if (in_array($day_name, $days_arr)) {
+            if ($h_start < $row['horario_fim'] && $h_end > $row['horario_inicio']) {
+                $data_f = date('d/m/Y', strtotime($row['data']));
+                return "O docente $doc_name não estará disponível em $data_f ($day_name) pois já possui aula na turma {$row['sigla']} das {$row['horario_inicio']} às {$row['horario_fim']}.";
+            }
+        }
+    }
+
+    // 2. Check reserves
+    $q_reserva = "SELECT r.data_inicio, r.data_fim, r.hora_inicio, r.hora_fim, r.dias_semana, r.sigla
+                  FROM reservas r
+                  WHERE r.docente_id = $docente_id
+                  AND r.status IN ('PENDENTE', 'APROVADA')
+                  AND r.data_inicio <= '$data_end'
+                  AND r.data_fim >= '$data_start'";
+
+    $res_reserva = mysqli_query($conn, $q_reserva);
+    while ($row = mysqli_fetch_assoc($res_reserva)) {
+        $res_days = explode(',', $row['dias_semana']);
+        foreach ($days_arr as $d) {
+            if (in_array($d, $res_days)) {
+                if ($h_start < $row['hora_fim'] && $h_end > $row['hora_inicio']) {
+                    return "O docente $doc_name não estará disponível pois possui uma reserva ({$row['sigla']}) que sobrepõe este horário nos dias de $d.";
+                }
+            }
+        }
+    }
+
+    return true;
+}
