@@ -157,9 +157,11 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
 
     <div class="avail-footer avail-status-footer">
         <div id="avail-status-text" style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);"></div>
+        <?php if (isGestor() || isAdmin()): ?>
         <button class="btn btn-agendar-bar" id="btn-agendar-bar" onclick="openCalendarScheduleModal()" style="display: none; background: #2196f3; border-color: #1976d2; color: #fff; padding: 8px 20px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; align-items: center; gap: 8px;">
             <i class="fas fa-plus-circle"></i> Cadastrar Horário
         </button>
+        <?php endif; ?>
     </div>
 </div>
 

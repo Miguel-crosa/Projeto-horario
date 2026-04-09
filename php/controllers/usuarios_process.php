@@ -55,9 +55,12 @@ switch ($action) {
             $role = 'cri';
         }
 
-        // Only admin can create admin/gestor users
-        if (($role === 'admin' || $role === 'gestor') && $user_role !== 'admin') {
-            $role = 'professor';
+        // SECURITY FIX (IDOR): Only admin can create admin/gestor users
+        // Gestor can ONLY create CRI or Professor (forced below)
+        if ($user_role !== 'admin') {
+            if ($role === 'admin' || $role === 'gestor') {
+                $role = 'cri'; // Downgrade preventivo
+            }
         }
 
         // Check if email already exists

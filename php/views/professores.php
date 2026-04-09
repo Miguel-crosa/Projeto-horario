@@ -3,8 +3,13 @@ require_once __DIR__ . '/../configs/db.php';
 include __DIR__ . '/../components/header.php';
 
 $show_inactive = isset($_GET['show_inactive']) && $_GET['show_inactive'] == '1';
-$where_status = $show_inactive ? " WHERE ativo = 0" : " WHERE ativo = 1";
-$professores = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM docente $where_status ORDER BY nome ASC"), MYSQLI_ASSOC);
+$status_filter = $show_inactive ? 0 : 1;
+
+$stmt = $conn->prepare("SELECT * FROM docente WHERE ativo = ? ORDER BY nome ASC");
+$stmt->bind_param('i', $status_filter);
+$stmt->execute();
+$professores = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 ?>
 
 <div class="page-header">

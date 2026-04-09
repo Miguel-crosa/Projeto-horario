@@ -55,7 +55,7 @@ if (!isset($feriados_data) && isset($conn)) {
 <form action="../controllers/turmas_process.php" method="POST" id="turma-form-unified">
     <input type="hidden" name="id" id="unified-id" value="<?= $id ?>">
     <input type="hidden" name="ajax" value="1">
-    <input type="hidden" name="is_reserva" id="unified-is-reserva" value="0">
+    <input type="hidden" name="is_reserva" id="unified-is-reserva" value="<?= isCRI() ? '1' : '0' ?>">
 
     <div class="form-grid">
         <div class="form-group" id="grp-unified-curso">
@@ -153,14 +153,22 @@ if (!isset($feriados_data) && isset($conn)) {
     
     <div class="form-group" style="margin-top: 15px;">
         <label class="form-label">Ambiente</label>
-        <select name="ambiente_id" id="ambiente-select-unified" class="form-input" required>
+        <select name="ambiente_id" id="ambiente-select-unified" class="form-input" required onchange="toggleAmbienteOutroUnified()">
             <option value="">Selecione o ambiente...</option>
-            <?php foreach ($ambientes as $a): ?>
+            <?php foreach ($ambientes as $a): 
+                if (trim(strtolower($a['nome'])) === 'outros' || trim(strtolower($a['nome'])) === 'outro') continue;
+            ?>
                 <option value="<?= $a['id'] ?>" <?= $turma['ambiente_id'] == $a['id'] ? 'selected' : '' ?>>
                     <?= htmlspecialchars($a['nome']) ?>
                 </option>
             <?php endforeach; ?>
+            <option value="outro" <?= ($turma['ambiente_id'] === null && !empty($turma['local']) && $turma['local'] !== 'Sede') ? 'selected' : '' ?>>Outros (Especificar)</option>
         </select>
+    </div>
+
+    <div class="form-group" id="ambiente-outro-container-unified" style="margin-top: 10px; display: <?= ($turma['ambiente_id'] === null && !empty($turma['local']) && $turma['local'] !== 'Sede') ? 'block' : 'none' ?>;">
+        <label class="form-label"><i class="fas fa-map-marker-alt"></i> Nome do Ambiente / Local</label>
+        <input type="text" name="local" id="local-manual-unified" class="form-input" value="<?= htmlspecialchars($turma['local'] ?? '') ?>" placeholder="Ex: Auditório Externo, Sala de Reuniões, etc.">
     </div>
 
     <div class="form-group" style="margin-top: 20px;">
@@ -261,7 +269,7 @@ if (!isset($feriados_data) && isset($conn)) {
 
     <div class="form-actions" style="margin-top: 30px;">
         <button type="submit" id="btn-salvar-unified" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 15px; font-size: 1.05rem;">
-            <span id="btn-text-unified">Salvar Registro</span>
+            <span id="btn-text-unified"><?= isCRI() ? 'Solicitar Reserva' : 'Salvar Registro' ?></span>
         </button>
     </div>
 </form>
@@ -573,6 +581,28 @@ if (!isset($feriados_data) && isset($conn)) {
             df.style.cursor = this.checked ? 'not-allowed' : 'text';
             if(!this.checked) df.required = true;
         });
+
+        // Lógica de Ambiente "Outros"
+        window.toggleAmbienteOutroUnified = function() {
+            const select = document.getElementById('ambiente-select-unified');
+            const container = document.getElementById('ambiente-outro-container-unified');
+            const input = document.getElementById('local-manual-unified');
+            if (select && container) {
+                if (select.value === 'outro') {
+                    container.style.display = 'block';
+                    if (input) input.focus();
+                } else {
+                    container.style.display = 'none';
+                }
+            }
+        };
+
+        const ambienteSelect = document.getElementById('ambiente-select-unified');
+        if (ambienteSelect) {
+            ambienteSelect.addEventListener('change', window.toggleAmbienteOutroUnified);
+            // Trigger inicial
+            window.toggleAmbienteOutroUnified();
+        }
 
         const form = document.getElementById('turma-form-unified');
         if (form) {

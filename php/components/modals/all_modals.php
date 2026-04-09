@@ -342,17 +342,25 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Ambiente</label>
-                    <select name="ambiente_id" required class="form-input">
+                    <select name="ambiente_id" id="quick-ambiente-select" required class="form-input" onchange="toggleQuickAmbienteOutro()">
                         <option value="">Selecione...</option>
                         <?php
                         $salas_m = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome FROM ambiente ORDER BY nome ASC"), MYSQLI_ASSOC);
-                        foreach ($salas_m as $s_m): ?>
+                        foreach ($salas_m as $s_m): 
+                            if (trim(strtolower($s_m['nome'])) === 'outros' || trim(strtolower($s_m['nome'])) === 'outro') continue;
+                        ?>
                             <option value="<?php echo $s_m['id']; ?>">
                                 <?php echo htmlspecialchars($s_m['nome']); ?>
                             </option>
                         <?php endforeach; ?>
+                        <option value="outro">Outros (Especificar)</option>
                     </select>
                 </div>
+            </div>
+
+            <div class="form-group" id="quick-ambiente-outro-container" style="display:none; margin-bottom: 15px;">
+                <label class="form-label"><i class="fas fa-map-marker-alt"></i> Nome do Ambiente / Local</label>
+                <input type="text" name="local" id="quick-local-manual" class="form-input" placeholder="Ex: Auditório Externo, etc.">
             </div>
 
             <div class="form-grid">
@@ -472,5 +480,19 @@
     function executePermanentDelete() {
         if (!currentDeleteId) return;
         window.location.href = `../controllers/turmas_process.php?action=delete&id=${currentDeleteId}&confirm=permanent`;
+    }
+
+    function toggleQuickAmbienteOutro() {
+        const select = document.getElementById('quick-ambiente-select');
+        const container = document.getElementById('quick-ambiente-outro-container');
+        const input = document.getElementById('quick-local-manual');
+        if (select && container) {
+            if (select.value === 'outro') {
+                container.style.display = 'block';
+                if (input) input.focus();
+            } else {
+                container.style.display = 'none';
+            }
+        }
     }
 </script>

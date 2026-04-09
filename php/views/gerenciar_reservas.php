@@ -49,7 +49,7 @@ $st = $mysqli->prepare("
     FROM reservas r
     JOIN docente d ON r.docente_id = d.id
     JOIN usuario u ON r.usuario_id = u.id
-    JOIN curso c ON r.curso_id = c.id
+    LEFT JOIN curso c ON r.curso_id = c.id
     LEFT JOIN ambiente amb ON r.ambiente_id = amb.id
     $where
     ORDER BY r.created_at DESC

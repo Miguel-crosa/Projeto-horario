@@ -92,7 +92,8 @@ function closeFinanceiroModal(id) {
 }
 
 function updateTotalRessarcido() {
-    const total = financeiroData.ressarcido.reduce((acc, curr) => acc + parseFloat(curr.total), 0);
+    // Usa o total unificado (turmas + reservas concluídas) enviado pelo backend
+    const total = parseFloat(financeiroData.total_ressarcido_real || 0);
     const totalEl = document.getElementById('total-ressarcido-geral');
     if (totalEl) {
         totalEl.innerText = 'R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });

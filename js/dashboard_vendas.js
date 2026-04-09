@@ -25,7 +25,7 @@ function applyDynamicDayWidth(daysInMonth) {
     const availableWidthForDays = wrapperWidth - nameWidth - 10;
 
     // Na largura total, cada dia teria:
-    let dayWidth = Math.floor(availableWidthForDays / daysInMonth);
+    let dayWidth = (availableWidthForDays / daysInMonth);
 
     // No celular, não deixamos o dia ficar menor que 35px para manter legibilidade
     const isMobile = window.innerWidth <= 768;
@@ -81,7 +81,7 @@ function renderGanttVendas(ganttData = null) {
         if (nameCol) nameWidth = nameCol.offsetWidth;
 
         const availableWidth = wrapper.clientWidth - nameWidth - 10;
-        dayWidth = Math.floor(availableWidth / daysInMonth);
+        dayWidth = (availableWidth / daysInMonth);
         const minDayWidth = isMobile ? 38 : 28;
         if (dayWidth < minDayWidth) dayWidth = minDayWidth;
     }
@@ -97,10 +97,12 @@ function renderGanttVendas(ganttData = null) {
                     <th class="gantt-name-column gantt-day-header">Docente</th>
     `;
 
+    const dayNamesShort = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
     for (let d = 1; d <= daysInMonth; d++) {
         const date = new Date(year, month - 1, d);
         const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-        html += `<th class="gantt-day-header ${isWeekend ? 'weekend' : ''}" ${dayStyle}>${d}</th>`;
+        const dayLabel = dayNamesShort[date.getDay()];
+        html += `<th class="gantt-day-header ${isWeekend ? 'weekend' : ''}" ${dayStyle}><small class="gantt-day-name">${dayLabel}</small><br><span class="gantt-day-num">${d}</span></th>`;
     }
     html += `</tr></thead><tbody>`;
 
@@ -245,10 +247,16 @@ function renderCompactBar(docId, span) {
     bar.className = `gantt-bar ${span.type} height-p${span.count}`;
 
     const numDays = (span.end - span.start) + 1;
+    let totalWidth = 0;
+    for (let i = span.start; i <= span.end; i++) {
+        const targetCell = document.querySelector(`#track-${docId}-${i}`);
+        if (targetCell) {
+            const cellElement = targetCell.closest('.gantt-day-cell');
+            totalWidth += cellElement ? cellElement.getBoundingClientRect().width : (window.__dayWidth || 30);
+        }
+    }
 
-    const cellWidth = (window.__dayWidth || 30) - 1;
-
-    bar.style.width = `${numDays * cellWidth}px`;
+    bar.style.width = `${totalWidth}px`;
     bar.style.left = '-12px';
     bar.style.position = 'absolute';
 

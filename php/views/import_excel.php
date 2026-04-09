@@ -453,17 +453,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                             $ambiente = $r['ambiente'] ?? $r['sala'] ?? '';
                             $local = $r['local'] ?? $r['localturma'] ?? '';
                             $n_proposta = $r['numeroproposta'] ?? $r['nproposta'] ?? $r['proposta'] ?? '';
-                            $t_atendimento = $r['tipoatendimento'] ?? $r['atendimento'] ?? 'Balcão';
+                            $periodo = $r['periodo'] ?? $r['turno'] ?? '';
+                            
+                            $t_atendimento = trim($r['tipoatendimento'] ?? $r['atendimento'] ?? '');
+                            if ($t_atendimento === '') $t_atendimento = 'Balcão';
+                            
                             $parceiro = $r['parceiro'] ?? '';
                             $contato_parceiro = $r['contatoparceiro'] ?? $r['contato'] ?? '';
+                            
+                            $tipo_custeio = trim($r['tipocusteio'] ?? $r['custeio'] ?? '');
+                            if ($tipo_custeio === '') $tipo_custeio = 'Gratuidade';
+                            
+                            $previsao_despesa = (float)($r['previsaodespesa'] ?? $r['despesa'] ?? 0);
+                            $valor_turma = (float)($r['valorturma'] ?? $r['preco'] ?? $r['valor'] ?? 0);
 
-                            $periodo = $r['periodo'] ?? $r['turno'] ?? '';
                             if (!$periodo) {
                                 $periodo = deriveTurno($horario);
                             }
 
-                            $horario_inicio_excel = parseTime($r['horarioinicio'] ?? $r['horariode'] ?? $r['horainicio'] ?? $r['hora_inicio'] ?? '');
-                            $horario_fim_excel = parseTime($r['horariofim'] ?? $r['horarioate'] ?? $r['horafim'] ?? $r['hora_fim'] ?? $r['horafinal'] ?? '');
+                            $hi_raw = trim($r['horarioinicio'] ?? $r['horariode'] ?? $r['horainicio'] ?? $r['hora_inicio'] ?? '');
+                            $hf_raw = trim($r['horariofim'] ?? $r['horarioate'] ?? $r['horafim'] ?? $r['hora_fim'] ?? $r['horafinal'] ?? '');
+                            $horario_inicio_excel = parseTime($hi_raw);
+                            $horario_fim_excel = parseTime($hf_raw);
 
                             // Derive defaults if not in Excel
                             if (!$horario_inicio_excel || !$horario_fim_excel) {
@@ -665,6 +676,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                                     $update_params[] = $contato_parceiro;
                                     $update_types .= 's';
                                 }
+                                if ($tipo_custeio) {
+                                    $update_parts[] = "tipo_custeio = ?";
+                                    $update_params[] = $tipo_custeio;
+                                    $update_types .= 's';
+                                }
+                                if ($previsao_despesa) {
+                                    $update_parts[] = "previsao_despesa = ?";
+                                    $update_params[] = $previsao_despesa;
+                                    $update_types .= 'd';
+                                }
+                                if ($valor_turma) {
+                                    $update_parts[] = "valor_turma = ?";
+                                    $update_params[] = $valor_turma;
+                                    $update_types .= 'd';
+                                }
 
                                 $update_params[] = $sigla;
                                 $update_types .= 's';
@@ -674,8 +700,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                                 $stmt_upd->bind_param($update_types, ...$update_params);
                                 $stmt_upd->execute();
                             } else {
-                                $stmt_ins = $mysqli->prepare("INSERT INTO turma (sigla, curso_id, vagas, data_inicio, data_fim, periodo, dias_semana, docente_id1, docente_id2, docente_id3, docente_id4, ambiente_id, local, tipo, horario_inicio, horario_fim, numero_proposta, tipo_atendimento, parceiro, contato_parceiro) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                                $stmt_ins->bind_param('siissssiiiiissssssss', $sigla, $curso_id, $vagas, $di, $df, $periodo, $dias_semana, $did1, $did2, $did3, $did4, $amb_id, $local, $tipo_t, $horario_inicio_excel, $horario_fim_excel, $n_proposta, $t_atendimento, $parceiro, $contato_parceiro);
+                                // SQL com exatamente 23 interrogações
+                                $sql_turma = "INSERT INTO turma (sigla, curso_id, vagas, data_inicio, data_fim, periodo, dias_semana, docente_id1, docente_id2, docente_id3, docente_id4, ambiente_id, local, tipo, horario_inicio, horario_fim, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_custeio, previsao_despesa, valor_turma) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                                $stmt_ins = $mysqli->prepare($sql_turma);
+                                // Tipos (23): s, i, i, s, s, s, s, i, i, i, i, i, s, s, s, s, s, s, s, s, s, d, d
+                                $stmt_ins->bind_param('siissssiiiiisssssssisdd', $sigla, $curso_id, $vagas, $di, $df, $periodo, $dias_semana, $did1, $did2, $did3, $did4, $amb_id, $local, $tipo_t, $horario_inicio_excel, $horario_fim_excel, $n_proposta, $t_atendimento, $parceiro, $contato_parceiro, $tipo_custeio, $previsao_despesa, $valor_turma);
                                 $stmt_ins->execute();
                                 $tid_for_agenda = $mysqli->insert_id;
                             }
@@ -917,6 +946,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                             $hi = parseTime($r['horarioinicio'] ?? $r['horariode'] ?? $r['horainicio'] ?? '07:30');
                             $hf = parseTime($r['horariofim'] ?? $r['horarioate'] ?? $r['horafim'] ?? '11:30');
                             $notas = $r['notas'] ?? $r['observacao'] ?? '';
+                            
+                            $tipo_custeio = trim($r['tipocusteio'] ?? $r['custeio'] ?? '');
+                            if ($tipo_custeio === '') $tipo_custeio = 'Gratuidade';
+                            
+                            $previsao_despesa = (float)($r['previsaodespesa'] ?? $r['despesa'] ?? 0);
+                            $valor_turma = (float)($r['valorturma'] ?? $r['preco'] ?? $r['valor'] ?? 0);
+                            $n_proposta = $r['numeroproposta'] ?? $r['nproposta'] ?? '';
+                            
+                            $t_atendimento = trim($r['tipoatendimento'] ?? $r['atendimento'] ?? '');
+                            if ($t_atendimento === '') $t_atendimento = 'Balcão';
+                            $parceiro = $r['parceiro'] ?? '';
+                            $contato_parceiro = $r['contatoparceiro'] ?? '';
 
                             $sp = $mysqli->prepare("SELECT id FROM docente WHERE TRIM(nome) = ?");
                             $p_t = trim($pname);
@@ -926,9 +967,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
 
                             if ($did_res) {
                                 $uid = (isset($_SESSION['user_id'])) ? $_SESSION['user_id'] : 1;
-                                $st_res = $mysqli->prepare("INSERT INTO reservas (docente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, notas, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'APROVADA')");
-                                $st_res->bind_param('iissssss', $did_res, $uid, $di, $df, $dias, $hi, $hf, $notas);
-                                $st_res->execute();
+                                $status_val = $r['status'] ?? $r['situação'] ?? 'PENDENTE';
+                                
+                                // Garantir que o valor de status importado seja válido no sistema
+                                $status_val = mb_strtoupper(trim($status_val), 'UTF-8');
+                                if (!in_array($status_val, ['PENDENTE', 'APROVADA', 'CONCLUIDA', 'RECUSADA'])) {
+                                    $status_val = 'PENDENTE';
+                                }
+                                
+                                // Verificação de duplicata: mesma combinação de docente + datas + horários
+                                $sp_dup = $mysqli->prepare("SELECT id FROM reservas WHERE docente_id = ? AND data_inicio = ? AND data_fim = ? AND hora_inicio = ? AND hora_fim = ?");
+                                $sp_dup->bind_param('issss', $did_res, $di, $df, $hi, $hf);
+                                $sp_dup->execute();
+                                $dup_result = $sp_dup->get_result();
+                                
+                                if ($dup_result->num_rows > 0) {
+                                    // Já existe — atualiza os campos financeiros e status em vez de duplicar
+                                    $existing_id = $dup_result->fetch_row()[0];
+                                    $sql_upd = "UPDATE reservas SET status = ?, tipo_custeio = ?, previsao_despesa = ?, valor_turma = ?, numero_proposta = ?, tipo_atendimento = ?, parceiro = ?, contato_parceiro = ?, notas = ? WHERE id = ?";
+                                    $st_upd = $mysqli->prepare($sql_upd);
+                                    $st_upd->bind_param('ssddsssssi',
+                                        $status_val, $tipo_custeio, $previsao_despesa, $valor_turma,
+                                        $n_proposta, $t_atendimento, $parceiro, $contato_parceiro, $notas, $existing_id
+                                    );
+                                    $st_upd->execute();
+                                } else {
+                                    // SQL com exatamente 16 placeholders
+                                    $sql_res = "INSERT INTO reservas (docente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, notas, status, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                                    
+                                    $st_res = $mysqli->prepare($sql_res);
+                                    
+                                    // Tipos (16): iisssssssddsssss
+                                    $st_res->bind_param('iisssssssddsssss', 
+                                        $did_res,          // 1
+                                        $uid,              // 2
+                                        $di,               // 3
+                                        $df,               // 4
+                                        $dias,             // 5
+                                        $hi,               // 6
+                                        $hf,               // 7
+                                        $notas,            // 8
+                                        $status_val,       // 9 
+                                        $tipo_custeio,     // 10
+                                        $previsao_despesa, // 11
+                                        $valor_turma,      // 12
+                                        $n_proposta,       // 13
+                                        $t_atendimento,    // 14
+                                        $parceiro,         // 15
+                                        $contato_parceiro  // 16
+                                    );
+                                    $st_res->execute();
+                                }
                             }
                         } elseif ($sheet_key === 'HORARIO_TRABALHO') {
                             // Mapeamento das colunas super tolerante a variações

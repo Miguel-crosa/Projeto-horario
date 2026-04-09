@@ -248,10 +248,10 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                     $docentes_str = implode(', ', $docentes_list);
                     $docentes_search = implode(' ', $docentes_list);
                     ?>
-                    <tr class="matches-filter" data-docentes="<?= htmlspecialchars($docentes_search) ?>">
+                    <tr class="matches-filter" data-docentes="<?= xe($docentes_search) ?>">
                         <td style="color: var(--text-muted); font-size: 0.8rem;"><?= $idx++ ?></td>
                         <td>
-                            <strong><?= htmlspecialchars($t['sigla']) ?></strong>
+                            <strong><?= xe($t['sigla']) ?></strong>
                             <?php if ($is_archived_view): ?>
                                 <span
                                     style="display: block; font-size: 0.65rem; color: #d32f2f; font-weight: 700; text-transform: uppercase; margin-top: 4px;">
@@ -259,8 +259,8 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                                 </span>
                             <?php endif; ?>
                         </td>
-                        <td><?= htmlspecialchars($t['curso_nome']) ?></td>
-                        <td><?= htmlspecialchars($t['periodo']) ?></td>
+                        <td><?= xe($t['curso_nome']) ?></td>
+                        <td><?= xe($t['periodo']) ?></td>
                         <td>
                             <?php
                             $h_ini = !empty($t['horario_inicio']) ? substr($t['horario_inicio'], 0, 5) : '--:--';
@@ -274,7 +274,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                                     <span
                                         style="display: inline-block; background: rgba(229,57,53,0.08); color: var(--text-color); padding: 2px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; margin: 1px 2px; border: 1px solid rgba(229,57,53,0.15);">
                                         <i class="fas fa-user"
-                                            style="font-size: 0.65rem; opacity: 0.6; margin-right: 3px;"></i><?= htmlspecialchars($dn) ?>
+                                            style="font-size: 0.65rem; opacity: 0.6; margin-right: 3px;"></i><?= xe($dn) ?>
                                     </span>
                                 <?php endforeach; ?>
                             <?php else: ?>
@@ -294,7 +294,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                                         <i class="fas fa-undo"></i>
                                     </a>
                                     <button type="button" class="btn btn-delete" title="Excluir Permanentemente"
-                                        data-id="<?= $t['id'] ?>" data-sigla="<?= htmlspecialchars($t['sigla']) ?>"
+                                        data-id="<?= $t['id'] ?>" data-sigla="<?= xe($t['sigla']) ?>"
                                         data-fim="<?= $t['data_fim'] ?>" onclick="handleDeleteTurma(this)">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -302,7 +302,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                                     <a href="turmas_form.php?id=<?= $t['id'] ?>" class="btn btn-edit" title="Editar"><i
                                             class="fas fa-edit"></i></a>
                                     <button type="button" class="btn btn-delete" title="Excluir" data-id="<?= $t['id'] ?>"
-                                        data-sigla="<?= htmlspecialchars($t['sigla']) ?>" data-fim="<?= $t['data_fim'] ?>"
+                                        data-sigla="<?= xe($t['sigla']) ?>" data-fim="<?= $t['data_fim'] ?>"
                                         onclick="handleDeleteTurma(this)">
                                         <i class="fas fa-trash"></i>
                                     </button>

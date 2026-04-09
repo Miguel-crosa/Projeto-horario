@@ -58,6 +58,12 @@ if ($action == 'activate') {
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $is_ajax = isset($_POST['ajax']) && $_POST['ajax'] == '1';
 
+    // SEGURANÇA: Se o usuário for CRI, ele SÓ pode criar reservas pendentes.
+    if (isCRI()) {
+        $_POST['is_reserva'] = '1';
+        $is_reserva = true;
+    }
+
     function handle_response($conn, $success, $message, $redirect_url, $is_ajax)
     {
         if ($is_ajax) {
@@ -83,6 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $data_inicio = mysqli_real_escape_string($conn, $_POST['data_inicio']);
     $data_fim = mysqli_real_escape_string($conn, $_POST['data_fim']);
     $ambiente_id = !empty($_POST['ambiente_id']) ? mysqli_real_escape_string($conn, $_POST['ambiente_id']) : "NULL";
+    if ($ambiente_id === 'outro') $ambiente_id = "NULL";
+    
     $sigla = mysqli_real_escape_string($conn, $_POST['sigla'] ?? '');
     $vagas = (int) ($_POST['vagas'] ?? 32);
     $local = mysqli_real_escape_string($conn, $_POST['local'] ?? 'Sede');

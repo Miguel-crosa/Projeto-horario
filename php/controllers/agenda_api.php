@@ -78,8 +78,8 @@ switch ($action) {
         }
 
         $docente_id = (int) ($_POST['docente_id'] ?? 0);
-        $data = mysqli_real_escape_string($conn, $_POST['data'] ?? '');
-        $periodo = mysqli_real_escape_string($conn, $_POST['periodo'] ?? '');
+        $data = $_POST['data'] ?? '';
+        $periodo = $_POST['periodo'] ?? '';
 
         if (!$docente_id || !$data) {
             echo json_encode(['success' => false, 'message' => 'Parâmetros inválidos para remoção de reserva.']);
@@ -87,19 +87,26 @@ switch ($action) {
         }
 
         $query = "DELETE FROM agenda 
-                  WHERE docente_id = $docente_id 
-                    AND data = '$data' 
+                  WHERE docente_id = ? 
+                    AND data = ? 
                     AND status = 'RESERVADO' 
                     AND turma_id IS NULL";
+        
         if ($periodo) {
-            $query .= " AND periodo = '$periodo'";
+            $query .= " AND periodo = ?";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param('iss', $docente_id, $data, $periodo);
+        } else {
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param('is', $docente_id, $data);
         }
 
-        if (mysqli_query($conn, $query)) {
+        if ($stmt->execute()) {
             echo json_encode(['success' => true, 'message' => 'Reserva removida com sucesso.']);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Erro ao remover reserva: ' . mysqli_error($conn)]);
+            echo json_encode(['success' => false, 'message' => 'Erro ao processar solicitação.']);
         }
+        $stmt->close();
         exit;
 
     case 'remove_reservations_batch':
@@ -109,30 +116,36 @@ switch ($action) {
         }
         $docente_id = (int) ($_POST['docente_id'] ?? 0);
         $dates = $_POST['dates'] ?? [];
-        $periodo = mysqli_real_escape_string($conn, $_POST['periodo'] ?? '');
+        $periodo = $_POST['periodo'] ?? '';
 
         if (!$docente_id || empty($dates)) {
             echo json_encode(['success' => false, 'message' => 'Docente e datas são obrigatórios.']);
             exit;
         }
 
-        $date_list = [];
-        foreach ($dates as $d) {
-            $date_list[] = "'" . mysqli_real_escape_string($conn, $d) . "'";
-        }
-        $date_str = implode(',', $date_list);
-
-        $query = "DELETE FROM agenda WHERE docente_id = $docente_id AND data IN ($date_str) AND status = 'RESERVADO' AND turma_id IS NULL";
+        $placeholders = implode(',', array_fill(0, count($dates), '?'));
+        $query = "DELETE FROM agenda WHERE docente_id = ? AND data IN ($placeholders) AND status = 'RESERVADO' AND turma_id IS NULL";
+        
         if ($periodo) {
-            $query .= " AND periodo = '$periodo'";
+            $query .= " AND periodo = ?";
         }
 
-        if (mysqli_query($conn, $query)) {
-            $count = mysqli_affected_rows($conn);
+        $stmt = $conn->prepare($query);
+        $types = 'i' . str_repeat('s', count($dates));
+        $params = array_merge([$docente_id], $dates);
+        if ($periodo) {
+            $types .= 's';
+            $params[] = $periodo;
+        }
+        $stmt->bind_param($types, ...$params);
+
+        if ($stmt->execute()) {
+            $count = $stmt->affected_rows;
             echo json_encode(['success' => true, 'message' => "$count reserva(s) removida(s)."]);
         } else {
-            echo json_encode(['success' => false, 'message' => mysqli_error($conn)]);
+            echo json_encode(['success' => false, 'message' => 'Erro ao processar remoção em lote.']);
         }
+        $stmt->close();
         exit;
 
     case 'save_reservations':
@@ -148,10 +161,10 @@ switch ($action) {
         $saved = 0;
         $daysMap = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
 
-        foreach ($dates as $date) {
-            $date_esc = mysqli_real_escape_string($conn, $date);
+        $stmt_check = $conn->prepare("SELECT id FROM agenda WHERE docente_id = ? AND data = ? AND status = 'RESERVADO' AND turma_id IS NULL AND periodo = ?");
+        $stmt_ins = $conn->prepare("INSERT INTO agenda (docente_id, dia_semana, data, status, turma_id, periodo) VALUES (?, ?, ?, 'RESERVADO', NULL, ?)");
 
-            // --- VALIDATIONS (UPDATE.MD) ---
+        foreach ($dates as $date) {
             if ($h = isHoliday($conn, $date)) {
                 echo json_encode(['success' => false, 'message' => "Não é possível reservar: $date é feriado ({$h['name']})."]);
                 exit;
@@ -165,26 +178,21 @@ switch ($action) {
             $w = (int) date('w', strtotime($date));
             $dia_semana = $daysMap[$w];
 
-            // --- WORK SCHEDULE ENFORCEMENT ---
             if (!isWithinWorkSchedule($conn, $docente_id, $date, $periodo)) {
                 echo json_encode(['success' => false, 'message' => "O docente não possui disponibilidade cadastrada para $dia_semana no período $periodo."]);
                 exit;
             }
 
-            // Check if reservation already exists for this day/period
-            $existing = mysqli_fetch_assoc(mysqli_query($conn, "
-                SELECT id FROM agenda 
-                WHERE docente_id = $docente_id AND data = '$date_esc' AND status = 'RESERVADO' AND turma_id IS NULL AND periodo = '$periodo'
-            "));
-
-            if (!$existing) {
-                mysqli_query($conn, "
-                    INSERT INTO agenda (docente_id, dia_semana, data, status, turma_id, periodo)
-                    VALUES ($docente_id, '$dia_semana', '$date_esc', 'RESERVADO', NULL, '$periodo')
-                ");
+            $stmt_check->bind_param('iss', $docente_id, $date, $periodo);
+            $stmt_check->execute();
+            if ($stmt_check->get_result()->num_rows == 0) {
+                $stmt_ins->bind_param('isss', $docente_id, $dia_semana, $date, $periodo);
+                $stmt_ins->execute();
                 $saved++;
             }
         }
+        $stmt_check->close();
+        $stmt_ins->close();
 
         echo json_encode(['success' => true, 'message' => "$saved dia(s) reservado(s) com sucesso."], JSON_UNESCAPED_UNICODE);
         break;
@@ -574,12 +582,13 @@ switch ($action) {
             $sigla = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $curso_row['nome'] ?? 'CRS'), 0, 4)) . '-' . date('His');
         }
 
+        $amb_id_val = $ambiente_id ? $ambiente_id : 'NULL';
         $d2_val = $docente_id2 ? $docente_id2 : 'NULL';
         $d3_val = $docente_id3 ? $docente_id3 : 'NULL';
         $d4_val = $docente_id4 ? $docente_id4 : 'NULL';
 
         $insert_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, docente_id2, docente_id3, docente_id4, local) 
-                         VALUES ($curso_id, '$tipo', '$sigla', $vagas, '$periodo', '$data_inicio', '$data_fim', '$dias_str', $ambiente_id, $docente_id, $d2_val, $d3_val, $d4_val, '$local')";
+                         VALUES ($curso_id, '$tipo', '$sigla', $vagas, '$periodo', '$data_inicio', '$data_fim', '$dias_str', $amb_id_val, $docente_id, $d2_val, $d3_val, $d4_val, '$local')";
         if (!mysqli_query($conn, $insert_turma)) {
             echo json_encode(['success' => false, 'message' => 'Erro ao criar turma: ' . mysqli_error($conn)]);
             exit;
@@ -662,10 +671,16 @@ switch ($action) {
 
             // 1. Create Turma
             $dias_arr = explode(',', $r['dias_semana']);
+            $env_id = !empty($r['ambiente_id']) ? $r['ambiente_id'] : "NULL";
+            $cur_id = !empty($r['curso_id']) ? $r['curso_id'] : "NULL";
+            $props = !empty($r['numero_proposta']) ? "'".$r['numero_proposta']."'" : "NULL";
+            $parc = !empty($r['parceiro']) ? "'".$r['parceiro']."'" : "NULL";
+            $cont = !empty($r['contato_parceiro']) ? "'".$r['contato_parceiro']."'" : "NULL";
+
             $sql_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, local, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro) 
-                          VALUES ({$r['curso_id']}, '{$r['tipo']}', '{$r['sigla']}', {$r['vagas']}, '{$r['periodo']}', '{$r['data_inicio']}', '{$r['data_fim']}', '{$r['dias_semana']}', {$r['ambiente_id']}, {$r['docente_id']}, '{$r['local']}', '{$r['tipo_custeio']}', {$r['previsao_despesa']}, {$r['valor_turma']}, '{$r['numero_proposta']}', '{$r['tipo_atendimento']}', '{$r['parceiro']}', '{$r['contato_parceiro']}')";
+                          VALUES ($cur_id, '{$r['tipo']}', '{$r['sigla']}', {$r['vagas']}, '{$r['periodo']}', '{$r['data_inicio']}', '{$r['data_fim']}', '{$r['dias_semana']}', $env_id, {$r['docente_id']}, '{$r['local']}', '{$r['tipo_custeio']}', {$r['previsao_despesa']}, {$r['valor_turma']}, $props, '{$r['tipo_atendimento']}', $parc, $cont)";
             if (!mysqli_query($conn, $sql_turma))
-                throw new Exception("Erro ao criar turma: " . mysqli_error($conn));
+                throw new Exception("Erro ao criar turma: " . mysqli_error($conn) . " SQL: " . $sql_turma);
             $turma_id = mysqli_insert_id($conn);
 
             // 2. Clear old legacy RESERVADO rows from the agenda table in this range to avoid conflicts
