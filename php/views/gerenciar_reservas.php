@@ -73,6 +73,12 @@ include __DIR__ . '/../components/header.php';
         gap: 20px;
     }
 
+    @media (max-width: 480px) {
+        .reserva-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
     .reserva-card {
         background: var(--card-bg);
         border-radius: 16px;
@@ -281,6 +287,23 @@ include __DIR__ . '/../components/header.php';
         padding: 15px 25px;
         border-radius: 15px;
         border: 1px solid var(--border-color);
+    }
+
+    @media (max-width: 768px) {
+        .filter-bar {
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px;
+            align-items: stretch;
+        }
+        .status-filters {
+            overflow-x: auto;
+            padding-bottom: 10px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .filter-chip {
+            white-space: nowrap;
+        }
     }
 
     .status-filters {

@@ -46,8 +46,8 @@ $feriados = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM holidays ORDER B
 <div class="page-header">
     <h2>Gestão de Feriados</h2>
     <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <div class="search-box">
-            <input type="text" id="tableSearch" placeholder="Buscar feriado..." class="form-input" style="width: 300px;"
+        <div class="search-box" style="flex: 1; min-width: 250px;">
+            <input type="text" id="tableSearch" placeholder="Buscar feriado..." class="form-input" style="width: 100%;"
                 onkeyup="currentPage=1; updatePagination()">
         </div>
         <a href="feriados_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Feriado</a>

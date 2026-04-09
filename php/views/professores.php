@@ -10,9 +10,9 @@ $professores = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM docente $wher
 <div class="page-header">
     <h2>Gestão de Professores</h2>
     <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <div class="search-box">
+        <div class="search-box" style="flex: 1; min-width: 250px;">
             <input type="text" id="tableSearch" placeholder="Buscar professor..." class="form-input"
-                style="width: 300px;" onkeyup="currentPage=1; updatePagination()">
+                style="width: 100%;" onkeyup="currentPage=1; updatePagination()">
         </div>
         <a href="professores_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Professor</a>
         <?php if ($show_inactive): ?>

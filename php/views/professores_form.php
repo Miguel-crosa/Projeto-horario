@@ -637,6 +637,45 @@ if ($id) {
     .btn-del-v4:hover { color: #ed1c24; }
     .btn-add-v4 { width: 100%; padding: 12px; background: var(--bg-hover); border: none; cursor: pointer; font-weight: 700; color: var(--text-muted); }
     .btn-add-v4:hover { color: #ed1c24; }
+
+    /* Responsividade Professores Form */
+    @media (max-width: 768px) {
+        .card { padding: 15px !important; }
+        .grande-bloco-header {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 15px !important;
+        }
+        .grande-bloco-datas {
+            flex-direction: column;
+            align-items: stretch !important;
+            width: 100%;
+        }
+        .bloco-date-field .input-v4 {
+            width: 100% !important;
+        }
+        .bloco-sep {
+            display: none;
+        }
+        .slot-row-v4 {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 15px !important;
+            padding: 15px !important;
+        }
+        .col-time-v4 {
+            width: 100% !important;
+        }
+        .circle-group-v4 {
+            flex-wrap: wrap;
+        }
+        .modal-content {
+            width: 95% !important;
+            margin: 10px !important;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+    }
 </style>
 
 <?php include __DIR__ . '/../components/footer.php'; ?>

@@ -3,21 +3,57 @@
 document.addEventListener('DOMContentLoaded', function () {
     renderGanttVendas();
     initGanttDragScroll();
+    window.addEventListener('resize', () => {
+        const data = window.__ganttData;
+        if (data) {
+            applyDynamicDayWidth(data.daysInMonth);
+            document.querySelectorAll('.gantt-track .gantt-bar').forEach(b => b.remove());
+            drawGanttBarsCompact();
+        }
+    });
 });
+
+function applyDynamicDayWidth(daysInMonth) {
+    const wrapper = document.querySelector('.gantt-vendas-wrapper');
+    if (!wrapper) return;
+
+    // Pega a largura da coluna de nome diretamente do CSS computado
+    const nameCol = document.querySelector('.gantt-name-column');
+    const nameWidth = nameCol ? nameCol.offsetWidth : 145;
+
+    const wrapperWidth = wrapper.clientWidth;
+    const availableWidthForDays = wrapperWidth - nameWidth - 10;
+
+    // Na largura total, cada dia teria:
+    let dayWidth = Math.floor(availableWidthForDays / daysInMonth);
+
+    // No celular, não deixamos o dia ficar menor que 35px para manter legibilidade
+    const isMobile = window.innerWidth <= 768;
+    const minDayWidth = isMobile ? 38 : 28;
+
+    if (dayWidth < minDayWidth) {
+        dayWidth = minDayWidth;
+    }
+
+    // Aplica em todos os th e td de dia (não na coluna de nome)
+    document.querySelectorAll('.gantt-day-header:not(.gantt-name-column), .gantt-day-cell')
+        .forEach(el => {
+            el.style.width = dayWidth + 'px';
+            el.style.minWidth = dayWidth + 'px';
+        });
+
+    // Guarda para uso no drawGanttBarsCompact
+    window.__dayWidth = dayWidth;
+}
 
 function renderGanttVendas(ganttData = null) {
     const chart = document.getElementById('gantt-vendas-chart');
     if (!chart) return;
 
-    // Se novos dados foram passados via AJAX, atualizamos a variável global
     if (ganttData) {
         window.__ganttData = ganttData;
-
-        // Atualiza o label do mês se disponível
         const label = document.getElementById('vendas-month-label');
         if (label && ganttData.mes_label) label.innerText = ganttData.mes_label;
-
-        // Atualiza o campo oculto do mês
         const input = document.getElementById('vendas-mes-sel');
         if (input) {
             const m = String(ganttData.month).padStart(2, '0');
@@ -31,6 +67,29 @@ function renderGanttVendas(ganttData = null) {
     const daysInMonth = data.daysInMonth;
     const docentes = data.docentes;
 
+    // Calcula largura ANTES de gerar o HTML
+    const wrapper = document.querySelector('.gantt-vendas-wrapper');
+    const isMobile = window.innerWidth <= 768;
+
+    // Valor inicial aproximado para o primeiro render
+    let nameWidth = isMobile ? 100 : 145;
+    let dayWidth = 35;
+
+    // Se o wrapper já existir (re-render), tentamos medir
+    if (wrapper) {
+        const nameCol = document.querySelector('.gantt-name-column');
+        if (nameCol) nameWidth = nameCol.offsetWidth;
+
+        const availableWidth = wrapper.clientWidth - nameWidth - 10;
+        dayWidth = Math.floor(availableWidth / daysInMonth);
+        const minDayWidth = isMobile ? 38 : 28;
+        if (dayWidth < minDayWidth) dayWidth = minDayWidth;
+    }
+
+    window.__dayWidth = dayWidth;
+
+    const dayStyle = `style="width:${dayWidth}px;min-width:${dayWidth}px;"`;
+
     let html = `
         <table class="gantt-table">
             <thead>
@@ -41,7 +100,7 @@ function renderGanttVendas(ganttData = null) {
     for (let d = 1; d <= daysInMonth; d++) {
         const date = new Date(year, month - 1, d);
         const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-        html += `<th class="gantt-day-header ${isWeekend ? 'weekend' : ''}">${d}</th>`;
+        html += `<th class="gantt-day-header ${isWeekend ? 'weekend' : ''}" ${dayStyle}>${d}</th>`;
     }
     html += `</tr></thead><tbody>`;
 
@@ -59,10 +118,8 @@ function renderGanttVendas(ganttData = null) {
         for (let d = 1; d <= daysInMonth; d++) {
             const date = new Date(year, month - 1, d);
             const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-            const dayStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
             html += `
-                <td class="gantt-day-cell ${isWeekend ? 'weekend' : ''}" 
+                <td class="gantt-day-cell ${isWeekend ? 'weekend' : ''}" ${dayStyle}
                     onclick="window.location.href='agenda_professores.php?docente_id=${doc.id}&month=${year}-${String(month).padStart(2, '0')}'">
                     <div class="gantt-track-container" id="track-${doc.id}-${d}">
                         <div class="gantt-track"></div>
@@ -75,7 +132,6 @@ function renderGanttVendas(ganttData = null) {
     html += `</tbody></table>`;
     chart.innerHTML = html;
 
-    // ← Aguarda o browser renderizar antes de desenhar as barras
     requestAnimationFrame(() => {
         drawGanttBarsCompact();
     });
@@ -190,12 +246,10 @@ function renderCompactBar(docId, span) {
 
     const numDays = (span.end - span.start) + 1;
 
-    const cellEl = document.querySelector('.gantt-day-cell');
-    // ← Subtrai 1px de borda por célula para alinhamento perfeito
-    const cellWidth = cellEl ? cellEl.offsetWidth - 1 : 79;
+    const cellWidth = (window.__dayWidth || 30) - 1;
 
     bar.style.width = `${numDays * cellWidth}px`;
-    bar.style.left = '-10px';
+    bar.style.left = '-12px';
     bar.style.position = 'absolute';
 
     let labelHTML = `<div class="gantt-label-rich"><strong>${span.curso}</strong>`;

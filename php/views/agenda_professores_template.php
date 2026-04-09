@@ -80,7 +80,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
 
         <div class="month-nav-group" <?php if ($view_mode == 'calendar'): ?>style="display:none;"<?php endif; ?>>
             <label class="period-label-text">Período de Exibição</label>
-            <div class="month-nav-controls" style="display: flex; gap: 15px; align-items: center;">
+            <div class="month-nav-controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <!-- Seletor de Mês -->
                 <div class="sub-nav-group" style="display: flex; align-items: center; gap: 8px;">
                     <button onclick="navigateMonth(-1)" class="month-btn-nav" title="Mês Anterior" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-chevron-left" style="font-size:0.75rem;"></i></button>
@@ -124,11 +124,11 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                 </button>
             </div>
         </div>
-        <div class="avail-legend period-legend-group">
-            <span style="display: flex; align-items: center; gap: 5px;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></span> Disponível</span>
-            <span style="display: flex; align-items: center; gap: 5px;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #f44336;"></span> Ocupado</span>
-            <span style="display: flex; align-items: center; gap: 5px;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #ffb300;"></span> Reservado</span>
-            <span style="display: flex; align-items: center; gap: 5px;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #1565c0;"></span> Feriado / Férias</span>
+        <div class="avail-legend period-legend-group" style="flex-wrap: wrap; justify-content: flex-start;">
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></span> Disp.</span>
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #f44336;"></span> Ocup.</span>
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #ffb300;"></span> Res.</span>
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #1565c0;"></span> Feriado</span>
         </div>
     </div>
 
@@ -612,9 +612,9 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                         }
                         if ($cur_block) $blocks[] = $cur_block;
                         ?>
-                        <div class="blocks-bar-wrapper">
+                        <div class="blocks-bar-wrapper" style="overflow-x: auto; display: flex; -webkit-overflow-scrolling: touch; padding-bottom: 5px;">
                             <?php foreach ($blocks as $block):
-                                $range_text = ($block['start'] == $block['end']) ? 'Dia ' . str_pad($block['start'], 2, '0', STR_PAD_LEFT) : 'Dia ' . str_pad($block['start'], 2, '0', STR_PAD_LEFT) . ' &ndash; ' . str_pad($block['end'], 2, '0', STR_PAD_LEFT);
+                                $range_text = ($block['start'] == $block['end']) ? 'Dia ' . str_pad($block['start'], 2, '0', STR_PAD_LEFT) : 'Dia ' . str_pad($block['start'], 2, '0', STR_PAD_LEFT) . ' - ' . str_pad($block['end'], 2, '0', STR_PAD_LEFT);
                                 if (strpos($block['status'], 'busy:') === 0) $bclass = 'block-seg-busy';
                                 elseif ($block['status'] === 'feriado') $bclass = 'block-seg-feriado';
                                 elseif ($block['status'] === 'reserved') $bclass = 'block-seg-reserved';
@@ -624,10 +624,10 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                 $first_dt = sprintf("%s-%02d", $current_month, $block['start']);
                                 $is_clickable = ($block['status'] === 'free' || $block['status'] === 'reserved_own');
                             ?>
-                                <div class="block-seg <?php echo $bclass; ?> <?php echo !$is_clickable ? 'slot-disabled' : ''; ?>" style="flex: <?php echo $block['count']; ?>;" title="<?php echo $range_text; ?>: <?php echo htmlspecialchars($block['label']); ?>"
+                                <div class="block-seg <?php echo $bclass; ?> <?php echo !$is_clickable ? 'slot-disabled' : ''; ?>" style="flex: 0 0 auto; min-width: 120px; margin-right: 5px; border-radius: 8px;" title="<?php echo $range_text; ?>: <?php echo htmlspecialchars($block['label']); ?>"
                                      <?php if ($is_clickable): ?>onclick="handleBarClick(<?php echo $p['id']; ?>, '<?php echo addslashes($p['nome']); ?>', '<?php echo $first_dt; ?>', this, event)"<?php endif; ?>>
-                                    <span class="block-range"><?php echo $range_text; ?></span>
-                                    <span class="block-label"><?php echo htmlspecialchars($block['label']); ?></span>
+                                    <span class="block-range" style="font-size: 0.7rem;"><?php echo $range_text; ?></span>
+                                    <span class="block-label" style="font-size: 0.8rem; font-weight: 800;"><?php echo htmlspecialchars($block['label']); ?></span>
                                 </div>
                             <?php endforeach; ?>
                         </div>

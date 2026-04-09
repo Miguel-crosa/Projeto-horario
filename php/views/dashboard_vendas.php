@@ -91,21 +91,21 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
 <link rel="stylesheet" href="../../css/dashboard_vendas.css">
 
 <div class="dashboard-vendas-hero">
-    <h1 class="vendas-title">Gestão de Alocação de Docentes</h1>
+    <h1 class="vendas-title">Alocação de Docentes</h1>
 
     <div class="vendas-legend-container">
-        <div class="legend-item"><span class="dot orange"></span> Curso / Aula</div>
-        <div class="legend-item"><span class="dot yellow"></span> Aguard. Aprovação</div>
-        <div class="legend-item"><span class="dot blue"></span> Feriado / Evento</div>
-        <div class="legend-item"><span class="dot gray"></span> Fim de Semana</div>
-        <div class="legend-item"><span class="dot purple"></span> Indisponível / Prep.</div>
-        <div class="legend-item"><span class="dot green-light"></span> Disponível</div>
+        <div class="legend-item"><span class="dot orange"></span> Aula</div>
+        <div class="legend-item"><span class="dot yellow"></span> Reservado</div>
+        <div class="legend-item"><span class="dot blue"></span> Feriado</div>
+        <div class="legend-item"><span class="dot gray"></span> Folga</div>
+        <div class="legend-item"><span class="dot purple"></span> Indisp.</div>
+        <div class="legend-item"><span class="dot green-light"></span> Livre</div>
     </div>
 
     <div class="vendas-search-wrapper">
         <div class="vendas-search-box">
             <i class="fas fa-search"></i>
-            <input type="text" id="gantt-search-docente" placeholder="Pesquisar Docente por Nome ou Área..."
+            <input type="text" id="gantt-search-docente" placeholder="Pesquisar..."
                 oninput="filterGanttDocentes()">
         </div>
     </div>

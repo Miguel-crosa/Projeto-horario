@@ -10,7 +10,7 @@ $cursos = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM curso ORDER BY nom
     <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <div class="search-box">
             <input type="text" id="filter-nome" placeholder="Filtrar por nome do curso..." class="form-input"
-                style="width: 300px;" onkeyup="filterCursos()">
+                style="width: 100%; max-width: 300px;" onkeyup="filterCursos()">
         </div>
         <a href="cursos_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Curso</a>
     </div>
