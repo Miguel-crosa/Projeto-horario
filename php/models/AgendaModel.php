@@ -40,7 +40,7 @@ class AgendaModel
                    a.data AS agenda_data, a.status, a.docente_id,
                    c.nome AS curso_nome, t.sigla as turma_nome, t.data_inicio, t.data_fim, t.id AS turma_id,
                    t.valor_turma, t.tipo_custeio, t.previsao_despesa,
-                   amb.nome AS ambiente_nome, 'AULA' as type
+                   COALESCE(amb.nome, t.local) AS ambiente_nome, 'AULA' as type
             FROM agenda a
             JOIN turma t ON a.turma_id = t.id
             JOIN curso c ON t.curso_id = c.id
@@ -82,7 +82,7 @@ class AgendaModel
                    r.status, r.docente_id,
                    c.nome AS curso_nome, r.data_inicio, r.data_fim, NULL AS turma_id,
                    r.valor_turma, r.tipo_custeio, r.previsao_despesa,
-                   amb.nome AS ambiente_nome, r.usuario_id, r.sigla, 'RESERVA' as type
+                   COALESCE(amb.nome, r.local) AS ambiente_nome, r.usuario_id, r.sigla, 'RESERVA' as type
             FROM reservas r
             LEFT JOIN curso c ON r.curso_id = c.id
             LEFT JOIN ambiente amb ON r.ambiente_id = amb.id

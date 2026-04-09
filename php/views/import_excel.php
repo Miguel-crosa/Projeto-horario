@@ -295,11 +295,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                         if ($sheet_key === 'USUARIOS') {
                             $nome = $r['nome'] ?? '';
                             $email = $r['email'] ?? '';
-                            $role = $r['cargopermissao'] ?? $r['cargo'] ?? $r['permissao'] ?? 'docente';
-                            if (!$nome)
+                            // Ajuste para bater com ENUM do banco: admin, gestor, professor, cri
+                            $role = $r['cargopermissao'] ?? $r['cargo'] ?? $r['permissao'] ?? 'professor';
+                            if (!$nome || !$email)
                                 continue;
-                            $stmt = $mysqli->prepare("INSERT INTO usuario (nome, email, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)");
-                            $stmt->bind_param('sss', $nome, $email, $role);
+
+                            // Correção Bug: Definir senha padrão (senaisp) para novos usuários
+                            $default_hash = password_hash('senaisp', PASSWORD_BCRYPT);
+
+                            $stmt = $mysqli->prepare("INSERT INTO usuario (nome, email, role, senha, obrigar_troca_senha) VALUES (?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE role = VALUES(role)");
+                            $stmt->bind_param('ssss', $nome, $email, $role, $default_hash);
                             $stmt->execute();
                         } elseif ($sheet_key === 'DOCENTES') {
                             $nome = $r['nome'] ?? '';
