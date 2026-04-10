@@ -431,6 +431,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Manipuladores de clique nos dias
         document.querySelectorAll('.cal-day:not(.empty):not(.domingo)').forEach(day => {
+            if (window.userIsProfessor) {
+                day.style.cursor = 'default';
+                return;
+            }
             day.addEventListener('click', function (e) {
                 // Bug fix: Se o horário/dia estiver indisponível (cinza), ignore o clique.
                 if (this.classList.contains('off-schedule') || this.classList.contains('domingo')) {

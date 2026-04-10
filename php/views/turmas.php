@@ -44,12 +44,16 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 title="Ajustar horários">
                 <i class="fas fa-magic"></i> Ajustar horários
             </a>
-            <button type="button" onclick="openGlobalReserva()" class="btn btn-warning"
-                style="background: #ffb300; border: none; color: #5d4037; font-weight: 700; height: 38px;">
-                <i class="fas fa-bookmark"></i> RESERVA
-            </button>
-            <a href="turmas_form.php" class="btn btn-primary" style="font-weight: 700;"><i class="fas fa-plus"></i> NOVA
-                TURMA</a>
+            <?php if (can_reserve()): ?>
+                <button type="button" onclick="openGlobalReserva()" class="btn btn-warning"
+                    style="background: #ffb300; border: none; color: #5d4037; font-weight: 700; height: 38px;">
+                    <i class="fas fa-bookmark"></i> RESERVA
+                </button>
+            <?php endif; ?>
+            <?php if (can_edit()): ?>
+                <a href="turmas_form.php" class="btn btn-primary" style="font-weight: 700;"><i class="fas fa-plus"></i> NOVA
+                    TURMA</a>
+            <?php endif; ?>
             <?php if ($is_archived_view): ?>
                 <a href="turmas.php" class="btn btn-secondary"><i class="fas fa-check-circle"></i> Ver Ativas</a>
             <?php else: ?>
@@ -227,7 +231,9 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                             style="opacity: 0.3;"></i></span></th>
                 <th onclick="sortTable(8)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th style="text-align: center;">AÇÕES</th>
+                <?php if (can_edit()): ?>
+                    <th style="text-align: center;">AÇÕES</th>
+                <?php endif; ?>
             </tr>
         </thead>
         <tbody>
@@ -284,31 +290,33 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                         <td><?= !empty($t['data_inicio']) ? date('d/m/Y', strtotime($t['data_inicio'])) : '-' ?></td>
                         <td><?= !empty($t['data_fim']) ? date('d/m/Y', strtotime($t['data_fim'])) : '-' ?></td>
                         <td><?= $t['vagas'] ?></td>
-                        <td>
-                            <div style="display: flex; gap: 5px; justify-content: center; align-items: center;">
-                                <?php if ($is_archived_view): ?>
-                                    <a href="../controllers/turmas_process.php?action=activate&id=<?= $t['id'] ?>"
-                                        class="btn btn-edit" title="Reativar Turma"
-                                        style="background: var(--primary-green); border-color: var(--primary-green);"
-                                        onclick="return confirm('Deseja restaurar esta turma para o status ativo?')">
-                                        <i class="fas fa-undo"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-delete" title="Excluir Permanentemente"
-                                        data-id="<?= $t['id'] ?>" data-sigla="<?= xe($t['sigla']) ?>"
-                                        data-fim="<?= $t['data_fim'] ?>" onclick="handleDeleteTurma(this)">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                <?php else: ?>
-                                    <a href="turmas_form.php?id=<?= $t['id'] ?>" class="btn btn-edit" title="Editar"><i
-                                            class="fas fa-edit"></i></a>
-                                    <button type="button" class="btn btn-delete" title="Excluir" data-id="<?= $t['id'] ?>"
-                                        data-sigla="<?= xe($t['sigla']) ?>" data-fim="<?= $t['data_fim'] ?>"
-                                        onclick="handleDeleteTurma(this)">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                <?php endif; ?>
-                            </div>
-                        </td>
+                        <?php if (can_edit()): ?>
+                            <td>
+                                <div style="display: flex; gap: 5px; justify-content: center; align-items: center;">
+                                    <?php if ($is_archived_view): ?>
+                                        <a href="../controllers/turmas_process.php?action=activate&id=<?= $t['id'] ?>"
+                                            class="btn btn-edit" title="Reativar Turma"
+                                            style="background: var(--primary-green); border-color: var(--primary-green);"
+                                            onclick="return confirm('Deseja restaurar esta turma para o status ativo?')">
+                                            <i class="fas fa-undo"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-delete" title="Excluir Permanentemente"
+                                            data-id="<?= $t['id'] ?>" data-sigla="<?= xe($t['sigla']) ?>"
+                                            data-fim="<?= $t['data_fim'] ?>" onclick="handleDeleteTurma(this)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    <?php else: ?>
+                                        <a href="turmas_form.php?id=<?= $t['id'] ?>" class="btn btn-edit" title="Editar"><i
+                                                class="fas fa-edit"></i></a>
+                                        <button type="button" class="btn btn-delete" title="Excluir" data-id="<?= $t['id'] ?>"
+                                            data-sigla="<?= xe($t['sigla']) ?>" data-fim="<?= $t['data_fim'] ?>"
+                                            onclick="handleDeleteTurma(this)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

@@ -174,10 +174,12 @@ $prefix = $is_in_subdir ? '../../' : '';
                             class="bi bi-caret-down-fill seta"></i>
                     </a>
                     <div class="submenu <?= $is_dashboard_open ? 'aberto' : '' ?>">
-                        <a href="<?= $prefix ?>index.php"
-                            class="links-sub <?= $current_page == 'index.php' ? 'active-sub' : '' ?>">
-                            <i class="bi bi-speedometer" style="margin-right: 8px;"></i> Gestão
-                        </a>
+                        <?php if (!isProfessor()): ?>
+                            <a href="<?= $prefix ?>index.php"
+                                class="links-sub <?= ($current_page == 'index.php' || $current_page == 'Projeto-horario') ? 'active-sub' : '' ?>">
+                                <i class="bi bi-speedometer2" style="margin-right: 8px;"></i> Gestão
+                            </a>
+                        <?php endif; ?>
                         <a href="<?= $prefix ?>php/views/dashboard_vendas.php"
                             class="links-sub <?= $current_page == 'dashboard_vendas.php' ? 'active-sub' : '' ?>">
                             <i class="bi bi-bar-chart-line" style="margin-right: 8px;"></i> Vendas
@@ -216,6 +218,12 @@ $prefix = $is_in_subdir ? '../../' : '';
             <?php endif; ?>
 
             <?php if (!isCRI()): ?>
+                <?php if (isProfessor()): ?>
+                    <a href="<?= $prefix ?>php/views/dashboard_vendas.php"
+                        class="links <?= $current_page == 'dashboard_vendas.php' ? 'ativo' : '' ?>">
+                        <i class="bi bi-bar-chart-line" style="margin-right: 10px;"></i> Dashboard Vendas
+                    </a>
+                <?php endif; ?>
                 <?php if (isAdmin() || isGestor() || isProfessor()): ?>
                     <?php
                     $planejamento_pages = ['agenda_professores.php', 'agenda_salas.php', 'gerenciar_reservas.php'];
@@ -236,14 +244,16 @@ $prefix = $is_in_subdir ? '../../' : '';
                                 class="links-sub <?= $current_page == 'agenda_professores.php' ? 'active-sub' : '' ?>">
                                 <i class="bi bi-calendar-check" style="margin-right: 8px;"></i> Agenda Professores
                             </a>
-                            <a href="<?= $prefix ?>php/views/agenda_salas.php"
-                                class="links-sub <?= $current_page == 'agenda_salas.php' ? 'active-sub' : '' ?>">
-                                <i class="bi bi-building-check" style="margin-right: 8px;"></i> Agenda Salas
-                            </a>
-                            <a href="<?= $prefix ?>php/views/gerenciar_reservas.php"
-                                class="links-sub <?= $current_page == 'gerenciar_reservas.php' ? 'active-sub' : '' ?>">
-                                <i class="bi bi-calendar2-heart" style="margin-right: 8px;"></i> Gerenciar Reservas
-                            </a>
+                            <?php if (!isProfessor()): ?>
+                                <a href="<?= $prefix ?>php/views/agenda_salas.php"
+                                    class="links-sub <?= $current_page == 'agenda_salas.php' ? 'active-sub' : '' ?>">
+                                    <i class="bi bi-building-check" style="margin-right: 8px;"></i> Agenda Salas
+                                </a>
+                                <a href="<?= $prefix ?>php/views/gerenciar_reservas.php"
+                                    class="links-sub <?= $current_page == 'gerenciar_reservas.php' ? 'active-sub' : '' ?>">
+                                    <i class="bi bi-calendar2-heart" style="margin-right: 8px;"></i> Gerenciar Reservas
+                                </a>
+                            <?php endif; ?>
                         </div>
                     </div>
                 <?php endif; ?>

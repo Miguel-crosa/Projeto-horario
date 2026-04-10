@@ -63,7 +63,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
     <div class="prof-selection-flex">
         <div class="prof-selector-group">
             <label class="period-label-text">Professor Selecionado</label>
-            <?php if (!false): ?>
+            <?php if (!isProfessor()): ?>
                 <div style="display: flex; gap: 12px; align-items: center;">
                     <button type="button" class="btn btn-primary" id="btn-selecionar-professor"
                         style="background: <?= $selected_prof_id ? '#2e7d32' : '#ed1c16' ?>; border-color: <?= $selected_prof_id ? '#1b5e20' : '#ed1c16' ?>; padding: 10px 24px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
@@ -72,8 +72,9 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                     </button>
                 </div>
             <?php else: ?>
-                <div style="font-weight: 800; font-size: 1.1rem; color: var(--text-color);">
-                    <?= htmlspecialchars(getUserName()) ?>
+                <div style="font-weight: 800; font-size: 1.1rem; color: var(--text-color); display: flex; align-items: center; gap: 10px; padding: 10px 0;">
+                    <i class="fas fa-user-circle" style="color: var(--primary-red); font-size: 1.3rem;"></i>
+                    <?= htmlspecialchars($selected_prof_nome ?: getUserName()) ?>
                 </div>
             <?php endif; ?>
         </div>
@@ -132,22 +133,24 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
         </div>
     </div>
 
-    <div class="action-buttons-group">
-        <button type="button" class="btn btn-primary" id="btn-modo-reserva-unificado" style="background: #ff8f00; border-color: #e65100; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="handleModoReservaClick()">
-            <i class="fas fa-bookmark" style="margin-right: 8px;"></i> Modo Reserva
-        </button>
-        <button type="button" class="btn btn-primary" id="btn-confirmar-reserva" style="display: none; background: #2e7d32; border-color: #1b5e20; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="confirmReservations()">
-            <i class="fas fa-check" style="margin-right: 8px;"></i> Confirmar Reserva
-        </button>
-        <?php if (isAdmin()): ?>
-            <button type="button" class="btn btn-secondary" id="btn-remover-selecionados" style="display: none; background: #d32f2f; border-color: #c62828; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="batchRemoveReservations()">
-                <i class="fas fa-trash-alt" style="margin-right: 8px;"></i> Remover Selecionados
+    <?php if ($can_reserve): ?>
+        <div class="action-buttons-group">
+            <button type="button" class="btn btn-primary" id="btn-modo-reserva-unificado" style="background: #ff8f00; border-color: #e65100; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="handleModoReservaClick()">
+                <i class="fas fa-bookmark" style="margin-right: 8px;"></i> Modo Reserva
             </button>
-        <?php endif; ?>
-        <button type="button" class="btn btn-back" id="btn-cancelar-reserva" style="display: none; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="handleCancelarReservaClick()">
-            <i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar
-        </button>
-    </div>
+            <button type="button" class="btn btn-primary" id="btn-confirmar-reserva" style="display: none; background: #2e7d32; border-color: #1b5e20; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="confirmReservations()">
+                <i class="fas fa-check" style="margin-right: 8px;"></i> Confirmar Reserva
+            </button>
+            <?php if (isAdmin()): ?>
+                <button type="button" class="btn btn-secondary" id="btn-remover-selecionados" style="display: none; background: #d32f2f; border-color: #c62828; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="batchRemoveReservations()">
+                    <i class="fas fa-trash-alt" style="margin-right: 8px;"></i> Remover Selecionados
+                </button>
+            <?php endif; ?>
+            <button type="button" class="btn btn-back" id="btn-cancelar-reserva" style="display: none; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="handleCancelarReservaClick()">
+                <i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar
+            </button>
+        </div>
+    <?php endif; ?>
 
     <div id="availability-bar" class="avail-bar-container avail-bar-outer">
         <div class="avail-bar-track" style="height: 100%; display: flex;">
@@ -195,6 +198,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
         
         const labelEl = document.getElementById('global-month-label');
         const yearEl = document.getElementById('global-year-label');
+        const labelBottomEl = document.getElementById('global-month-label-bottom');
         
         const prevYear = window.__currentMonth.split('-')[0];
         const newYear = nextMonth.split('-')[0];
@@ -212,6 +216,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                 });
                 if (labelEl) labelEl.textContent = monthsPtFull[date.getMonth()];
                 if (yearEl) yearEl.textContent = date.getFullYear();
+                if (labelBottomEl) labelBottomEl.textContent = monthsPtFull[date.getMonth()] + ' ' + date.getFullYear();
                 window.__currentMonth = nextMonth;
                 updateUrlMonth(nextMonth);
             } else {
@@ -224,16 +229,18 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                  
                  if (prevYear != newYear && typeof window.loadDocenteAgenda === 'function' && window.currentDocenteId) {
                      window.loadDocenteAgenda(window.currentDocenteId, nextMonth).then(() => {
-                         let l = monthsPtFull[date.getMonth()];
-                         if (labelEl) labelEl.textContent = l;
-                         if (yearEl) yearEl.textContent = date.getFullYear();
-                         window.renderCalendar();
+                          let l = monthsPtFull[date.getMonth()];
+                          if (labelEl) labelEl.textContent = l;
+                          if (yearEl) yearEl.textContent = date.getFullYear();
+                          if (labelBottomEl) labelBottomEl.textContent = l + ' ' + date.getFullYear();
+                          window.renderCalendar();
                      });
                  } else {
-                     let l = monthsPtFull[date.getMonth()];
-                     if (labelEl) labelEl.textContent = l;
-                     if (yearEl) yearEl.textContent = date.getFullYear();
-                     window.renderCalendar();
+                      let l = monthsPtFull[date.getMonth()];
+                      if (labelEl) labelEl.textContent = l;
+                      if (yearEl) yearEl.textContent = date.getFullYear();
+                      if (labelBottomEl) labelBottomEl.textContent = l + ' ' + date.getFullYear();
+                      window.renderCalendar();
                  }
                  updateUrlMonth(nextMonth);
              } else {
@@ -263,12 +270,10 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                            }
                         }
                         if (yearEl) yearEl.textContent = date.getFullYear();
+                        if (labelBottomEl) labelBottomEl.textContent = monthsPtFull[date.getMonth()] + ' ' + date.getFullYear();
                         updateUrlMonth(nextMonth);
                     }
                 });
-        }
-    }
-    });
         }
     }
 
@@ -473,7 +478,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                 ?>
                 <div class="prof-row" data-prof-id="<?php echo $p['id']; ?>">
                     <div class="prof-info-row">
-                        <div onclick="openTimelineModal(<?php echo $p['id']; ?>, '<?php echo addslashes($p['nome']); ?>')" style="cursor:pointer; display:flex; align-items:center; gap:10px; flex: 1;">
+                        <div onclick="<?= !isProfessor() ? "openTimelineModal({$p['id']}, '" . addslashes($p['nome']) . "')" : "" ?>" style="<?= !isProfessor() ? "cursor:pointer;" : "" ?> display:flex; align-items:center; gap:10px; flex: 1;">
                             <div style="width:32px; height:32px; background: linear-gradient(135deg, #e53935, #c62828); color:#fff; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.8rem;"><?php echo mb_substr($p['nome'], 0, 1); ?></div>
                             <div>
                                 <div style="font-weight:800; font-size:0.95rem;"><?php echo htmlspecialchars($p['nome']); ?></div>
@@ -523,7 +528,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                     elseif ($is_reserved_s && $is_reserved_s['own']) $cell_class = 'sem-day-reserved-own';
                                     elseif ($is_all_off_sem) $cell_class = 'sem-day-sunday slot-disabled';
                                     elseif ($is_saturday) $cell_class = 'sem-day-weekend';
-                                    $clickable = (!$is_sunday && !$is_busy && !$is_all_off_sem && !($is_reserved_s && !$is_reserved_s['own']));
+                                    $clickable = (!$is_sunday && !$is_busy && !$is_all_off_sem && !($is_reserved_s && !$is_reserved_s['own']) && !isProfessor());
                                     
                                     $base_c = null;
                                     if ($cell_class === 'sem-day-busy' || $cell_class === 'sem-day-reserved' || $cell_class === 'sem-day-reserved-own' || $cell_class === 'sem-day-feriado') {
@@ -624,7 +629,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                 elseif ($block['status'] === 'sunday') $bclass = 'block-seg-sunday';
                                 else $bclass = 'block-seg-free';
                                 $first_dt = sprintf("%s-%02d", $current_month, $block['start']);
-                                $is_clickable = ($block['status'] === 'free' || $block['status'] === 'reserved_own');
+                                $is_clickable = (($block['status'] === 'free' || $block['status'] === 'reserved_own') && !isProfessor());
                             ?>
                                 <div class="block-seg <?php echo $bclass; ?> <?php echo !$is_clickable ? 'slot-disabled' : ''; ?>" style="flex: 0 0 auto; min-width: 120px; margin-right: 5px; border-radius: 8px;" title="<?php echo $range_text; ?>: <?php echo htmlspecialchars($block['label']); ?>"
                                      <?php if ($is_clickable): ?>onclick="handleBarClick(<?php echo $p['id']; ?>, '<?php echo addslashes($p['nome']); ?>', '<?php echo $first_dt; ?>', this, event)"<?php endif; ?>>
@@ -702,7 +707,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                             }
                                             
                                             $is_own_res_tl = ($is_reserved_tl && isset($is_reserved_tl['own']) && $is_reserved_tl['own']);
-                                            $is_clickable_tl = ($dow != 7 && !$is_feriado_tl && !($is_reserved_tl && !$is_own_res_tl) && ($has_free_shift_tl || $is_own_res_tl));
+                                            $is_clickable_tl = ($dow != 7 && !$is_feriado_tl && !($is_reserved_tl && !$is_own_res_tl) && ($has_free_shift_tl || $is_own_res_tl) && !isProfessor());
                                             
                                             $cursor_tl = $is_clickable_tl ? 'pointer' : 'default';
                                             $onclick_tl = ($cursor_tl === 'pointer') ? "onclick=\"handleBarClick({$p['id']}, '{$p_name_js}', '{$dt}', this, event)\"" : "";
@@ -779,6 +784,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
 <script>
     window.userIsCRI = <?php echo isCRI() ? 'true' : 'false'; ?>;
     window.userIsAdmin = <?php echo (isAdmin() || isGestor()) ? 'true' : 'false'; ?>;
+    window.userIsProfessor = <?php echo isProfessor() ? 'true' : 'false'; ?>;
 </script>
 <script>
 // Inicializa o calendário SPA caso esteja na visualização correspondente

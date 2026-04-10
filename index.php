@@ -8,6 +8,11 @@ if (isCRI()) {
     exit;
 }
 
+if (isProfessor()) {
+    header("Location: php/views/dashboard_vendas.php");
+    exit;
+}
+
 if (!isset($_GET['ajax_render'])) {
     include __DIR__ . '/php/components/header.php';
     echo '<link rel="stylesheet" href="css/dashboard.css">';
@@ -776,19 +781,6 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                 <div class="producao-kpi-container">
                     <div class="producao-kpi-card">
                         <span class="kpi-label">Produção Total Acumulada</span>
-                        <span class="kpi-value" id="total-producao-geral">0</span>
-                        <span class="kpi-subtext">Soma de todos os professores</span>
-                    </div>
-                </div>
-
-                <div class="producao-chart-section">
-                    <div class="chart-controls">
-                        <div class="search-wrapper">
-                            <i class="fas fa-search"></i>
-                            <input type="text" id="search-producao-prof" placeholder="Pesquisar professor..."
-                                oninput="filterProducaoChart()">
-                        </div>
-                    </div>
                     <div class="chart-container-wrapper">
                         <canvas id="chartProducaoDocentes"></canvas>
                     </div>

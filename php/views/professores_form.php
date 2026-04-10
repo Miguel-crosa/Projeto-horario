@@ -2,6 +2,11 @@
 require_once __DIR__ . '/../configs/db.php';
 include __DIR__ . '/../components/header.php';
 
+if (!can_edit()) {
+    header("Location: professores.php");
+    exit;
+}
+
 $id = isset($_GET['id']) ? mysqli_real_escape_string($conn, $_GET['id']) : null;
 $prof = ['nome' => '', 'profissao' => '', 'area_conhecimento' => '', 'cidade' => '', 'weekly_hours_limit' => '0', 'monthly_hours_limit' => '0'];
 

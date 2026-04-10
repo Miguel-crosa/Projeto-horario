@@ -10,7 +10,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
     // A lógica de busca continua abaixo e damos echo no final
 }
 
-if (!isAdmin() && !isGestor() && !isCRI()) {
+if (!isAdmin() && !isGestor() && !isCRI() && !isProfessor()) {
     header("Location: ../../index.php");
     exit;
 }
@@ -29,7 +29,17 @@ require_once __DIR__ . '/../models/AgendaModel.php';
 $agendaModel = new AgendaModel($conn);
 
 // Busca Docentes
-$docentes = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome, area_conhecimento FROM docente WHERE ativo = 1 ORDER BY nome ASC"), MYSQLI_ASSOC);
+$where_vendas = "WHERE ativo = 1";
+if (isProfessor()) {
+    $logged_did = getUserDocenteId();
+    if ($logged_did) {
+        $where_vendas = "WHERE id = " . (int)$logged_did;
+    } else {
+        // Se for professor sem vínculo, não mostra nada ou mostra erro? por enquanto, mostra vazio.
+        $where_vendas = "WHERE 1=0";
+    }
+}
+$docentes = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome, area_conhecimento FROM docente $where_vendas ORDER BY nome ASC"), MYSQLI_ASSOC);
 $docente_ids = array_column($docentes, 'id');
 
 // Busca Feriados do mês (como feito na agenda para expansão)

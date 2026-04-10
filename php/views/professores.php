@@ -19,7 +19,9 @@ $stmt->close();
             <input type="text" id="tableSearch" placeholder="Buscar professor..." class="form-input"
                 style="width: 100%;" onkeyup="currentPage=1; updatePagination()">
         </div>
-        <a href="professores_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Professor</a>
+        <?php if (can_edit()): ?>
+            <a href="professores_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Professor</a>
+        <?php endif; ?>
         <?php if ($show_inactive): ?>
             <a href="professores.php" class="btn btn-secondary"><i class="fas fa-eye"></i> Ver Apenas Ativos</a>
         <?php else: ?>
@@ -37,7 +39,9 @@ $stmt->close();
                 <th>Área de Conhecimento</th>
                 <th>Limites (S/M)</th>
                 <th>Tipo Contrato</th>
-                <th>Ações</th>
+                <?php if (can_edit()): ?>
+                    <th>Ações</th>
+                <?php endif; ?>
             </tr>
         </thead>
         <tbody>
@@ -59,17 +63,19 @@ $stmt->close();
                         <td><?= htmlspecialchars($p['area_conhecimento']) ?></td>
                         <td><?= $p['weekly_hours_limit'] ?>h / <?= $p['monthly_hours_limit'] ?>h</td>
                         <td><?= htmlspecialchars($p['tipo_contrato'] ?? 'N/A') ?></td>
-                        <td>
-                            <a href="professores_form.php?id=<?= $p['id'] ?>" class="btn btn-edit"><i
-                                    class="fas fa-edit"></i></a>
-                            <?php if ($p['ativo'] == 1): ?>
-                                <a href="../controllers/professores_process.php?action=delete&id=<?= $p['id'] ?>"
-                                    class="btn btn-delete" onclick="return confirm('Desativar este professor? Ele deixará de aparecer nas listas, mas seus dados serão mantidos.')" title="Desativar"><i class="fas fa-user-slash"></i></a>
-                            <?php else: ?>
-                                <a href="../controllers/professores_process.php?action=activate&id=<?= $p['id'] ?>"
-                                    class="btn btn-edit" style="background-color: #2e7d32;" onclick="return confirm('Reativar este professor?')" title="Reativar"><i class="fas fa-user-check"></i></a>
-                            <?php endif; ?>
-                        </td>
+                        <?php if (can_edit()): ?>
+                            <td>
+                                <a href="professores_form.php?id=<?= $p['id'] ?>" class="btn btn-edit"><i
+                                        class="fas fa-edit"></i></a>
+                                <?php if ($p['ativo'] == 1): ?>
+                                    <a href="../controllers/professores_process.php?action=delete&id=<?= $p['id'] ?>"
+                                        class="btn btn-delete" onclick="return confirm('Desativar este professor? Ele deixará de aparecer nas listas, mas seus dados serão mantidos.')" title="Desativar"><i class="fas fa-user-slash"></i></a>
+                                <?php else: ?>
+                                    <a href="../controllers/professores_process.php?action=activate&id=<?= $p['id'] ?>"
+                                        class="btn btn-edit" style="background-color: #2e7d32;" onclick="return confirm('Reativar este professor?')" title="Reativar"><i class="fas fa-user-check"></i></a>
+                                <?php endif; ?>
+                            </td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

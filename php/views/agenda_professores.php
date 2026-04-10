@@ -295,6 +295,19 @@ $where_especialidade = $filter_especialidade ? "AND p.area_conhecimento = ?" : "
 $params_search = $search_name ? ["%$search_name%"] : [];
 
 $filter_docente = isset($_GET['docente_id']) && (int) $_GET['docente_id'] > 0 ? (int) $_GET['docente_id'] : 0;
+
+// Se for professor, força o filtro para o seu próprio docente_id
+if (isProfessor()) {
+    $logged_did = getUserDocenteId();
+    if ($logged_did) {
+        $filter_docente = (int)$logged_did;
+        // Força limites para 1 em modos que mostram lista
+        if ($view_mode === 'timeline') {
+            $limit = 1;
+        }
+    }
+}
+
 $where_docente = $filter_docente ? "AND p.id = ?" : "";
 
 $filter_periodo = isset($_GET['periodo']) ? $_GET['periodo'] : '';

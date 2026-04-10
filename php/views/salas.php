@@ -12,7 +12,9 @@ $salas = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM ambiente ORDER BY n
             <input type="text" id="tableSearch" placeholder="Buscar ambiente..." class="form-input"
                 style="width: 300px;" onkeyup="currentPage=1; updatePagination()">
         </div>
-        <a href="salas_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Ambiente</a>
+        <?php if (can_edit()): ?>
+            <a href="salas_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Ambiente</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -26,7 +28,9 @@ $salas = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM ambiente ORDER BY n
                 <th>Tipo</th>
                 <th>Cidade</th>
                 <th>Área</th>
-                <th>Ações</th>
+                <?php if (can_edit()): ?>
+                    <th>Ações</th>
+                <?php endif; ?>
             </tr>
         </thead>
         <tbody>
@@ -44,11 +48,13 @@ $salas = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM ambiente ORDER BY n
                         <td><?= htmlspecialchars($s['tipo']) ?></td>
                         <td><?= htmlspecialchars($s['cidade']) ?></td>
                         <td><?= htmlspecialchars($s['area_vinculada']) ?></td>
-                        <td>
-                            <a href="salas_form.php?id=<?= $s['id'] ?>" class="btn btn-edit"><i class="fas fa-edit"></i></a>
-                            <a href="../controllers/salas_process.php?action=delete&id=<?= $s['id'] ?>" class="btn btn-delete"
-                                onclick="return confirm('Tem certeza?')"><i class="fas fa-trash"></i></a>
-                        </td>
+                        <?php if (can_edit()): ?>
+                            <td>
+                                <a href="salas_form.php?id=<?= $s['id'] ?>" class="btn btn-edit"><i class="fas fa-edit"></i></a>
+                                <a href="../controllers/salas_process.php?action=delete&id=<?= $s['id'] ?>" class="btn btn-delete"
+                                    onclick="return confirm('Tem certeza?')"><i class="fas fa-trash"></i></a>
+                            </td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

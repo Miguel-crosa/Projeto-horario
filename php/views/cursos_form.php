@@ -2,6 +2,11 @@
 require_once __DIR__ . '/../configs/db.php';
 include __DIR__ . '/../components/header.php';
 
+if (!can_edit()) {
+    header("Location: cursos.php");
+    exit;
+}
+
 $id = isset($_GET['id']) ? mysqli_real_escape_string($conn, $_GET['id']) : null;
 $curso = ['tipo' => '', 'nome' => '', 'area' => '', 'carga_horaria_total' => '', 'semestral' => 0];
 

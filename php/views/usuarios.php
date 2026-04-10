@@ -134,13 +134,22 @@ include __DIR__ . '/../components/header.php';
                 </div>
                 <div class="login-field">
                     <label>Papel</label>
-                    <select name="role" class="login-input" id="create-role-select">
+                    <select name="role" class="login-input" id="create-role-select" onchange="toggleDocenteField('create')">
                         <option value="professor">Professor</option>
                         <option value="cri">CRI</option>
                         <?php if (isAdmin()): ?>
                             <option value="gestor">Gestor</option>
                             <option value="admin">Administrador</option>
                         <?php endif; ?>
+                    </select>
+                </div>
+                <div class="login-field" id="create-docente-field">
+                    <label>Vínculo Docente</label>
+                    <select name="docente_id" class="login-input">
+                        <option value="">Nenhum</option>
+                        <?php foreach ($docentes as $d): ?>
+                            <option value="<?= $d['id'] ?>"><?= htmlspecialchars($d['nome']) ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 15px;">
@@ -174,11 +183,20 @@ include __DIR__ . '/../components/header.php';
                 </div>
                 <div class="login-field">
                     <label>Papel</label>
-                    <select name="role" id="edit-user-role" class="login-input">
+                    <select name="role" id="edit-user-role" class="login-input" onchange="toggleDocenteField('edit')">
                         <option value="professor">Professor</option>
                         <option value="cri">CRI</option>
                         <option value="gestor">Gestor</option>
                         <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                <div class="login-field" id="edit-docente-field">
+                    <label>Vínculo Docente</label>
+                    <select name="docente_id" id="edit-user-docente" class="login-input">
+                        <option value="">Nenhum</option>
+                        <?php foreach ($docentes as $d): ?>
+                            <option value="<?= $d['id'] ?>"><?= htmlspecialchars($d['nome']) ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 15px;">
@@ -193,13 +211,28 @@ include __DIR__ . '/../components/header.php';
         </div>
     </div>
     <script>
+        function toggleDocenteField(mode) {
+            const roleSelect = document.getElementById(mode + '-role-select') || document.getElementById(mode + '-user-role');
+            const docenteField = document.getElementById(mode + '-docente-field');
+            if (roleSelect && docenteField) {
+                docenteField.style.display = (roleSelect.value === 'professor') ? 'block' : 'none';
+            }
+        }
+
         function openEditModal(user) {
             document.getElementById('edit-user-id').value = user.id;
             document.getElementById('edit-user-nome').value = user.nome;
             document.getElementById('edit-user-email').value = user.email;
             document.getElementById('edit-user-role').value = user.role;
+            document.getElementById('edit-user-docente').value = user.docente_id || '';
+            toggleDocenteField('edit');
             document.getElementById('modal-user-edit').style.display = 'flex';
         }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            toggleDocenteField('create');
+        });
     </script>
 <?php endif; ?>
 
