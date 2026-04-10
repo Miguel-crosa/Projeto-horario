@@ -14,13 +14,18 @@ if (isCRI()) {
 
 $can_edit = isAdmin();
 $can_delete = isAdmin();
-$can_reset = isAdmin();
+$can_reset = isAdmin() || isGestor();
 $can_create = isAdmin() || isGestor();
+$can_toggle_status = isAdmin() || isGestor();
+
+$show_inactive = isset($_GET['show_inactive']) && $_GET['show_inactive'] == '1';
+$where_clause = $show_inactive ? "" : "WHERE u.ativo = 1";
 
 $usuarios = mysqli_fetch_all(mysqli_query($conn, "
-    SELECT u.id, u.nome, u.email, u.role, u.obrigar_troca_senha, u.created_at, u.docente_id, d.nome as docente_nome 
+    SELECT u.id, u.nome, u.email, u.role, u.obrigar_troca_senha, u.ativo, u.created_at, u.docente_id, d.nome as docente_nome 
     FROM usuario u 
     LEFT JOIN docente d ON u.docente_id = d.id 
+    $where_clause
     ORDER BY u.created_at DESC
 "), MYSQLI_ASSOC);
 
@@ -35,11 +40,17 @@ include __DIR__ . '/../components/header.php';
 
 <div class="page-header">
     <h2><i class="fas fa-users-cog" style="color: var(--primary-red);"></i> Gerenciamento de Usuários</h2>
-    <?php if ($can_create): ?>
-        <button class="btn btn-primary" onclick="document.getElementById('modal-user-create').style.display='flex'">
-            <i class="fas fa-plus"></i> Novo Usuário
-        </button>
-    <?php endif; ?>
+    <div style="display: flex; gap: 10px;">
+        <a href="?show_inactive=<?= $show_inactive ? '0' : '1' ?>" class="btn <?= $show_inactive ? 'btn-edit' : 'btn-outline' ?>" style="text-decoration: none; display: flex; align-items: center; gap: 8px;">
+            <i class="fas <?= $show_inactive ? 'fa-eye-slash' : 'fa-eye' ?>"></i>
+            <?= $show_inactive ? 'Ocultar Inativos' : 'Ver Inativos' ?>
+        </a>
+        <?php if ($can_create): ?>
+            <button class="btn btn-primary" onclick="document.getElementById('modal-user-create').style.display='flex'">
+                <i class="fas fa-plus"></i> Novo Usuário
+            </button>
+        <?php endif; ?>
+    </div>
 </div>
 
 <?php if ($error): ?>
@@ -62,7 +73,7 @@ include __DIR__ . '/../components/header.php';
                 <th>E-mail</th>
                 <th>Papel</th>
                 <th>Vínculo Docente</th>
-                <th>Troca Senha?</th>
+                <th>Status</th>
                 <th>Ações</th>
             </tr>
         </thead>
@@ -87,24 +98,44 @@ include __DIR__ . '/../components/header.php';
                         <td><?= $u['docente_nome'] ? htmlspecialchars($u['docente_nome']) : '<span style="color:var(--text-muted); font-size:0.8rem;">Nenhum</span>' ?>
                         </td>
                         <td style="text-align:center;">
-                            <?= $u['obrigar_troca_senha'] ? '<span style="color: #ff8f00;"><i class="fas fa-exclamation-triangle"></i> Sim</span>' : '<span style="color: #2e7d32;"><i class="fas fa-check"></i> Não</span>' ?>
+                            <?php if ($u['ativo']): ?>
+                                <span class="badge badge-success" style="background: #2e7d32; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">
+                                    <i class="fas fa-check-circle"></i> Ativo
+                                </span>
+                            <?php else: ?>
+                                <span class="badge badge-danger" style="background: #c62828; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">
+                                    <i class="fas fa-times-circle"></i> Inativo
+                                </span>
+                            <?php endif; ?>
                         </td>
                         <td>
                             <?php if ($can_edit): ?>
-                                <button class="btn btn-edit" onclick="openEditModal(<?= htmlspecialchars(json_encode($u)) ?>)">
+                                <button class="btn btn-edit" onclick="openEditModal(<?= htmlspecialchars(json_encode($u)) ?>)" title="Editar dados">
                                     <i class="fas fa-edit"></i>
                                 </button>
                             <?php endif; ?>
+                            
+                            <?php if ($can_toggle_status && $u['id'] != $_SESSION['user_id']): ?>
+                                <a href="../controllers/usuarios_process.php?action=toggle_status&id=<?= $u['id'] ?>&status=<?= $u['ativo'] ? '0' : '1' ?>" 
+                                   class="btn <?= $u['ativo'] ? 'btn-delete' : 'btn-primary' ?>" 
+                                   style="background: <?= $u['ativo'] ? '#546e7a' : '#2e7d32' ?>;"
+                                   title="<?= $u['ativo'] ? 'Desativar usuário' : 'Ativar usuário' ?>">
+                                    <i class="fas <?= $u['ativo'] ? 'fa-user-slash' : 'fa-user-check' ?>"></i>
+                                </a>
+                            <?php endif; ?>
+
                             <?php if ($can_reset && $u['id'] != $_SESSION['user_id']): ?>
                                 <a href="../controllers/usuarios_process.php?action=reset_password&id=<?= $u['id'] ?>"
-                                    class="btn btn-edit" title="Redefinir senha padrão"
+                                    class="btn btn-edit" title="Redefinir senha para padrão (senaisp)"
                                     onclick="return confirm('Redefinir a senha deste usuário para senaisp?')">
                                     <i class="fas fa-key"></i>
                                 </a>
                             <?php endif; ?>
+
                             <?php if ($can_delete && $u['id'] != $_SESSION['user_id']): ?>
                                 <a href="../controllers/usuarios_process.php?action=delete&id=<?= $u['id'] ?>"
-                                    class="btn btn-delete" onclick="return confirm('Tem certeza que deseja remover este usuário?')">
+                                    class="btn btn-delete" title="Excluir permanentemente"
+                                    onclick="return confirm('Tem certeza que deseja remover este usuário permanentemente? Esta ação não pode ser desfeita.')">
                                     <i class="fas fa-trash"></i>
                                 </a>
                             <?php endif; ?>

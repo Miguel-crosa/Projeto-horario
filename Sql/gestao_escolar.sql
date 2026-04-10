@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS usuario (
     senha VARCHAR(255) NOT NULL,
     role ENUM('admin', 'gestor', 'professor', 'cri') NOT NULL DEFAULT 'professor',
     docente_id INT DEFAULT NULL,
+    ativo TINYINT(1) NOT NULL DEFAULT 1,
     obrigar_troca_senha TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -318,3 +319,8 @@ VALUES ('roberto', 'roberto@senai.br', '$2y$10$XFjAiGRelFifZrzlE.pWheJrBhacywoE.
 -- data_fim    = CONCAT(YEAR(CURDATE()), '-12-31'),
 -- ano         = YEAR(CURDATE())
 -- WHERE data_inicio IS NULL OR data_fim IS NULL;
+
+-- ============================================================
+-- MIGRATION (10/04/2026) - STATUS DE USUÁRIO
+-- ============================================================
+-- ALTER TABLE usuario ADD COLUMN ativo TINYINT(1) NOT NULL DEFAULT 1;

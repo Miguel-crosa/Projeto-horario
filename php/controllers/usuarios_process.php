@@ -177,8 +177,8 @@ switch ($action) {
         exit;
 
     case 'reset_password':
-        // Only admin can reset passwords
-        if ($user_role !== 'admin') {
+        // Admin and Gestor can reset passwords
+        if ($user_role !== 'admin' && $user_role !== 'gestor') {
             http_response_code(403);
             $_SESSION['usuarios_error'] = 'Permissão insuficiente.';
             header('Location: ../views/usuarios.php');
@@ -194,6 +194,38 @@ switch ($action) {
         $stmt->close();
 
         $_SESSION['usuarios_success'] = 'Senha redefinida para o padrão (senaisp).';
+        header('Location: ../views/usuarios.php');
+        exit;
+
+    case 'toggle_status':
+        // Admin and Gestor can toggle status
+        if ($user_role !== 'admin' && $user_role !== 'gestor') {
+            http_response_code(403);
+            $_SESSION['usuarios_error'] = 'Permissão insuficiente.';
+            header('Location: ../views/usuarios.php');
+            exit;
+        }
+
+        $id = (int) ($_GET['id'] ?? 0);
+        $status = (int) ($_GET['status'] ?? 1);
+
+        // Prevent self-deactivation
+        if ($id === (int) $_SESSION['user_id']) {
+            $_SESSION['usuarios_error'] = 'Você não pode desativar seu próprio usuário.';
+            header('Location: ../views/usuarios.php');
+            exit;
+        }
+
+        $stmt = $conn->prepare("UPDATE usuario SET ativo = ? WHERE id = ?");
+        $stmt->bind_param('ii', $status, $id);
+        
+        if ($stmt->execute()) {
+            $_SESSION['usuarios_success'] = 'Status do usuário atualizado com sucesso!';
+        } else {
+            $_SESSION['usuarios_error'] = 'Erro ao atualizar status: ' . $stmt->error;
+        }
+        $stmt->close();
+
         header('Location: ../views/usuarios.php');
         exit;
 
