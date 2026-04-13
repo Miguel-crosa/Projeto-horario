@@ -200,7 +200,7 @@ if (!isset($feriados_data) && isset($conn)) {
             <option value="">Selecione o período...</option>
             <option value="Manhã" <?= $turma['periodo'] == 'Manhã' ? 'selected' : '' ?>>Manhã (07:30 - 11:30)</option>
             <option value="Tarde" <?= $turma['periodo'] == 'Tarde' ? 'selected' : '' ?>>Tarde (13:30 - 17:30)</option>
-            <option value="Noite" <?= $turma['periodo'] == 'Noite' ? 'selected' : '' ?>>Noite (18:00 - 22:00)</option>
+            <option value="Noite" <?= $turma['periodo'] == 'Noite' ? 'selected' : '' ?>>Noite (19:00 - 22:00)</option>
             <option value="Integral" <?= $turma['periodo'] == 'Integral' ? 'selected' : '' ?>>Integral (07:30 - 17:30)</option>
         </select>
     </div>
@@ -441,7 +441,7 @@ if (!isset($feriados_data) && isset($conn)) {
             const periodDefaults = {
                 'Manhã': ['07:30', '11:30'],
                 'Tarde': ['13:30', '17:30'],
-                'Noite': ['19:30', '23:30'],
+                'Noite': ['19:00', '22:00'],
                 'Integral': ['07:30', '17:30']
             };
             if (periodDefaults[periodo]) {
@@ -449,6 +449,16 @@ if (!isset($feriados_data) && isset($conn)) {
                 if (h_fim) h_fim.value = periodDefaults[periodo][1];
             }
             periodoSelect.dataset.lastPeriod = periodo;
+        }
+
+        // TRAVA RIGOROSA: Noite não pode passar das 22h
+        if (periodo === 'Noite' && h_fim && h_fim.value > '22:00') {
+            h_fim.value = '22:00';
+        }
+
+        // TRAVA RIGOROSA: Integral não pode passar das 17:30
+        if (periodo === 'Integral' && h_fim && h_fim.value > '17:30') {
+            h_fim.value = '17:30';
         }
 
         if (!ch || !periodo || !inicio || diasChecked.length === 0) {
@@ -462,6 +472,11 @@ if (!isset($feriados_data) && isset($conn)) {
             const [h1, m1] = h_ini.value.split(':').map(Number);
             const [h2, m2] = h_fim.value.split(':').map(Number);
             horasPorDia = ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
+            
+            // Se for Integral, subtrai 1h de almoço se a duração for superior a 4h
+            if (periodo === 'Integral' && horasPorDia > 4) {
+                horasPorDia -= 1;
+            }
         }
         if (horasPorDia <= 0) horasPorDia = (periodo === 'Integral' ? 8 : 4);
 
@@ -719,6 +734,11 @@ if (!isset($feriados_data) && isset($conn)) {
                     }
                 }
             };
+        }
+
+        const periodoSelectInit = document.getElementById('periodo-select-unified');
+        if (periodoSelectInit) {
+            periodoSelectInit.dataset.lastPeriod = periodoSelectInit.value;
         }
 
         initSelectedDocentes();

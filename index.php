@@ -762,7 +762,6 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
 
     <!-- Modais de Produção Aluno/Hora -->
     <link rel="stylesheet" href="css/producao_dashboard.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="js/producao_aluno_hora.js"></script>
 
     <!-- Modal 1: Visão Geral e Gráfico -->
@@ -779,9 +778,13 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     <i class="fas fa-info-circle"></i> Clique em uma barra para abrir o detalhamento por turma.
                 </p>
                 <div class="producao-kpi-container">
-                    <div class="producao-kpi-card">
+                    <div class="producao-kpi-card" style="margin-bottom: 20px;">
                         <span class="kpi-label">Produção Total Acumulada</span>
-                    <div class="chart-container-wrapper">
+                        <span class="kpi-value" id="total-producao-geral">0 A/H</span>
+                    </div>
+                </div>
+                <div class="producao-chart-section">
+                    <div class="chart-container-wrapper" style="height: 400px;">
                         <canvas id="chartProducaoDocentes"></canvas>
                     </div>
                 </div>

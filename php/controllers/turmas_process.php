@@ -109,13 +109,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $tipo_atendimento = mysqli_real_escape_string($conn, $_POST['tipo_atendimento'] ?? 'Balcão');
     $parceiro = mysqli_real_escape_string($conn, $_POST['parceiro'] ?? '');
     $contato_parceiro = mysqli_real_escape_string($conn, $_POST['contato_parceiro'] ?? '');
+    
+    // TRAVA: Aulas Noturnas não podem passar das 22:00
+    if ($periodo === 'Noite' && !empty($horario_fim) && $horario_fim > '22:00') {
+        $horario_fim = '22:00';
+    }
 
     // Auto-derive if needed
     if (empty($horario_inicio) || empty($horario_fim)) {
         $period_times = [
             'Manhã' => ['07:30', '11:30'],
             'Tarde' => ['13:30', '17:30'],
-            'Noite' => ['19:30', '23:30'],
+            'Noite' => ['18:00', '22:00'],
             'Integral' => ['07:30', '17:30'],
         ];
         $horario_inicio = $horario_inicio ?: ($period_times[$periodo][0] ?? '07:30');
@@ -135,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     foreach ($docentes_to_check as $did) {
         // Reservas também devem respeitar os limites de carga horária? Sim, por segurança.
-        $val_res = checkDocenteLimits($conn, $did, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim);
+        $val_res = checkDocenteLimits($conn, $did, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim, $periodo);
         if ($val_res !== true) {
             handle_response($conn, false, $val_res, "", $is_ajax);
         }

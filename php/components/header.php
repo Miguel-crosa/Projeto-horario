@@ -25,6 +25,7 @@ $prefix = $is_in_subdir ? '../../' : '';
     <link rel="stylesheet" href="<?= $prefix ?>css/header.css">
     <link rel="stylesheet" href="<?= $prefix ?>css/login.css">
     <link rel="icon" type="image/x-icon" href="<?= $prefix ?>assets/icon/favicon.ico">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="<?= $prefix ?>js/dashboard_agenda.js" defer></script>
 </head>

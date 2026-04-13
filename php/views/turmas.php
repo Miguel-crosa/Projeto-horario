@@ -38,6 +38,15 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         <option value="Noite">Noite</option>
         <option value="Integral">Integral</option>
     </select>
+    <select id="filter-dia" class="form-input" style="width: 140px;" onchange="filterTurmas()">
+        <option value="">Todos Dias</option>
+        <option value="Segunda-feira">Segunda</option>
+        <option value="Terça-feira">Terça</option>
+        <option value="Quarta-feira">Quarta</option>
+        <option value="Quinta-feira">Quinta</option>
+        <option value="Sexta-feira">Sexta</option>
+        <option value="Sábado">Sábado</option>
+    </select>
     <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <div style="display: flex; gap: 8px;">
             <a href="fix_turmas_loading.php" class="btn" style="color: var(--text-muted); font-size: 0.85rem;"
@@ -76,6 +85,8 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         const periodo = periodoInput ? periodoInput.value : '';
         const docenteInput = document.getElementById('filter-docente');
         const docenteFilter = docenteInput ? docenteInput.value.toLowerCase().trim() : '';
+        const diaInput = document.getElementById('filter-dia');
+        const dia = diaInput ? diaInput.value : '';
         const rows = Array.from(document.querySelectorAll('#turmas-table tbody tr:not(.empty-row)'));
 
         rows.forEach(row => {
@@ -83,12 +94,14 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             const pCell = row.cells[3].innerText.trim();
             // Coluna oculta com nomes dos docentes (última coluna de dados, antes de ações)
             const docentesCell = row.dataset.docentes || '';
+            const diasTurma = row.dataset.dias || '';
 
             const matchesSigla = text.includes(sigla);
             const matchesPeriodo = !periodo || pCell === periodo;
             const matchesDocente = !docenteFilter || docentesCell.toLowerCase().includes(docenteFilter);
+            const matchesDia = !dia || diasTurma.includes(dia);
 
-            if (matchesSigla && matchesPeriodo && matchesDocente) {
+            if (matchesSigla && matchesPeriodo && matchesDocente && matchesDia) {
                 row.classList.add('matches-filter');
             } else {
                 row.classList.remove('matches-filter');
@@ -144,14 +157,14 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 if (isEmptyA && isEmptyB) return 0;
 
                 // Sort logic based on column index
-                if ([6, 7].includes(currentSort.column)) { // Início (6), Fim (7)
+                if ([7, 8].includes(currentSort.column)) { // Início (7), Fim (8)
                     const parseDate = (d) => {
                         const parts = d.split('/');
                         return new Date(parts[2], parts[1] - 1, parts[0]);
                     };
                     valA = parseDate(valA);
                     valB = parseDate(valB);
-                } else if (currentSort.column === 8) { // Vagas
+                } else if (currentSort.column === 9) { // Vagas
                     valA = parseInt(valA) || 0;
                     valB = parseInt(valB) || 0;
                 } else {
@@ -223,13 +236,14 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 <th onclick="sortTable(3)" style="cursor:pointer;">PERÍODO <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
                 <th>HORÁRIO</th>
-                <th onclick="sortTable(5)" style="cursor:pointer;">DOCENTE(S) <span class="sort-icon"><i
+                <th>DIAS</th>
+                <th onclick="sortTable(6)" style="cursor:pointer;">DOCENTE(S) <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(6)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(7)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(7)" style="cursor:pointer;">FIM <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(8)" style="cursor:pointer;">FIM <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(8)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(9)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
                 <?php if (can_edit()): ?>
                     <th style="text-align: center;">AÇÕES</th>
@@ -253,8 +267,9 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                     ]);
                     $docentes_str = implode(', ', $docentes_list);
                     $docentes_search = implode(' ', $docentes_list);
+                    $dias_semana_raw = $t['dias_semana'] ?? '';
                     ?>
-                    <tr class="matches-filter" data-docentes="<?= xe($docentes_search) ?>">
+                    <tr class="matches-filter" data-docentes="<?= xe($docentes_search) ?>" data-dias="<?= xe($dias_semana_raw) ?>">
                         <td style="color: var(--text-muted); font-size: 0.8rem;"><?= $idx++ ?></td>
                         <td>
                             <strong><?= xe($t['sigla']) ?></strong>
@@ -272,6 +287,25 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                             $h_ini = !empty($t['horario_inicio']) ? substr($t['horario_inicio'], 0, 5) : '--:--';
                             $h_fim = !empty($t['horario_fim']) ? substr($t['horario_fim'], 0, 5) : '--:--';
                             echo "$h_ini - $h_fim";
+                            ?>
+                        </td>
+                        <td style="min-width: 100px;">
+                            <?php
+                            $dias_semana = !empty($t['dias_semana']) ? explode(',', $t['dias_semana']) : [];
+                            $map_dias = [
+                                'Segunda-feira' => 'SEG',
+                                'Terça-feira' => 'TER',
+                                'Quarta-feira' => 'QUA',
+                                'Quinta-feira' => 'QUI',
+                                'Sexta-feira' => 'SEX',
+                                'Sábado' => 'SÁB',
+                                'Domingo' => 'DOM'
+                            ];
+                            foreach ($dias_semana as $ds):
+                                $ds_trim = trim($ds);
+                                $label = $map_dias[$ds_trim] ?? $ds_trim;
+                                echo "<span style='display: inline-block; background: rgba(0,0,0,0.05); color: var(--text-color); padding: 2px 5px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; margin: 1px;'>$label</span>";
+                            endforeach;
                             ?>
                         </td>
                         <td style="max-width: 200px;">
