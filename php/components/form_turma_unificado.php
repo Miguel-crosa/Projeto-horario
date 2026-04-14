@@ -200,7 +200,7 @@ if (!isset($feriados_data) && isset($conn)) {
             <option value="">Selecione o período...</option>
             <option value="Manhã" <?= $turma['periodo'] == 'Manhã' ? 'selected' : '' ?>>Manhã (07:30 - 11:30)</option>
             <option value="Tarde" <?= $turma['periodo'] == 'Tarde' ? 'selected' : '' ?>>Tarde (13:30 - 17:30)</option>
-            <option value="Noite" <?= $turma['periodo'] == 'Noite' ? 'selected' : '' ?>>Noite (19:00 - 22:00)</option>
+            <option value="Noite" <?= $turma['periodo'] == 'Noite' ? 'selected' : '' ?>>Noite (19:00 - 23:00)</option>
             <option value="Integral" <?= $turma['periodo'] == 'Integral' ? 'selected' : '' ?>>Integral (07:30 - 17:30)</option>
         </select>
     </div>
@@ -441,7 +441,7 @@ if (!isset($feriados_data) && isset($conn)) {
             const periodDefaults = {
                 'Manhã': ['07:30', '11:30'],
                 'Tarde': ['13:30', '17:30'],
-                'Noite': ['19:00', '22:00'],
+                'Noite': ['19:00', '23:00'],
                 'Integral': ['07:30', '17:30']
             };
             if (periodDefaults[periodo]) {
@@ -451,9 +451,9 @@ if (!isset($feriados_data) && isset($conn)) {
             periodoSelect.dataset.lastPeriod = periodo;
         }
 
-        // TRAVA RIGOROSA: Noite não pode passar das 22h
-        if (periodo === 'Noite' && h_fim && h_fim.value > '22:00') {
-            h_fim.value = '22:00';
+        // TRAVA RIGOROSA: Noite não pode passar das 23h
+        if (periodo === 'Noite' && h_fim && h_fim.value > '23:00') {
+            h_fim.value = '23:00';
         }
 
         // TRAVA RIGOROSA: Integral não pode passar das 17:30

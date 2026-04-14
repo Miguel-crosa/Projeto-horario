@@ -201,7 +201,7 @@ if ($id) {
                                                         $options = [
                                                             'Manhã' => ['07:30 as 11:30', '08:00 as 12:00', '09:10 as 12:00'],
                                                             'Tarde' => ['13:30 as 17:30', '13:00 as 17:00', '13:00 as 18:10'],
-                                                            'Noite' => ['18:00 as 22:00', '18:30 as 22:00', '19:00 as 22:00']
+                                                            'Noite' => ['18:00 as 23:00', '18:30 as 23:00', '19:00 as 23:00']
                                                         ];
                                                         foreach ($options[$p_name] as $opt): ?>
                                                             <option value="<?= $opt ?>" <?= $s_data['horario'] == $opt ? 'selected' : '' ?>><?= $opt ?></option>
@@ -442,7 +442,7 @@ if ($id) {
         const map = {
             'Manhã':  '<option value="07:30 as 11:30">07:30 as 11:30</option><option value="08:00 as 12:00">08:00 as 12:00</option><option value="09:10 as 12:00">09:10 as 12:00</option>',
             'Tarde':  '<option value="13:30 as 17:30">13:30 as 17:30</option><option value="13:00 as 17:00">13:00 as 17:00</option><option value="13:00 as 18:10">13:00 as 18:10</option>',
-            'Noite':  '<option value="18:00 as 22:00">18:00 as 22:00</option><option value="18:30 as 22:00">18:30 as 22:00</option><option value="19:00 as 22:00">19:00 as 22:00</option>'
+            'Noite':  '<option value="18:00 as 23:00">18:00 as 23:00</option><option value="18:30 as 23:00">18:30 as 23:00</option><option value="19:00 as 23:00">19:00 as 23:00</option>'
         };
         return map[p] || '';
     }

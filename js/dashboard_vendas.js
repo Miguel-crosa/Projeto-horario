@@ -29,7 +29,7 @@ function applyDynamicDayWidth(daysInMonth) {
 
     // No celular, não deixamos o dia ficar menor que 35px para manter legibilidade
     const isMobile = window.innerWidth <= 768;
-    const minDayWidth = isMobile ? 38 : 28;
+    const minDayWidth = isMobile ? 44 : 28;
 
     if (dayWidth < minDayWidth) {
         dayWidth = minDayWidth;
@@ -121,8 +121,7 @@ function renderGanttVendas(ganttData = null) {
             const date = new Date(year, month - 1, d);
             const isWeekend = date.getDay() === 0 || date.getDay() === 6;
             html += `
-                <td class="gantt-day-cell ${isWeekend ? 'weekend' : ''}" ${dayStyle}
-                    onclick="window.location.href='agenda_professores.php?docente_id=${doc.id}&month=${year}-${String(month).padStart(2, '0')}'">
+                <td class="gantt-day-cell ${isWeekend ? 'weekend' : ''}" ${dayStyle}>
                     <div class="gantt-track-container" id="track-${doc.id}-${d}">
                         <div class="gantt-track"></div>
                     </div>
@@ -246,18 +245,30 @@ function renderCompactBar(docId, span) {
     const bar = document.createElement('div');
     bar.className = `gantt-bar ${span.type} height-p${span.count}`;
 
-    const numDays = (span.end - span.start) + 1;
-    let totalWidth = 0;
-    for (let i = span.start; i <= span.end; i++) {
-        const targetCell = document.querySelector(`#track-${docId}-${i}`);
-        if (targetCell) {
-            const cellElement = targetCell.closest('.gantt-day-cell');
-            totalWidth += cellElement ? cellElement.getBoundingClientRect().width : (window.__dayWidth || 30);
+    const isSmallMobile = window.innerWidth <= 480;
+    const arrowOffset = isSmallMobile ? 5 : 8;
+
+    if (!isSmallMobile) {
+        // Restaurar lógica original para Desktop (evita quebra visual que o usuário relatou)
+        let totalWidthDesktop = 0;
+        for (let i = span.start; i <= span.end; i++) {
+            const targetCell = document.querySelector(`#track-${docId}-${i}`);
+            if (targetCell) {
+                const cellElement = targetCell.closest('.gantt-day-cell');
+                totalWidthDesktop += cellElement ? cellElement.getBoundingClientRect().width : (window.__dayWidth || 30);
+            }
         }
+        bar.style.width = `${totalWidthDesktop}px`;
+        bar.style.left = '-12px';
+    } else {
+        // Lógica otimizada para Mobile (encaixe de setas e alinhamento preciso)
+        const numDays = (span.end - span.start) + 1;
+        const dayW = window.__dayWidth || 44;
+        const totalW = numDays * dayW;
+        bar.style.width = `${totalW + (2 * arrowOffset)}px`;
+        bar.style.left = `-${arrowOffset}px`;
     }
 
-    bar.style.width = `${totalWidth}px`;
-    bar.style.left = '-12px';
     bar.style.position = 'absolute';
 
     let labelHTML = `<div class="gantt-label-rich"><strong>${span.curso}</strong>`;
@@ -271,8 +282,10 @@ function renderCompactBar(docId, span) {
 
     bar.onclick = (e) => {
         e.stopPropagation();
-        const monthStr = `${window.__ganttData.year}-${String(window.__ganttData.month).padStart(2, '0')}`;
-        window.location.href = `agenda_professores.php?docente_id=${docId}&month=${monthStr}`;
+        if (span.type === 'available') {
+            const monthStr = `${window.__ganttData.year}-${String(window.__ganttData.month).padStart(2, '0')}`;
+            window.location.href = `agenda_professores.php?docente_id=${docId}&month=${monthStr}`;
+        }
     };
 
     startTrack.appendChild(bar);
@@ -326,6 +339,7 @@ function initGanttDragScroll() {
     let startX, startY;
     let scrollLeft, scrollTop;
 
+    // Mouse Events
     slider.addEventListener('mousedown', (e) => {
         isDown = true;
         slider.style.cursor = 'grabbing';
@@ -336,7 +350,7 @@ function initGanttDragScroll() {
     });
 
     ['mouseleave', 'mouseup'].forEach(evt => {
-        slider.addEventListener(evt, () => {
+        window.addEventListener(evt, () => {
             isDown = false;
             slider.style.cursor = 'grab';
         });
@@ -352,6 +366,36 @@ function initGanttDragScroll() {
         slider.scrollLeft = scrollLeft - walkX;
         slider.scrollTop = scrollTop - walkY;
     });
+
+    // Touch Events
+    slider.addEventListener('touchstart', (e) => {
+        isDown = true;
+        startX = e.touches[0].pageX - slider.offsetLeft;
+        startY = e.touches[0].pageY - slider.offsetTop;
+        scrollLeft = slider.scrollLeft;
+        scrollTop = slider.scrollTop;
+    }, { passive: false });
+
+    slider.addEventListener('touchend', () => {
+        isDown = false;
+    });
+
+    slider.addEventListener('touchmove', (e) => {
+        if (!isDown) return;
+        const x = e.touches[0].pageX - slider.offsetLeft;
+        const y = e.touches[0].pageY - slider.offsetTop;
+        
+        const walkX = (x - startX) * 1.5;
+        const walkY = (y - startY) * 1.5;
+
+        // Se o movimento for predominantemente horizontal, impedimos o scroll nativo da página
+        if (Math.abs(walkX) > Math.abs(walkY)) {
+            e.preventDefault();
+        }
+
+        slider.scrollLeft = scrollLeft - walkX;
+        slider.scrollTop = scrollTop - walkY;
+    }, { passive: false });
 }
 
 function filterGanttDocentes() {

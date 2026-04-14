@@ -25,12 +25,12 @@ if (!$turma) {
     exit;
 }
 
-// FIX: Se o período for Noite e o horário de fim for maior que 22:00, força para 22:00
-// Isso garante o cumprimento da regra de que aulas noturnas encerram obrigatoriamente às 22:00.
+// FIX: Se o período for Noite e o horário de fim for maior que 23:00, força para 23:00
+// Isso garante o cumprimento da regra de que aulas noturnas encerram obrigatoriamente às 23:00.
 $h_fim_check = !empty($turma['horario_fim']) ? substr($turma['horario_fim'], 0, 5) : '';
-if ($turma['periodo'] === 'Noite' && $h_fim_check > '22:00') {
-    $turma['horario_fim'] = '22:00:00';
-    mysqli_query($conn, "UPDATE turma SET horario_fim = '22:00:00' WHERE id = '$id'");
+if ($turma['periodo'] === 'Noite' && $h_fim_check > '23:00') {
+    $turma['horario_fim'] = '23:00:00';
+    mysqli_query($conn, "UPDATE turma SET horario_fim = '23:00:00' WHERE id = '$id'");
 }
 
 // FIX: Se o período for Integral e o horário de fim for maior que 17:30, força para 17:30

@@ -367,7 +367,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                             if ($doc_id && $turno && $dias_semana) {
                                 $p_parts = explode(',', $turno);
                                 foreach ($p_parts as $per) {
-                                    $def_h = ($per == 'Manhã' ? '07:30 as 11:30' : ($per == 'Tarde' ? '13:00 as 17:00' : '18:00 as 22:00'));
+                                    $def_h = ($per == 'Manhã' ? '07:30 as 11:30' : ($per == 'Tarde' ? '13:00 as 17:00' : '18:00 as 23:00'));
                                     // Se já houver algo específico para este período, talvez não queiramos sobrescrever se estivermos no fluxo de DOCENTES apenas?
                                     // Mas se o usuário está importando a lista de docentes com turnos novos, faz sentido atualizar.
                                     $mysqli->query("DELETE FROM horario_trabalho WHERE docente_id = $doc_id AND periodo = '$per'");
@@ -483,7 +483,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
 
                             // Derive defaults if not in Excel
                             if (!$horario_inicio_excel || !$horario_fim_excel) {
-                                $def_times = ['Manhã' => ['07:30', '11:30'], 'Tarde' => ['13:30', '17:30'], 'Noite' => ['18:00', '22:00'], 'Integral' => ['07:30', '17:30']];
+                                $def_times = ['Manhã' => ['07:30', '11:30'], 'Tarde' => ['13:30', '17:30'], 'Noite' => ['18:00', '23:00'], 'Integral' => ['07:30', '17:30']];
                                 $horario_inicio_excel = $horario_inicio_excel ?: ($def_times[$periodo][0] ?? '07:30');
                                 $horario_fim_excel = $horario_fim_excel ?: ($def_times[$periodo][1] ?? '11:30');
                             }

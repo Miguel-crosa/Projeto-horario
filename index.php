@@ -189,11 +189,16 @@ $areas_list = array_map(function ($a) {
     return ['area_conhecimento' => $a];
 }, $unique_areas);
 
-$turmas_cidade = mysqli_fetch_all(mysqli_query($conn, "
-    SELECT COALESCE(amb.cidade, 'Sede') AS cidade, COUNT(t.id) AS total
-    FROM turma t LEFT JOIN ambiente amb ON t.ambiente_id = amb.id
-    GROUP BY COALESCE(amb.cidade, 'Sede') ORDER BY total DESC
-    "), MYSQLI_ASSOC);
+// --- Turmas Encerradas (Últimos 7 dias) ---
+$data_7_atras = date('Y-m-d', strtotime('-7 days'));
+$encerradas_query = mysqli_query($conn, "
+    SELECT t.id, t.sigla, c.nome AS curso_nome, t.data_fim
+    FROM turma t 
+    JOIN curso c ON t.curso_id = c.id
+    WHERE t.data_fim BETWEEN '$data_7_atras' AND '" . date('Y-m-d') . "'
+    ORDER BY t.data_fim DESC
+");
+$encerradas = mysqli_fetch_all($encerradas_query, MYSQLI_ASSOC);
 
 $proximas_query = mysqli_query($conn, "
     SELECT t.id, amb.cidade, c.nome AS curso_nome, t.data_inicio, t.tipo
@@ -678,23 +683,21 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
             </div>
 
             <div class="sidebar-column">
-                <div class="dash-section">
+                <div class="dash-section" style="border-left: 4px solid #1976d2; background: rgba(25, 118, 210, 0.03);">
                     <div class="dash-section-header">
-                        <h3><i class="fas fa-map-marked-alt" style="color: #1976d2;"></i> Turmas por Cidade</h3>
+                        <h3 style="color: #1976d2;"><i class="fas fa-history"></i> Turmas Encerradas (7 dias)</h3>
                     </div>
                     <div class="dash-section-body">
-                        <?php if (empty($turmas_cidade)): ?>
-                            <p class="text-center" style="color: var(--text-muted);">Nenhuma turma cadastrada.</p>
+                        <?php if (empty($encerradas)): ?>
+                            <p class="text-center" style="color: var(--text-muted); font-size: 0.85rem;">Nenhuma turma encerrada nos últimos 7 dias.</p>
                         <?php else: ?>
-                            <?php foreach ($turmas_cidade as $i => $tc):
-                                $cor = $cores[$i % count($cores)]; ?>
-                                <div class="city-list-item">
-                                    <div style="display: flex; align-items: center;">
-                                        <span class="city-dot" style="background: <?= $cor ?>;"></span>
-                                        <span style="font-weight: 600;"><?= htmlspecialchars($tc['cidade']) ?></span>
+                            <?php foreach ($encerradas as $te): ?>
+                                <div class="city-list-item" style="flex-direction: column; align-items: flex-start; gap: 4px; border-bottom: 1px dashed rgba(25, 118, 210, 0.2); padding-bottom: 10px; margin-bottom: 10px;">
+                                    <div style="font-weight: 700; font-size: .9rem; color: #1976d2;">Turma <?= htmlspecialchars($te['sigla']) ?></div>
+                                    <div style="font-size: .8rem; color: var(--text-muted);"><?= htmlspecialchars($te['curso_nome']) ?></div>
+                                    <div style="font-size: .78rem; color: #555; font-weight: 700;">
+                                        <i class="fas fa-calendar-check"></i> Encerrada em: <?= date('d/m/Y', strtotime($te['data_fim'])) ?>
                                     </div>
-                                    <span
-                                        style="font-weight: 800; font-size: 1.1rem; color: <?= $cor ?>;"><?= $tc['total'] ?></span>
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>

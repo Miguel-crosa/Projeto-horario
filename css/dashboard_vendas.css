@@ -168,7 +168,7 @@
     user-select: none;
     max-height: 65vh;
     position: relative;
-    overflow-x: hidden;
+    overflow-x: auto;
     /* Alterado de hidden para permitir scroll horizontal no celular */
     -webkit-overflow-scrolling: touch;
     /* Melhora scroll no iOS */
@@ -460,7 +460,7 @@
 
 @media (max-width: 480px) {
     :root {
-        --gantt-row-height: 90px;
+        --gantt-row-height: 80px;
     }
 
     .gantt-name-column {
@@ -489,13 +489,27 @@
     }
 
     .gantt-bar {
-        clip-path: none;
-        /* Simplifica formato no celular pequeno */
-        border-radius: 4px;
-        padding-left: 5px;
+        clip-path: polygon(0% 0%, calc(100% - 5px) 0%, 100% 50%, calc(100% - 5px) 100%, 0% 100%, 5px 50%);
+        border-radius: 2px;
+        padding-left: 8px;
     }
 
     .gantt-label-rich strong {
-        font-size: 0.65rem;
+        font-size: 0.62rem;
+        letter-spacing: -0.2px;
+    }
+
+    .gantt-label-rich span {
+        font-size: 0.58rem;
+        display: block;
+        margin-top: -1px;
+    }
+
+    .gantt-day-num {
+        font-size: 0.8rem;
+    }
+
+    .gantt-day-name {
+        font-size: 0.5rem;
     }
 }

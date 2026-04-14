@@ -110,9 +110,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $parceiro = mysqli_real_escape_string($conn, $_POST['parceiro'] ?? '');
     $contato_parceiro = mysqli_real_escape_string($conn, $_POST['contato_parceiro'] ?? '');
     
-    // TRAVA: Aulas Noturnas não podem passar das 22:00
-    if ($periodo === 'Noite' && !empty($horario_fim) && $horario_fim > '22:00') {
-        $horario_fim = '22:00';
+    // TRAVA: Aulas Noturnas não podem passar das 23:00
+    if ($periodo === 'Noite' && !empty($horario_fim) && $horario_fim > '23:00') {
+        $horario_fim = '23:00';
     }
 
     // Auto-derive if needed
@@ -120,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $period_times = [
             'Manhã' => ['07:30', '11:30'],
             'Tarde' => ['13:30', '17:30'],
-            'Noite' => ['18:00', '22:00'],
+            'Noite' => ['18:00', '23:00'],
             'Integral' => ['07:30', '17:30'],
         ];
         $horario_inicio = $horario_inicio ?: ($period_times[$periodo][0] ?? '07:30');
