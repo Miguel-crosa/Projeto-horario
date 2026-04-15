@@ -277,3 +277,25 @@ async function confirmarAdicao() {
         console.error('Erro na requisição de adição de aluno:', error);
     }
 }
+// Fechamento ao clicar fora da modal (no overlay)
+window.addEventListener('click', function (event) {
+    // Caso 1: Modais de Produção/Carga Horária (classe modal-producao)
+    if (event.target.classList.contains('modal-producao')) {
+        const modalId = event.target.id;
+        if (modalId === 'modal-workload-global' && typeof closeWorkloadModal === 'function') {
+            closeWorkloadModal();
+        } else {
+            closeProducaoModal(modalId);
+        }
+    }
+    
+    // Caso 2: Modais de Substituição/Disponibilidade (classe modal-subst)
+    if (event.target.classList.contains('modal-subst')) {
+        const modalId = event.target.id;
+        if (modalId === 'modal-substituicao-gera' && typeof closeSubstituicaoModal === 'function') {
+            closeSubstituicaoModal();
+        } else if (modalId === 'modal-pesquisa-turma' && typeof fecharPesquisaTurma === 'function') {
+            fecharPesquisaTurma();
+        }
+    }
+});

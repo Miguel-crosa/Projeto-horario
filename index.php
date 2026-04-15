@@ -276,6 +276,11 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                         <i class="fas fa-money-bill-wave"></i> <span class="hide-mobile">Previsão de
                             Despesas</span><span class="show-mobile">Despesas</span>
                     </button>
+                    <button class="btn btn-primary" onclick="openWorkloadModal()"
+                        style="background: #6a1b9a; border-color: #4a148c; box-shadow: 0 4px 10px rgba(106, 27, 154, 0.2); font-weight: 700;">
+                        <i class="fas fa-business-time"></i> <span class="hide-mobile">Carga Horária
+                            Docentes</span><span class="show-mobile">Carga H.</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -330,6 +335,30 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                             style="height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 0 15px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
                             <i class="fas fa-times"></i> Limpar Seleção
                         </button>
+
+                        <?php
+                        $hoje = date('Y-m-d');
+                        $fim_ano = date('Y-12-31');
+                        $inicio_ano = date('Y-01-01');
+                        $total_ano = calculateTeacherYearlyWorkload($conn, (int) $filtro_docente_id, $inicio_ano, $fim_ano);
+                        $saldo_remanescente = calculateTeacherYearlyWorkload($conn, (int) $filtro_docente_id, $hoje, $fim_ano);
+                        $porcentagem = ($total_ano > 0) ? round(($saldo_remanescente / $total_ano) * 100) : 0;
+                        ?>
+                        <div id="individual-workload-container"
+                            style="display: flex; flex-direction: column; gap: 4px; min-width: 200px; padding-left: 10px; border-left: 2px solid var(--border-color);">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 700; color: var(--text-color);">
+                                <span>Saldo de Horas (Ano)</span>
+                                <span style="color: #2e7d32; margin-left: 10px;"><?= round($saldo_remanescente) ?>h /
+                                    <?= round($total_ano) ?>h</span>
+                            </div>
+                            <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden; position: relative;"
+                                title="<?= $porcentagem ?>% de carga horária disponível (Cálculo deduz feriados, férias, planejamento e afastamentos)">
+                                <div
+                                    style="width: <?= $porcentagem ?>%; height: 100%; background: linear-gradient(90deg, #2e7d32, #4caf50); transition: width 1s ease-in-out;">
+                                </div>
+                            </div>
+                        </div>
                     <?php endif; ?>
                 </div>
 
@@ -689,14 +718,21 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     </div>
                     <div class="dash-section-body">
                         <?php if (empty($encerradas)): ?>
-                            <p class="text-center" style="color: var(--text-muted); font-size: 0.85rem;">Nenhuma turma encerrada nos últimos 7 dias.</p>
+                            <p class="text-center" style="color: var(--text-muted); font-size: 0.85rem;">Nenhuma turma
+                                encerrada nos últimos 7 dias.</p>
                         <?php else: ?>
                             <?php foreach ($encerradas as $te): ?>
-                                <div class="city-list-item" style="flex-direction: column; align-items: flex-start; gap: 4px; border-bottom: 1px dashed rgba(25, 118, 210, 0.2); padding-bottom: 10px; margin-bottom: 10px;">
-                                    <div style="font-weight: 700; font-size: .9rem; color: #1976d2;">Turma <?= htmlspecialchars($te['sigla']) ?></div>
-                                    <div style="font-size: .8rem; color: var(--text-muted);"><?= htmlspecialchars($te['curso_nome']) ?></div>
+                                <div class="city-list-item"
+                                    style="flex-direction: column; align-items: flex-start; gap: 4px; border-bottom: 1px dashed rgba(25, 118, 210, 0.2); padding-bottom: 10px; margin-bottom: 10px;">
+                                    <div style="font-weight: 700; font-size: .9rem; color: #1976d2;">Turma
+                                        <?= htmlspecialchars($te['sigla']) ?>
+                                    </div>
+                                    <div style="font-size: .8rem; color: var(--text-muted);">
+                                        <?= htmlspecialchars($te['curso_nome']) ?>
+                                    </div>
                                     <div style="font-size: .78rem; color: #555; font-weight: 700;">
-                                        <i class="fas fa-calendar-check"></i> Encerrada em: <?= date('d/m/Y', strtotime($te['data_fim'])) ?>
+                                        <i class="fas fa-calendar-check"></i> Encerrada em:
+                                        <?= date('d/m/Y', strtotime($te['data_fim'])) ?>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -766,6 +802,28 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
     <!-- Modais de Produção Aluno/Hora -->
     <link rel="stylesheet" href="css/producao_dashboard.css">
     <script src="js/producao_aluno_hora.js"></script>
+    <script src="js/workload_dashboard.js"></script>
+
+    <!-- Modal: Carga Horária Global -->
+    <div id="modal-workload-global" class="modal-producao">
+        <div class="modal-producao-content animate-pop-in">
+            <div class="modal-producao-header">
+                <h3><i class="fas fa-business-time"></i> Carga Horária Disponível por Docente</h3>
+                <button class="modal-producao-close" onclick="closeWorkloadModal()">&times;</button>
+            </div>
+            <div class="modal-producao-body">
+                <p
+                    style="text-align: center; color: var(--text-muted); font-size: 0.95rem; margin-top: -10px; margin-bottom: 25px; font-weight: 500;">
+                    <i class="fas fa-info-circle"></i> Disponibilidade estimada até o dia 31/12 em ordem decrescente.
+                </p>
+                <div class="producao-chart-section">
+                    <div class="chart-container-wrapper" style="height: 450px;">
+                        <canvas id="chartWorkloadDocentes"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal 1: Visão Geral e Gráfico -->
     <div id="modal-producao-geral" class="modal-producao">

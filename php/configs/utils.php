@@ -1034,3 +1034,147 @@ function checkDocenteConflicts($conn, $docente_id, $turma_id_to_ignore, $data_st
 
     return true;
 }
+
+/**
+ * Calcula a carga horária de um docente em um determinado intervalo de datas,
+ * baseando-se nos registros de horario_trabalho.
+ * Útil para calcular o total anual e o saldo remanescente.
+ */
+function calculateTeacherYearlyWorkload($conn, $docente_id, $data_inicio, $data_fim) {
+    if (!$docente_id) return 0;
+
+    // 0. AJUSTE DE ADMISSÃO PROPORCIONAL: 
+    // Se o docente começou no meio do ano, o potencial deve contar a partir do primeiro bloco de horário.
+    $q_first_block = mysqli_query($conn, "SELECT MIN(data_inicio) as first_d FROM horario_trabalho WHERE docente_id = $docente_id");
+    $first_d = mysqli_fetch_assoc($q_first_block)['first_d'] ?? $data_inicio;
+    if ($first_d > $data_inicio) {
+        $data_inicio = $first_d;
+    }
+
+    // Cache de Feriados para o intervalo
+    static $feriados_cache = null;
+    if ($feriados_cache === null) {
+        $feriados_cache = [];
+        $res_f = mysqli_query($conn, "SELECT date as data FROM holidays WHERE (end_date IS NULL AND date BETWEEN '$data_inicio' AND '$data_fim') OR (end_date IS NOT NULL AND date <= '$data_fim' AND end_date >= '$data_inicio')");
+        if ($res_f) {
+            while ($f = mysqli_fetch_assoc($res_f)) {
+                $feriados_cache[$f['data']] = true;
+                // Se for intervalo, preenche os dias intermediários
+                if (isset($f['end_date']) && $f['end_date'] > $f['data']) {
+                    $curr_it = new DateTime($f['data']);
+                    $end_it = new DateTime($f['end_date']);
+                    while ($curr_it <= $end_it) {
+                        $feriados_cache[$curr_it->format('Y-m-d')] = true;
+                        $curr_it->modify('+1 day');
+                    }
+                }
+            }
+        }
+    }
+
+    // Cache de Férias do Docente para o intervalo
+    $ferias_intervalos = [];
+    $res_v = mysqli_query($conn, "
+        SELECT start_date, end_date 
+        FROM vacations 
+        WHERE (teacher_id = $docente_id OR teacher_id IS NULL) 
+          AND (start_date <= '$data_fim' AND end_date >= '$data_inicio')
+    ");
+    if ($res_v) {
+        while ($v = mysqli_fetch_assoc($res_v)) {
+            $ferias_intervalos[] = ['ini' => $v['start_date'], 'fim' => $v['end_date']];
+        }
+    }
+
+    // Cache de Preparação/Atestados (Dedução de Regência vs Atividades)
+    $atividades_ocupadas = [];
+    $res_p = mysqli_query($conn, "
+        SELECT tipo, data_inicio, data_fim, dias_semana, horario_inicio, horario_fim 
+        FROM preparacao_atestados 
+        WHERE docente_id = $docente_id AND status = 'ativo'
+          AND data_inicio <= '$data_fim' AND data_fim >= '$data_inicio'
+    ");
+    if ($res_p) {
+        while ($p = mysqli_fetch_assoc($res_p)) {
+            $h_ini_p = strtotime($p['horario_inicio']);
+            $h_fim_p = strtotime($p['horario_fim']);
+            $horas_p = ($h_ini_p && $h_fim_p) ? ($h_fim_p - $h_ini_p) / 3600 : 0;
+            
+            $dias_p = !empty($p['dias_semana']) ? explode(',', $p['dias_semana']) : [];
+            
+            $atividades_ocupadas[] = [
+                'ini' => $p['data_inicio'],
+                'fim' => $p['data_fim'],
+                'dias' => $dias_p,
+                'horas' => $horas_p
+            ];
+        }
+    }
+
+    $daysMap = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
+    $daysDOWMap = ['Segunda-feira' => 1, 'Terça-feira' => 2, 'Quarta-feira' => 3, 'Quinta-feira' => 4, 'Sexta-feira' => 5, 'Sábado' => 6, 'Domingo' => 0];
+
+    $query = "SELECT dias, horario, data_inicio, data_fim 
+              FROM horario_trabalho 
+              WHERE docente_id = $docente_id";
+    $res = mysqli_query($conn, $query);
+    
+    $total_horas = 0;
+    while ($row = mysqli_fetch_assoc($res)) {
+        $partes = explode(' as ', mb_strtolower($row['horario']));
+        if (count($partes) !== 2) continue;
+        $h_ini = strtotime(trim($partes[0]));
+        $h_fim = strtotime(trim($partes[1]));
+        if (!$h_ini || !$h_fim || $h_fim <= $h_ini) continue;
+        $horas_por_dia = ($h_fim - $h_ini) / 3600;
+
+        $dias_autorizados = array_map(function($d) { return mb_strtolower(trim($d), 'UTF-8'); }, explode(',', $row['dias']));
+
+        $bloco_ini = !empty($row['data_inicio']) ? max($data_inicio, $row['data_inicio']) : $data_inicio;
+        $bloco_fim = !empty($row['data_fim']) ? min($data_fim, $row['data_fim']) : $data_fim;
+        if ($bloco_ini > $bloco_fim) continue;
+
+        $it = new DateTime($bloco_ini);
+        $itFim = new DateTime($bloco_fim);
+        $it->setTime(0,0,0);
+        $itFim->setTime(0,0,0);
+
+        while ($it <= $itFim) {
+            $curr_date = $it->format('Y-m-d');
+            $w = (int)$it->format('w');
+            $nome_dia = mb_strtolower($daysMap[$w], 'UTF-8');
+
+            if (in_array($nome_dia, $dias_autorizados)) {
+                // 1. Check Feriado (Cache)
+                if (!isset($feriados_cache[$curr_date])) {
+                    // 2. Check Férias (Local Intervals)
+                    $esta_de_ferias = false;
+                    foreach ($ferias_intervalos as $periodo) {
+                        if ($curr_date >= $periodo['ini'] && $curr_date <= $periodo['fim']) {
+                            $esta_de_ferias = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!$esta_de_ferias) {
+                        // 3. DEDUÇÃO DE PREPARAÇÃO/HORA-ATIVIDADE
+                        $horas_disponiveis_no_dia = $horas_por_dia;
+                        foreach ($atividades_ocupadas as $atv) {
+                            if ($curr_date >= $atv['ini'] && $curr_date <= $atv['fim']) {
+                                // Se for o mesmo dia da semana ou se não especificado dias (bloqueia o dia todo se horas baterem)
+                                if (empty($atv['dias']) || in_array($w, $atv['dias'])) {
+                                    $horas_disponiveis_no_dia = max(0, $horas_disponiveis_no_dia - $atv['horas']);
+                                }
+                            }
+                        }
+                        $total_horas += $horas_disponiveis_no_dia;
+                    }
+                }
+            }
+            $it->modify('+1 day');
+        }
+    }
+    return $total_horas;
+}
+
+
