@@ -105,10 +105,12 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
 
       if (in_array($c_low, ['id', 'vagas', 'capacidade', 'nº', 'status', 'semestral'])) {
         $width = 60;
-      } else if (in_array($c_low, ['nome', 'curso', 'docente', 'email', 'ambiente', 'sigla', 'local', 'turma', 'docente 1', 'docente 2', 'docente 3', 'docente 4', 'docente_responsavel', 'detalhe', 'componentes', 'área', 'área de conhecimento', 'solicitado por', 'curso relacionado', 'dias da semana', 'dia de trabalho', 'tipo contrato', 'turno', 'cidade'])) {
+      } else if (in_array($c_low, ['nome', 'curso', 'docente', 'email', 'ambiente', 'sigla', 'local', 'turma', 'docente 1', 'docente 2', 'docente 3', 'docente 4', 'docente_responsavel', 'detalhe', 'componentes', 'área', 'área de conhecimento', 'solicitado por', 'curso relacionado', 'dias da semana', 'dia de trabalho', 'tipo contrato', 'turno', 'cidade', 'parceiro', 'contato parceiro'])) {
         $width = 350;
       } else if (strpos($c_low, 'data') !== false || strpos($c_low, 'hora') !== false || strpos($c_low, 'início') !== false || strpos($c_low, 'fim') !== false) {
         $width = 110;
+      } else if (in_array($c_low, ['valor turma', 'valor', 'previsão despesa', 'despesa'])) {
+        $width = 130;
       } else if (strpos($c_low, 'dias') !== false || strpos($c_low, 'semana') !== false || strpos($c_low, 'trabalho') !== false) {
         $width = 250;
       }
@@ -300,7 +302,14 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
         d2.nome AS `Docente 2`,
         d3.nome AS `Docente 3`,
         d4.nome AS `Docente 4`,
-        t.componentes AS Componentes
+        t.componentes AS Componentes,
+        t.tipo_custeio AS `Tipo Custeio`,
+        t.previsao_despesa AS `Previsão Despesa`,
+        t.valor_turma AS `Valor Turma`,
+        t.numero_proposta AS `Nº Proposta`,
+        t.tipo_atendimento AS `Tipo Atendimento`,
+        t.parceiro AS `Parceiro`,
+        t.contato_parceiro AS `Contato Parceiro`
     FROM turma t 
     LEFT JOIN curso c ON t.curso_id = c.id 
     LEFT JOIN ambiente amb ON t.ambiente_id = amb.id 
@@ -325,7 +334,14 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
         r.data_fim AS `Data Fim`, 
         r.dias_semana AS `Dias Semana`, 
         r.hora_inicio AS `Horário Início`, 
-        r.hora_fim AS `Horário Fim`
+        r.hora_fim AS `Horário Fim`,
+        r.tipo_custeio AS `Tipo Custeio`,
+        r.previsao_despesa AS `Previsão Despesa`,
+        r.valor_turma AS `Valor Turma`,
+        r.numero_proposta AS `Nº Proposta`,
+        r.tipo_atendimento AS `Tipo Atendimento`,
+        r.parceiro AS `Parceiro`,
+        r.contato_parceiro AS `Contato Parceiro`
     FROM reservas r 
     LEFT JOIN docente d ON r.docente_id = d.id 
     LEFT JOIN usuario u ON r.usuario_id = u.id 
@@ -384,12 +400,15 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
         d.nome AS Docente,
         h.dias AS Dias,
         h.periodo AS Período,
-        h.horario AS Horário
+        h.horario AS Horário,
+        h.data_inicio AS `Data Início`,
+        h.data_fim AS `Data Fim`,
+        h.ano AS Ano
     FROM horario_trabalho h
     JOIN docente d ON h.docente_id = d.id
-    ORDER BY d.nome ASC
+    ORDER BY d.nome ASC, h.data_inicio ASC
 ";
-  renderWorksheet("HORARIO_TRABALHO", $q_ht, $conn);
+  renderWorksheet("HORARIO_TRABALHO", $q_ht, $conn, ['Data Início', 'Data Fim']);
 
   // 11. Bloqueios
   $q_bloqueios = "

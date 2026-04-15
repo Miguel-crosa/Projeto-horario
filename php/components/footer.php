@@ -2,7 +2,7 @@
 </div>
 
 <script src="<?= $prefix ?>js/nav.js"></script>
-<?php if (str_contains(basename($_SERVER['PHP_SELF']), 'planejamento') || str_contains(basename($_SERVER['PHP_SELF']), 'agenda_professores')): ?>
+<?php if (str_contains(basename($_SERVER['PHP_SELF']), 'planejamento') || str_contains(basename($_SERVER['PHP_SELF']), 'agenda_professores') || str_contains(basename($_SERVER['PHP_SELF']), 'turmas')): ?>
     <script src="<?= $prefix ?>js/gantt.js"></script>
     <script src="<?= $prefix ?>js/calendar.js"></script>
     <script src="<?= $prefix ?>js/agenda_professores.js"></script>

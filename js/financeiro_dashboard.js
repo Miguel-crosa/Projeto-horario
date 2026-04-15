@@ -92,10 +92,17 @@ function closeFinanceiroModal(id) {
 }
 
 function updateTotalRessarcido() {
-    const total = financeiroData.ressarcido.reduce((acc, curr) => acc + parseFloat(curr.total), 0);
+    // Usa o total unificado (turmas + reservas concluídas) enviado pelo backend
+    const total = parseFloat(financeiroData.total_ressarcido_real || 0);
     const totalEl = document.getElementById('total-ressarcido-geral');
     if (totalEl) {
         totalEl.innerText = 'R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    }
+
+    const totalPipeEl = document.getElementById('total-ressarcido-pipeline');
+    if (totalPipeEl) {
+        const totalPipe = parseFloat(financeiroData.total_ressarcido_pipeline || 0);
+        totalPipeEl.innerText = 'R$ ' + totalPipe.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
     }
 }
 
@@ -103,6 +110,12 @@ function updateTotalDespesas() {
     const totalEl = document.getElementById('total-previsao-despesas');
     if (totalEl) {
         totalEl.innerText = 'R$ ' + parseFloat(financeiroData.total_despesas).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    }
+
+    const totalPipeEl = document.getElementById('total-previsao-despesas-pipeline');
+    if (totalPipeEl) {
+        const totalPipe = parseFloat(financeiroData.total_despesas_pipeline || 0);
+        totalPipeEl.innerText = 'R$ ' + totalPipe.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
     }
 }
 

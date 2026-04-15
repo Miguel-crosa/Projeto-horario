@@ -19,13 +19,17 @@ $pass = '';
 $db = 'gestao_escolar';
 $port = 3308;
 
-// Ativar exibição de erros para diagnóstico inicial na implantação
-mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+// Ativar exibição de erros apenas para log, ocultar do usuário final
+mysqli_report(MYSQLI_REPORT_OFF);
 
 try {
-     $conn = mysqli_connect('p:' . $host, $user, $pass, $db, $port);
+     $conn = mysqli_connect($host, $user, $pass, $db, $port);
+     if (!$conn) {
+          throw new Exception("Falha na conexão.");
+     }
 } catch (Exception $e) {
-     die("Erro de conexão com o banco de dados: " . $e->getMessage());
+     // Logar erro internamente se necessário
+     die("Erro de conexão com o banco de dados. Por favor, tente novamente mais tarde.");
 }
 
 mysqli_set_charset($conn, "utf8mb4");

@@ -168,7 +168,8 @@
 
 /* Adjusting timeline day cells for Linux/different rendering to avoid overlap */
 .timeline-day-cell {
-    min-width: 42px;
+    min-width: 48px;
+    flex-shrink: 0;
 }
 
 .bar-seg:last-child {
@@ -191,7 +192,7 @@
 }
 
 .bar-seg-free {
-    background: #2e7d32;
+    background: #4caf50; /* Softer Green */
     color: #fff;
 }
 
@@ -201,8 +202,8 @@
 }
 
 .bar-seg-sunday {
-    background-color: #ffcdd2;
-    color: #b71c1c;
+    background-color: #ef9a9a; /* Softer Red for Sunday */
+    color: #7f0000;
     cursor: not-allowed;
 }
 
@@ -706,8 +707,8 @@
 }
 
 .sem-day-free {
-    background: #e8f5e9;
-    color: #2e7d32;
+    background: #4caf50; /* Same as bar-seg-free */
+    color: #fff;
     cursor: pointer;
 }
 

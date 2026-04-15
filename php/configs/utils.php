@@ -242,7 +242,7 @@ function getDailyStatusForMonth($conn, $did, $month)
         }
 
         $mapped_status = 'Ocupado';
-        if ($type === 'RESERVA' || $type === 'RESERVA_LEGADO' || $item['status'] === 'RESERVADO') {
+        if ($type === 'RESERVA' || $type === 'RESERVA_LEGADO' || ($item['status'] ?? '') === 'RESERVADO') {
             $mapped_status = 'Reservado';
         }
 
@@ -440,7 +440,7 @@ function isVacation($conn, $did, $date)
         SELECT id, type, teacher_id 
         FROM vacations 
         WHERE '$date_esc' BETWEEN start_date AND end_date
-          AND (type = 'collective' OR (type = 'individual' AND teacher_id = $did))
+          AND ( (type = 'collective' AND teacher_id IS NULL) OR teacher_id = $did )
         LIMIT 1
     ");
     return mysqli_fetch_assoc($res);
@@ -455,7 +455,7 @@ function calculateConsumedHours($conn, $did, $start_date, $end_date)
     $daysMap = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
 
     // 1. Aulas Confirmadas
-    $stmt = $conn->prepare("SELECT a.horario_inicio, a.horario_fim, a.data, a.dia_semana, t.data_inicio, t.data_fim 
+    $stmt = $conn->prepare("SELECT a.horario_inicio, a.horario_fim, a.data, a.dia_semana, a.periodo, t.data_inicio, t.data_fim 
                             FROM agenda a 
                             LEFT JOIN turma t ON a.turma_id = t.id
                             WHERE a.docente_id = ? 
@@ -469,6 +469,7 @@ function calculateConsumedHours($conn, $did, $start_date, $end_date)
 
     while ($row = $res->fetch_assoc()) {
         $h = (strtotime($row['horario_fim']) - strtotime($row['horario_inicio'])) / 3600;
+        if (($row['periodo'] ?? '') === 'Integral' && $h > 4) $h -= 1;
 
         if ($row['data']) {
             if (!isHoliday($conn, $row['data']) && !isVacation($conn, $did, $row['data'])) {
@@ -494,7 +495,7 @@ function calculateConsumedHours($conn, $did, $start_date, $end_date)
     $stmt->close();
 
     // 2. Reservas
-    $stmt = $conn->prepare("SELECT data_inicio, data_fim, hora_inicio, hora_fim, dias_semana 
+    $stmt = $conn->prepare("SELECT data_inicio, data_fim, hora_inicio, hora_fim, dias_semana, periodo 
                             FROM reservas WHERE docente_id = ? AND status IN ('PENDENTE', 'APROVADA', 'ativo', 'CONCLUIDA')
                             AND data_inicio <= ? AND data_fim >= ?");
     $stmt->bind_param("iss", $did, $end_date, $start_date);
@@ -503,6 +504,7 @@ function calculateConsumedHours($conn, $did, $start_date, $end_date)
 
     while ($row = $res->fetch_assoc()) {
         $h = (strtotime($row['hora_fim']) - strtotime($row['hora_inicio'])) / 3600;
+        if (($row['periodo'] ?? '') === 'Integral' && $h > 4) $h -= 1;
         $d_list = array_map('trim', explode(',', $row['dias_semana']));
 
         $it = new DateTime(max($start_date, $row['data_inicio']));
@@ -576,15 +578,24 @@ function isWithinWorkSchedule($conn, $did, $date, $periodo)
     $daysMap = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
     $w = (int) date('w', strtotime($date));
     $nome_dia = $daysMap[$w];
+    $date_esc = mysqli_real_escape_string($conn, $date);
 
     foreach ($check_periods as $p) {
-        $p_esc = mysqli_real_escape_string($conn, $p);
+        $p_esc   = mysqli_real_escape_string($conn, $p);
         $dia_esc = mysqli_real_escape_string($conn, $nome_dia);
 
-        $q = "SELECT id FROM horario_trabalho 
-              WHERE docente_id = $did 
-              AND periodo = '$p_esc' 
-              AND (dias = '$dia_esc' OR FIND_IN_SET('$dia_esc', dias) > 0 OR dias LIKE '%$dia_esc%')";
+        // Verifica se existe um bloco ativo para a data que autoriza esse dia/período
+        $q = "SELECT id FROM horario_trabalho
+              WHERE docente_id = $did
+              AND periodo = '$p_esc'
+              AND (dias = '$dia_esc' OR FIND_IN_SET('$dia_esc', dias) > 0 OR dias LIKE '%$dia_esc%')
+              AND (
+                  -- Bloco legado (sem datas) = sempre válido
+                  (data_inicio IS NULL AND data_fim IS NULL)
+                  OR
+                  -- Bloco sazonal: a data deve estar dentro do intervalo
+                  ('$date_esc' BETWEEN data_inicio AND data_fim)
+              )";
         $res = mysqli_query($conn, $q);
         if (!$res || mysqli_num_rows($res) == 0) {
             return false;
@@ -611,13 +622,34 @@ function checkDocenteWorkSchedule($conn, $did, $data_start, $data_end, $days_arr
             $pts_esc = mysqli_real_escape_string($conn, $pts);
             $dia_esc = mysqli_real_escape_string($conn, $dia_nome);
 
-            $q = "SELECT id FROM horario_trabalho 
-                  WHERE docente_id = $did 
-                  AND periodo = '$pts_esc' 
-                  AND (dias = '$dia_esc' OR FIND_IN_SET('$dia_esc', dias) > 0 OR dias LIKE '%$dia_esc%')";
-            $res = mysqli_query($conn, $q);
-            if (!$res || mysqli_num_rows($res) == 0) {
-                return "Bloqueio: O docente $doc_name não possui autorização de trabalho (horario_trabalho) cadastrada para o período $pts na $dia_nome.";
+            // Precisamos verificar para CADA DATA dentro do intervalo da turma que cai nesse dia.
+            // Para performance, verificamos apenas as datas extremas do intervalo.
+            // Se a turma cruza múltiplos blocos, cada data deve estar coberta.
+            $dates_to_check = [$data_start, $data_end];
+            // Adiciona o 1º dia do bloco intermediário para turmas longas (simples)
+            $mid_ts = (strtotime($data_start) + strtotime($data_end)) / 2;
+            $dates_to_check[] = date('Y-m-d', (int)$mid_ts);
+
+            foreach ($dates_to_check as $check_date) {
+                $dow = (int) date('w', strtotime($check_date));
+                $check_day_name = [0=>'Domingo',1=>'Segunda-feira',2=>'Terça-feira',3=>'Quarta-feira',4=>'Quinta-feira',5=>'Sexta-feira',6=>'Sábado'][$dow];
+                if (mb_strtolower($check_day_name, 'UTF-8') !== mb_strtolower($dia_nome, 'UTF-8'))
+                    continue;
+
+                $check_esc = mysqli_real_escape_string($conn, $check_date);
+                $q = "SELECT id FROM horario_trabalho
+                      WHERE docente_id = $did
+                      AND periodo = '$pts_esc'
+                      AND (dias = '$dia_esc' OR FIND_IN_SET('$dia_esc', dias) > 0 OR dias LIKE '%$dia_esc%')
+                      AND (
+                          (data_inicio IS NULL AND data_fim IS NULL)
+                          OR ('$check_esc' BETWEEN data_inicio AND data_fim)
+                      )";
+                $res = mysqli_query($conn, $q);
+                if (!$res || mysqli_num_rows($res) == 0) {
+                    return "Bloqueio: O docente $doc_name não possui autorização de trabalho (bloco de horário) para o período $pts na $dia_nome em " . date('d/m/Y', strtotime($check_date)) . ".";
+                }
+                break; // basta verificar a primeira data válida do dia
             }
         }
     }
@@ -776,3 +808,373 @@ function generateAgendaRecords($conn, $turma_id, $dias_arr, $periodo, $h_inicio,
         $it->modify('+1 day');
     }
 }
+
+/**
+ * Validates teacher limits against proposed turma schedule.
+ *
+ * FIX: Todas as comparações de DateTime agora usam format('Y-m-d') para evitar
+ * que o horário 00:00:00 faça o último dia ser cortado nas interseções de
+ * semana/mês.
+ */
+function checkDocenteLimits($conn, $docente_id, $turma_id_to_ignore, $data_start, $data_end, $days_arr, $h_start, $h_end, $periodo = '')
+{
+    if (!$docente_id || $docente_id <= 0)
+        return true;
+
+    // 1. Get Teacher Info and Limits
+    $res = mysqli_query($conn, "SELECT nome, weekly_hours_limit, monthly_hours_limit FROM docente WHERE id = $docente_id");
+    $doc = mysqli_fetch_assoc($res);
+    if (!$doc)
+        return true;
+
+    $limit_w = (float) $doc['weekly_hours_limit'];
+    $limit_m = (float) $doc['monthly_hours_limit'];
+    $name = $doc['nome'];
+
+    if ($limit_w <= 0 && $limit_m <= 0) {
+        return "O docente $name possui carga horária zerada e não pode ser vinculado a turmas.";
+    }
+
+    // 2. Calculate New Class Duration (in hours)
+    $t1 = strtotime($h_start);
+    $t2 = strtotime($h_end);
+    $hours_per_class = ($t2 - $t1) / 3600;
+    
+    // Regra Integral: Subtrai 1h de almoço se for Integral e duração > 4h
+    if ($periodo === 'Integral' && $hours_per_class > 4) {
+        $hours_per_class -= 1;
+    }
+
+    if ($hours_per_class <= 0)
+        return true;
+
+    $it = new DateTime($data_start);
+    $end = new DateTime($data_end);
+
+    // FIX: normaliza para meia-noite
+    $it->setTime(0, 0, 0);
+    $end->setTime(0, 0, 0);
+
+    // 3. Check Weekly Limit
+    if ($limit_w > 0) {
+        $weeks_checked = [];
+        $temp_it = clone $it;
+
+        while ($temp_it->format('Y-m-d') <= $end->format('Y-m-d')) {
+            $yw = $temp_it->format('oW');
+
+            if (!in_array($yw, $weeks_checked)) {
+                $classes_this_week = 0;
+
+                $week_start = clone $temp_it;
+                $week_start->modify('Monday this week');
+                $week_start->setTime(0, 0, 0);
+
+                $week_end = clone $week_start;
+                $week_end->modify('+6 days');
+                $week_end->setTime(0, 0, 0);
+
+                // FIX: comparação por string de data, sem interferência de horário
+                $r_start = ($week_start->format('Y-m-d') > $it->format('Y-m-d')) ? $week_start : $it;
+                $r_end = ($week_end->format('Y-m-d') < $end->format('Y-m-d')) ? $week_end : $end;
+
+                $check_day = clone $r_start;
+                while ($check_day->format('Y-m-d') <= $r_end->format('Y-m-d')) {
+                    $curr_v = $check_day->format('Y-m-d');
+                    if (in_array(getDayNameString($check_day), $days_arr)) {
+                        if (!isHoliday($conn, $curr_v) && !isVacation($conn, $docente_id, $curr_v)) {
+                            $classes_this_week++;
+                        }
+                    }
+                    $check_day->modify('+1 day');
+                }
+
+                $new_hours_w = $classes_this_week * $hours_per_class;
+
+                $q = "SELECT SUM(
+                        (TIMESTAMPDIFF(SECOND, horario_inicio, horario_fim)/3600) 
+                        - IF(periodo = 'Integral' AND TIMESTAMPDIFF(SECOND, horario_inicio, horario_fim) > 14400, 1, 0)
+                      ) as total 
+                      FROM agenda 
+                      WHERE docente_id = $docente_id 
+                      AND YEARWEEK(data, 1) = $yw";
+                if ($turma_id_to_ignore)
+                    $q .= " AND turma_id != $turma_id_to_ignore";
+
+                $row = mysqli_fetch_assoc(mysqli_query($conn, $q));
+                $current_w = (float) ($row['total'] ?? 0);
+
+                if (($current_w + $new_hours_w) > ($limit_w + 0.01)) {
+                    return "O docente $name excedeu o limite semanal ($limit_w h). Total planejado: " . round($current_w + $new_hours_w, 1) . "h na semana de " . $r_start->format('d/m') . ".";
+                }
+                $weeks_checked[] = $yw;
+            }
+            $temp_it->modify('+1 day');
+        }
+    }
+
+    // 4. Check Monthly Limit
+    if ($limit_m > 0) {
+        $months_checked = [];
+        $temp_it = clone $it;
+
+        while ($temp_it->format('Y-m-d') <= $end->format('Y-m-d')) {
+            $month = $temp_it->format('Y-m');
+
+            if (!in_array($month, $months_checked)) {
+                $month_val = $temp_it->format('Ym');
+
+                $m_start = new DateTime($temp_it->format('Y-m-01'));
+                $m_start->setTime(0, 0, 0);
+
+                $m_end = new DateTime($temp_it->format('Y-m-t'));
+                $m_end->setTime(0, 0, 0);
+
+                // FIX: comparação por string de data
+                $r_start = ($m_start->format('Y-m-d') > $it->format('Y-m-d')) ? $m_start : $it;
+                $r_end = ($m_end->format('Y-m-d') < $end->format('Y-m-d')) ? $m_end : $end;
+
+                $classes_this_month = 0;
+                $check_day = clone $r_start;
+
+                while ($check_day->format('Y-m-d') <= $r_end->format('Y-m-d')) {
+                    $curr_v = $check_day->format('Y-m-d');
+                    if (in_array(getDayNameString($check_day), $days_arr)) {
+                        if (!isHoliday($conn, $curr_v) && !isVacation($conn, $docente_id, $curr_v)) {
+                            $classes_this_month++;
+                        }
+                    }
+                    $check_day->modify('+1 day');
+                }
+
+                $new_hours_m = $classes_this_month * $hours_per_class;
+
+                $q = "SELECT SUM(
+                        (TIMESTAMPDIFF(SECOND, horario_inicio, horario_fim)/3600)
+                        - IF(periodo = 'Integral' AND TIMESTAMPDIFF(SECOND, horario_inicio, horario_fim) > 14400, 1, 0)
+                      ) as total 
+                      FROM agenda 
+                      WHERE docente_id = $docente_id 
+                      AND DATE_FORMAT(data, '%Y%m') = '$month_val'";
+                if ($turma_id_to_ignore)
+                    $q .= " AND turma_id != $turma_id_to_ignore";
+
+                $row = mysqli_fetch_assoc(mysqli_query($conn, $q));
+                $current_m = (float) ($row['total'] ?? 0);
+
+                if (($current_m + $new_hours_m) > ($limit_m + 0.01)) {
+                    return "O docente $name excedeu o limite mensal ($limit_m h). Total planejado: " . round($current_m + $new_hours_m, 1) . "h em " . $temp_it->format('m/Y') . ".";
+                }
+                $months_checked[] = $month;
+            }
+            $temp_it->modify('+1 day');
+        }
+    }
+
+    return true;
+}
+
+function getDayNameString($dateTime)
+{
+    $map = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
+    return $map[(int) $dateTime->format('w')];
+}
+
+/**
+ * Checks for schedule overlaps in agenda and reserves.
+ * (Sem alterações de lógica — o BETWEEN do SQL já é inclusivo nos dois extremos.)
+ */
+function checkDocenteConflicts($conn, $docente_id, $turma_id_to_ignore, $data_start, $data_end, $days_arr, $h_start, $h_end)
+{
+    if (!$docente_id || $docente_id <= 0)
+        return true;
+
+    $res_doc = mysqli_query($conn, "SELECT nome FROM docente WHERE id = $docente_id");
+    $doc_name = ($row_doc = mysqli_fetch_assoc($res_doc)) ? $row_doc['nome'] : "Docente #$docente_id";
+
+    // 1. Check existing agenda items (Aulas)
+    $q_agenda = "SELECT a.data, a.horario_inicio, a.horario_fim, t.sigla 
+                 FROM agenda a 
+                 JOIN turma t ON a.turma_id = t.id
+                 WHERE a.docente_id = $docente_id 
+                 AND a.data BETWEEN '$data_start' AND '$data_end'";
+    if ($turma_id_to_ignore)
+        $q_agenda .= " AND a.turma_id != $turma_id_to_ignore";
+
+    $res_agenda = mysqli_query($conn, $q_agenda);
+    while ($row = mysqli_fetch_assoc($res_agenda)) {
+        $day_name = getDayNameString(new DateTime($row['data']));
+        if (in_array($day_name, $days_arr)) {
+            if ($h_start < $row['horario_fim'] && $h_end > $row['horario_inicio']) {
+                $data_f = date('d/m/Y', strtotime($row['data']));
+                return "O docente $doc_name não estará disponível em $data_f ($day_name) pois já possui aula na turma {$row['sigla']} das {$row['horario_inicio']} às {$row['horario_fim']}.";
+            }
+        }
+    }
+
+    // 2. Check reserves
+    $q_reserva = "SELECT r.data_inicio, r.data_fim, r.hora_inicio, r.hora_fim, r.dias_semana, r.sigla
+                  FROM reservas r
+                  WHERE r.docente_id = $docente_id
+                  AND r.status IN ('PENDENTE', 'APROVADA')
+                  AND r.data_inicio <= '$data_end'
+                  AND r.data_fim >= '$data_start'";
+
+    $res_reserva = mysqli_query($conn, $q_reserva);
+    while ($row = mysqli_fetch_assoc($res_reserva)) {
+        $res_days = explode(',', $row['dias_semana']);
+        foreach ($days_arr as $d) {
+            if (in_array($d, $res_days)) {
+                if ($h_start < $row['hora_fim'] && $h_end > $row['hora_inicio']) {
+                    return "O docente $doc_name não estará disponível pois possui uma reserva ({$row['sigla']}) que sobrepõe este horário nos dias de $d.";
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Calcula a carga horária de um docente em um determinado intervalo de datas,
+ * baseando-se nos registros de horario_trabalho.
+ * Útil para calcular o total anual e o saldo remanescente.
+ */
+function calculateTeacherYearlyWorkload($conn, $docente_id, $data_inicio, $data_fim) {
+    if (!$docente_id) return 0;
+
+    // 0. AJUSTE DE ADMISSÃO PROPORCIONAL: 
+    // Se o docente começou no meio do ano, o potencial deve contar a partir do primeiro bloco de horário.
+    $q_first_block = mysqli_query($conn, "SELECT MIN(data_inicio) as first_d FROM horario_trabalho WHERE docente_id = $docente_id");
+    $first_d = mysqli_fetch_assoc($q_first_block)['first_d'] ?? $data_inicio;
+    if ($first_d > $data_inicio) {
+        $data_inicio = $first_d;
+    }
+
+    // Cache de Feriados para o intervalo
+    static $feriados_cache = null;
+    if ($feriados_cache === null) {
+        $feriados_cache = [];
+        $res_f = mysqli_query($conn, "SELECT date as data FROM holidays WHERE (end_date IS NULL AND date BETWEEN '$data_inicio' AND '$data_fim') OR (end_date IS NOT NULL AND date <= '$data_fim' AND end_date >= '$data_inicio')");
+        if ($res_f) {
+            while ($f = mysqli_fetch_assoc($res_f)) {
+                $feriados_cache[$f['data']] = true;
+                // Se for intervalo, preenche os dias intermediários
+                if (isset($f['end_date']) && $f['end_date'] > $f['data']) {
+                    $curr_it = new DateTime($f['data']);
+                    $end_it = new DateTime($f['end_date']);
+                    while ($curr_it <= $end_it) {
+                        $feriados_cache[$curr_it->format('Y-m-d')] = true;
+                        $curr_it->modify('+1 day');
+                    }
+                }
+            }
+        }
+    }
+
+    // Cache de Férias do Docente para o intervalo
+    $ferias_intervalos = [];
+    $res_v = mysqli_query($conn, "
+        SELECT start_date, end_date 
+        FROM vacations 
+        WHERE (teacher_id = $docente_id OR teacher_id IS NULL) 
+          AND (start_date <= '$data_fim' AND end_date >= '$data_inicio')
+    ");
+    if ($res_v) {
+        while ($v = mysqli_fetch_assoc($res_v)) {
+            $ferias_intervalos[] = ['ini' => $v['start_date'], 'fim' => $v['end_date']];
+        }
+    }
+
+    // Cache de Preparação/Atestados (Dedução de Regência vs Atividades)
+    $atividades_ocupadas = [];
+    $res_p = mysqli_query($conn, "
+        SELECT tipo, data_inicio, data_fim, dias_semana, horario_inicio, horario_fim 
+        FROM preparacao_atestados 
+        WHERE docente_id = $docente_id AND status = 'ativo'
+          AND data_inicio <= '$data_fim' AND data_fim >= '$data_inicio'
+    ");
+    if ($res_p) {
+        while ($p = mysqli_fetch_assoc($res_p)) {
+            $h_ini_p = strtotime($p['horario_inicio']);
+            $h_fim_p = strtotime($p['horario_fim']);
+            $horas_p = ($h_ini_p && $h_fim_p) ? ($h_fim_p - $h_ini_p) / 3600 : 0;
+            
+            $dias_p = !empty($p['dias_semana']) ? explode(',', $p['dias_semana']) : [];
+            
+            $atividades_ocupadas[] = [
+                'ini' => $p['data_inicio'],
+                'fim' => $p['data_fim'],
+                'dias' => $dias_p,
+                'horas' => $horas_p
+            ];
+        }
+    }
+
+    $daysMap = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
+    $daysDOWMap = ['Segunda-feira' => 1, 'Terça-feira' => 2, 'Quarta-feira' => 3, 'Quinta-feira' => 4, 'Sexta-feira' => 5, 'Sábado' => 6, 'Domingo' => 0];
+
+    $query = "SELECT dias, horario, data_inicio, data_fim 
+              FROM horario_trabalho 
+              WHERE docente_id = $docente_id";
+    $res = mysqli_query($conn, $query);
+    
+    $total_horas = 0;
+    while ($row = mysqli_fetch_assoc($res)) {
+        $partes = explode(' as ', mb_strtolower($row['horario']));
+        if (count($partes) !== 2) continue;
+        $h_ini = strtotime(trim($partes[0]));
+        $h_fim = strtotime(trim($partes[1]));
+        if (!$h_ini || !$h_fim || $h_fim <= $h_ini) continue;
+        $horas_por_dia = ($h_fim - $h_ini) / 3600;
+
+        $dias_autorizados = array_map(function($d) { return mb_strtolower(trim($d), 'UTF-8'); }, explode(',', $row['dias']));
+
+        $bloco_ini = !empty($row['data_inicio']) ? max($data_inicio, $row['data_inicio']) : $data_inicio;
+        $bloco_fim = !empty($row['data_fim']) ? min($data_fim, $row['data_fim']) : $data_fim;
+        if ($bloco_ini > $bloco_fim) continue;
+
+        $it = new DateTime($bloco_ini);
+        $itFim = new DateTime($bloco_fim);
+        $it->setTime(0,0,0);
+        $itFim->setTime(0,0,0);
+
+        while ($it <= $itFim) {
+            $curr_date = $it->format('Y-m-d');
+            $w = (int)$it->format('w');
+            $nome_dia = mb_strtolower($daysMap[$w], 'UTF-8');
+
+            if (in_array($nome_dia, $dias_autorizados)) {
+                // 1. Check Feriado (Cache)
+                if (!isset($feriados_cache[$curr_date])) {
+                    // 2. Check Férias (Local Intervals)
+                    $esta_de_ferias = false;
+                    foreach ($ferias_intervalos as $periodo) {
+                        if ($curr_date >= $periodo['ini'] && $curr_date <= $periodo['fim']) {
+                            $esta_de_ferias = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!$esta_de_ferias) {
+                        // 3. DEDUÇÃO DE PREPARAÇÃO/HORA-ATIVIDADE
+                        $horas_disponiveis_no_dia = $horas_por_dia;
+                        foreach ($atividades_ocupadas as $atv) {
+                            if ($curr_date >= $atv['ini'] && $curr_date <= $atv['fim']) {
+                                // Se for o mesmo dia da semana ou se não especificado dias (bloqueia o dia todo se horas baterem)
+                                if (empty($atv['dias']) || in_array($w, $atv['dias'])) {
+                                    $horas_disponiveis_no_dia = max(0, $horas_disponiveis_no_dia - $atv['horas']);
+                                }
+                            }
+                        }
+                        $total_horas += $horas_disponiveis_no_dia;
+                    }
+                }
+            }
+            $it->modify('+1 day');
+        }
+    }
+    return $total_horas;
+}
+
+

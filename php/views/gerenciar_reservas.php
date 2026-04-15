@@ -49,7 +49,7 @@ $st = $mysqli->prepare("
     FROM reservas r
     JOIN docente d ON r.docente_id = d.id
     JOIN usuario u ON r.usuario_id = u.id
-    JOIN curso c ON r.curso_id = c.id
+    LEFT JOIN curso c ON r.curso_id = c.id
     LEFT JOIN ambiente amb ON r.ambiente_id = amb.id
     $where
     ORDER BY r.created_at DESC
@@ -71,6 +71,12 @@ include __DIR__ . '/../components/header.php';
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
         gap: 20px;
+    }
+
+    @media (max-width: 480px) {
+        .reserva-grid {
+            grid-template-columns: 1fr;
+        }
     }
 
     .reserva-card {
@@ -281,6 +287,23 @@ include __DIR__ . '/../components/header.php';
         padding: 15px 25px;
         border-radius: 15px;
         border: 1px solid var(--border-color);
+    }
+
+    @media (max-width: 768px) {
+        .filter-bar {
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px;
+            align-items: stretch;
+        }
+        .status-filters {
+            overflow-x: auto;
+            padding-bottom: 10px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .filter-chip {
+            white-space: nowrap;
+        }
     }
 
     .status-filters {

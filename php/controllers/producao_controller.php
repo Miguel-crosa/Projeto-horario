@@ -94,32 +94,69 @@ if ($action === 'adicionar_aluno') {
 }
 
 if ($action === 'get_financeiro_data') {
-    // 1. Dados de Ressarcimento por Curso
-    $q_ress = "SELECT c.nome as curso, SUM(t.valor_turma) as total 
-               FROM turma t 
-               JOIN curso c ON t.curso_id = c.id 
-               WHERE t.tipo_custeio = 'Ressarcido' 
-               GROUP BY c.id 
-               HAVING total > 0 
-               ORDER BY total DESC";
+    // 1. Dados de Ressarcimento por Curso (Gráfico)
+    // Combina turmas ativas e reservas CONCLUIDAS
+    $q_ress = "
+        SELECT curso, SUM(valor) as total
+        FROM (
+            SELECT c.nome as curso, t.valor_turma as valor 
+            FROM turma t JOIN curso c ON t.curso_id = c.id 
+            WHERE t.tipo_custeio = 'Ressarcido' AND t.valor_turma > 0
+            
+            UNION ALL
+            
+            SELECT COALESCE(c.nome, 'Sem Curso') as curso, r.valor_turma as valor 
+            FROM reservas r LEFT JOIN curso c ON r.curso_id = c.id 
+            WHERE r.tipo_custeio = 'Ressarcido' AND r.status = 'CONCLUIDA' AND r.valor_turma > 0
+        ) as combinados
+        GROUP BY curso
+        ORDER BY total DESC
+    ";
     $res_ress = mysqli_query($conn, $q_ress);
     $ressarcido = mysqli_fetch_all($res_ress, MYSQLI_ASSOC);
 
-    // 1.1 Detalhamento de Ressarcimento (Turmas Individuais)
-    $q_ress_det = "SELECT c.nome as curso, t.sigla, t.valor_turma as valor 
-                   FROM turma t 
-                   JOIN curso c ON t.curso_id = c.id 
-                   WHERE t.tipo_custeio = 'Ressarcido' AND t.valor_turma > 0
-                   ORDER BY t.valor_turma DESC";
+    $total_arrecadacao_real = 0;
+    foreach ($ressarcido as $r) {
+        $total_arrecadacao_real += (float)$r['total'];
+    }
+
+    // 1.1 Detalhamento de Ressarcimento (Lista)
+    $q_ress_det = "
+        SELECT curso, sigla, valor
+        FROM (
+            SELECT c.nome as curso, t.sigla, t.valor_turma as valor 
+            FROM turma t JOIN curso c ON t.curso_id = c.id 
+            WHERE t.tipo_custeio = 'Ressarcido' AND t.valor_turma > 0
+            
+            UNION ALL
+            
+            SELECT COALESCE(c.nome, 'Sem Curso') as curso, COALESCE(r.sigla, CONCAT('RES-', r.id)) as sigla, r.valor_turma as valor 
+            FROM reservas r LEFT JOIN curso c ON r.curso_id = c.id 
+            WHERE r.tipo_custeio = 'Ressarcido' AND r.status = 'CONCLUIDA' AND r.valor_turma > 0
+            AND (r.sigla IS NULL OR r.sigla NOT IN (SELECT sigla FROM turma WHERE sigla IS NOT NULL))
+        ) as detalhes
+        ORDER BY valor DESC
+    ";
     $res_ress_det = mysqli_query($conn, $q_ress_det);
     $ressarcido_detalhe = mysqli_fetch_all($res_ress_det, MYSQLI_ASSOC);
 
-    // 2. Previsão de Despesas por Turma
-    $q_desp = "SELECT c.nome as curso, t.sigla, t.previsao_despesa as valor 
-               FROM turma t 
-               JOIN curso c ON t.curso_id = c.id 
-               WHERE t.previsao_despesa > 0 
-               ORDER BY t.previsao_despesa DESC";
+    // 2. Previsão de Despesas por Turma (Gráfico e Lista)
+    $q_desp = "
+        SELECT curso, sigla, valor
+        FROM (
+            SELECT c.nome as curso, t.sigla, t.previsao_despesa as valor 
+            FROM turma t JOIN curso c ON t.curso_id = c.id 
+            WHERE t.previsao_despesa > 0
+            
+            UNION ALL
+            
+            SELECT COALESCE(c.nome, 'Sem Curso') as curso, COALESCE(r.sigla, CONCAT('RES-', r.id)) as sigla, r.previsao_despesa as valor 
+            FROM reservas r LEFT JOIN curso c ON r.curso_id = c.id 
+            WHERE r.status = 'CONCLUIDA' AND r.previsao_despesa > 0
+            AND (r.sigla IS NULL OR r.sigla NOT IN (SELECT sigla FROM turma WHERE sigla IS NOT NULL))
+        ) as desp_combinadas
+        ORDER BY valor DESC
+    ";
     $res_desp = mysqli_query($conn, $q_desp);
     $despesas = mysqli_fetch_all($res_desp, MYSQLI_ASSOC);
     
@@ -128,11 +165,27 @@ if ($action === 'get_financeiro_data') {
         $total_geral_despesas += (float)$d['valor'];
     }
 
+    // 3. Pipeline (SOMENTE Reservas PENDENTE + APROVADA)
+    $q_ress_pipe = "SELECT SUM(valor_turma) as total 
+                    FROM reservas 
+                    WHERE tipo_custeio = 'Ressarcido' AND status IN ('PENDENTE', 'APROVADA')";
+    $res_ress_pipe = mysqli_query($conn, $q_ress_pipe);
+    $total_ressarcido_pipeline = (float)(mysqli_fetch_assoc($res_ress_pipe)['total'] ?? 0);
+
+    $q_desp_pipe = "SELECT SUM(previsao_despesa) as total 
+                    FROM reservas 
+                    WHERE status IN ('PENDENTE', 'APROVADA')";
+    $res_desp_pipe = mysqli_query($conn, $q_desp_pipe);
+    $total_despesas_pipeline = (float)(mysqli_fetch_assoc($res_desp_pipe)['total'] ?? 0);
+
     echo json_encode([
         'ressarcido' => $ressarcido,
         'ressarcido_detalhe' => $ressarcido_detalhe,
+        'total_ressarcido_real' => $total_arrecadacao_real,
+        'total_ressarcido_pipeline' => $total_ressarcido_pipeline,
         'despesas' => $despesas,
-        'total_despesas' => $total_geral_despesas
+        'total_despesas' => $total_geral_despesas,
+        'total_despesas_pipeline' => $total_despesas_pipeline
     ]);
     exit;
 }

@@ -66,8 +66,11 @@ if ($action === 'create') {
     }
 
     // New: Check Environment conflict
-    $ambiente_id = (int)($_POST['ambiente_id'] ?? 0);
-    if ($ambiente_id > 0) {
+    $ambiente_raw = $_POST['ambiente_id'] ?? '0';
+    $ambiente_id = ($ambiente_raw === 'outro') ? null : (int)$ambiente_raw;
+    $local = $_POST['local'] ?? null;
+
+    if ($ambiente_id && $ambiente_id > 0) {
         $ambConflict = checkAmbienteConflict($mysqli, $ambiente_id, null, $data_inicio, $data_fim, $dias_nomes_arr, $hora_inicio, $hora_fim);
         if ($ambConflict !== true) {
             echo json_encode(['ok' => false, 'error' => $ambConflict]);
@@ -75,8 +78,8 @@ if ($action === 'create') {
         }
     }
 
-    $st = $mysqli->prepare("INSERT INTO reservas (docente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-    $st->bind_param('iissssss', $docente_id, $usuario_id, $data_inicio, $data_fim, $dias_semana, $hora_inicio, $hora_fim, $notas);
+    $st = $mysqli->prepare("INSERT INTO reservas (docente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, notas, ambiente_id, local) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $st->bind_param('iissssssis', $docente_id, $usuario_id, $data_inicio, $data_fim, $dias_semana, $hora_inicio, $hora_fim, $notas, $ambiente_id, $local);
     $st->execute();
 
     echo json_encode(['ok' => true, 'id' => $mysqli->insert_id, 'msg' => 'Professor reservado com sucesso!']);

@@ -25,6 +25,20 @@ if (!$turma) {
     exit;
 }
 
+// FIX: Se o período for Noite e o horário de fim for maior que 23:00, força para 23:00
+// Isso garante o cumprimento da regra de que aulas noturnas encerram obrigatoriamente às 23:00.
+$h_fim_check = !empty($turma['horario_fim']) ? substr($turma['horario_fim'], 0, 5) : '';
+if ($turma['periodo'] === 'Noite' && $h_fim_check > '23:00') {
+    $turma['horario_fim'] = '23:00:00';
+    mysqli_query($conn, "UPDATE turma SET horario_fim = '23:00:00' WHERE id = '$id'");
+}
+
+// FIX: Se o período for Integral e o horário de fim for maior que 17:30, força para 17:30
+if ($turma['periodo'] === 'Integral' && $h_fim_check > '17:30') {
+    $turma['horario_fim'] = '17:30:00';
+    mysqli_query($conn, "UPDATE turma SET horario_fim = '17:30:00' WHERE id = '$id'");
+}
+
 // 2. Calcula horas por dia
 $h_ini = $turma['horario_inicio'];
 $h_fim = $turma['horario_fim'];
@@ -34,6 +48,11 @@ if ($h_ini && $h_fim) {
     $t1 = strtotime($h_ini);
     $t2 = strtotime($h_fim);
     $horas_por_dia = ($t2 - $t1) / 3600;
+
+    // Se for Integral, subtrai 1h de almoço se a duração for superior a 4h
+    if ($turma['periodo'] === 'Integral' && $horas_por_dia > 4) {
+        $horas_por_dia -= 1;
+    }
 }
 
 // Fallback por período se o horário estiver zerado
@@ -93,6 +112,7 @@ echo json_encode([
     'message' => "Turma corrigida com sucesso.",
     'sigla' => $turma['sigla'],
     'data_fim_antiga' => $turma['data_fim'],
-    'data_fim_nova' => $nova_data_fim
+    'data_fim_nova' => $nova_data_fim,
+    'horas_por_dia' => round($horas_por_dia, 2)
 ]);
 exit;

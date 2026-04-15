@@ -25,10 +25,10 @@ switch ($action) {
 
         // Use prepared statement to prevent SQL injection
         // Check if firstLogin column exists
-        $login_cols = 'id, nome, email, senha, role, obrigar_troca_senha, docente_id';
+        $login_cols = 'id, nome, email, senha, role, obrigar_troca_senha, docente_id, ativo';
         $fl_check = $conn->query("SHOW COLUMNS FROM usuario LIKE 'firstLogin'");
         if ($fl_check && $fl_check->num_rows > 0) {
-            $login_cols = 'id, nome, email, senha, role, obrigar_troca_senha, firstLogin, docente_id';
+            $login_cols = 'id, nome, email, senha, role, obrigar_troca_senha, firstLogin, docente_id, ativo';
         }
         $stmt = $conn->prepare("SELECT $login_cols FROM usuario WHERE email = ?");
         $stmt->bind_param('s', $email);
@@ -39,6 +39,13 @@ switch ($action) {
 
         if (!$user || !password_verify($senha, $user['senha'])) {
             $_SESSION['login_error'] = 'E-mail ou senha inválidos.';
+            header('Location: ../views/login.php');
+            exit;
+        }
+
+        // Check if account is active
+        if (isset($user['ativo']) && $user['ativo'] == 0) {
+            $_SESSION['login_error'] = 'Sua conta está desativada. Entre em contato com o administrador.';
             header('Location: ../views/login.php');
             exit;
         }

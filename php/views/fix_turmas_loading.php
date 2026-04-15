@@ -85,7 +85,7 @@ async function processNext() {
         const result = await response.json();
         
         if (result.success) {
-            log(`[OK] ${turma.sigla || 'Turma #'+turma.id} ajustada.`);
+            log(`[OK] ${turma.sigla || 'Turma #'+turma.id} ajustada. (Calculado: ${result.horas_por_dia}h/dia)`);
         } else {
             log(`[ERRO] ${turma.sigla || 'Turma #'+turma.id}: ${result.message}`, true);
         }

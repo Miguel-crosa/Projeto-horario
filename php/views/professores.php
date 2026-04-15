@@ -3,18 +3,25 @@ require_once __DIR__ . '/../configs/db.php';
 include __DIR__ . '/../components/header.php';
 
 $show_inactive = isset($_GET['show_inactive']) && $_GET['show_inactive'] == '1';
-$where_status = $show_inactive ? " WHERE ativo = 0" : " WHERE ativo = 1";
-$professores = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM docente $where_status ORDER BY nome ASC"), MYSQLI_ASSOC);
+$status_filter = $show_inactive ? 0 : 1;
+
+$stmt = $conn->prepare("SELECT * FROM docente WHERE ativo = ? ORDER BY nome ASC");
+$stmt->bind_param('i', $status_filter);
+$stmt->execute();
+$professores = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 ?>
 
 <div class="page-header">
     <h2>Gestão de Professores</h2>
     <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <div class="search-box">
+        <div class="search-box" style="flex: 1; min-width: 250px;">
             <input type="text" id="tableSearch" placeholder="Buscar professor..." class="form-input"
-                style="width: 300px;" onkeyup="currentPage=1; updatePagination()">
+                style="width: 100%;" onkeyup="currentPage=1; updatePagination()">
         </div>
-        <a href="professores_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Professor</a>
+        <?php if (can_edit()): ?>
+            <a href="professores_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Professor</a>
+        <?php endif; ?>
         <?php if ($show_inactive): ?>
             <a href="professores.php" class="btn btn-secondary"><i class="fas fa-eye"></i> Ver Apenas Ativos</a>
         <?php else: ?>
@@ -32,7 +39,9 @@ $professores = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM docente $wher
                 <th>Área de Conhecimento</th>
                 <th>Limites (S/M)</th>
                 <th>Tipo Contrato</th>
-                <th>Ações</th>
+                <?php if (can_edit()): ?>
+                    <th>Ações</th>
+                <?php endif; ?>
             </tr>
         </thead>
         <tbody>
@@ -54,17 +63,19 @@ $professores = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM docente $wher
                         <td><?= htmlspecialchars($p['area_conhecimento']) ?></td>
                         <td><?= $p['weekly_hours_limit'] ?>h / <?= $p['monthly_hours_limit'] ?>h</td>
                         <td><?= htmlspecialchars($p['tipo_contrato'] ?? 'N/A') ?></td>
-                        <td>
-                            <a href="professores_form.php?id=<?= $p['id'] ?>" class="btn btn-edit"><i
-                                    class="fas fa-edit"></i></a>
-                            <?php if ($p['ativo'] == 1): ?>
-                                <a href="../controllers/professores_process.php?action=delete&id=<?= $p['id'] ?>"
-                                    class="btn btn-delete" onclick="return confirm('Desativar este professor? Ele deixará de aparecer nas listas, mas seus dados serão mantidos.')" title="Desativar"><i class="fas fa-user-slash"></i></a>
-                            <?php else: ?>
-                                <a href="../controllers/professores_process.php?action=activate&id=<?= $p['id'] ?>"
-                                    class="btn btn-edit" style="background-color: #2e7d32;" onclick="return confirm('Reativar este professor?')" title="Reativar"><i class="fas fa-user-check"></i></a>
-                            <?php endif; ?>
-                        </td>
+                        <?php if (can_edit()): ?>
+                            <td>
+                                <a href="professores_form.php?id=<?= $p['id'] ?>" class="btn btn-edit"><i
+                                        class="fas fa-edit"></i></a>
+                                <?php if ($p['ativo'] == 1): ?>
+                                    <a href="../controllers/professores_process.php?action=delete&id=<?= $p['id'] ?>"
+                                        class="btn btn-delete" onclick="return confirm('Desativar este professor? Ele deixará de aparecer nas listas, mas seus dados serão mantidos.')" title="Desativar"><i class="fas fa-user-slash"></i></a>
+                                <?php else: ?>
+                                    <a href="../controllers/professores_process.php?action=activate&id=<?= $p['id'] ?>"
+                                        class="btn btn-edit" style="background-color: #2e7d32;" onclick="return confirm('Reativar este professor?')" title="Reativar"><i class="fas fa-user-check"></i></a>
+                                <?php endif; ?>
+                            </td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

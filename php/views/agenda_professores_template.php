@@ -63,7 +63,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
     <div class="prof-selection-flex">
         <div class="prof-selector-group">
             <label class="period-label-text">Professor Selecionado</label>
-            <?php if (!false): ?>
+            <?php if (!isProfessor()): ?>
                 <div style="display: flex; gap: 12px; align-items: center;">
                     <button type="button" class="btn btn-primary" id="btn-selecionar-professor"
                         style="background: <?= $selected_prof_id ? '#2e7d32' : '#ed1c16' ?>; border-color: <?= $selected_prof_id ? '#1b5e20' : '#ed1c16' ?>; padding: 10px 24px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
@@ -72,18 +72,31 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                     </button>
                 </div>
             <?php else: ?>
-                <div style="font-weight: 800; font-size: 1.1rem; color: var(--text-color);">
-                    <?= htmlspecialchars(getUserName()) ?>
+                <div style="font-weight: 800; font-size: 1.1rem; color: var(--text-color); display: flex; align-items: center; gap: 10px; padding: 10px 0;">
+                    <i class="fas fa-user-circle" style="color: var(--primary-red); font-size: 1.3rem;"></i>
+                    <?= htmlspecialchars($selected_prof_nome ?: getUserName()) ?>
                 </div>
             <?php endif; ?>
         </div>
 
         <div class="month-nav-group" <?php if ($view_mode == 'calendar'): ?>style="display:none;"<?php endif; ?>>
-            <label class="period-label-text">Navegação por Mês</label>
-            <div class="month-nav-controls">
-                <button onclick="navigateMonth(-1)" class="month-btn-nav" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-chevron-left" style="font-size:0.75rem;"></i></button>
-                <span id="global-month-label" style="font-weight: 800; font-size: 0.95rem; min-width: 140px; text-align: center; text-transform: capitalize; color: var(--text-color);"><?php echo $month_label; ?></span>
-                <button onclick="navigateMonth(1)" class="month-btn-nav" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-chevron-right" style="font-size:0.75rem;"></i></button>
+            <label class="period-label-text">Período de Exibição</label>
+            <div class="month-nav-controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <!-- Seletor de Mês -->
+                <div class="sub-nav-group" style="display: flex; align-items: center; gap: 8px;">
+                    <button onclick="navigateMonth(-1)" class="month-btn-nav" title="Mês Anterior" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-chevron-left" style="font-size:0.75rem;"></i></button>
+                    <span id="global-month-label" style="font-weight: 800; font-size: 0.95rem; min-width: 110px; text-align: center; text-transform: capitalize; color: var(--text-color);"><?php echo $months_pt[$m_num]; ?></span>
+                    <button onclick="navigateMonth(1)" class="month-btn-nav" title="Próximo Mês" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-chevron-right" style="font-size:0.75rem;"></i></button>
+                </div>
+
+                <div style="width: 1px; height: 24px; background: var(--border-color);"></div>
+
+                <!-- NOVO: Seletor de Ano -->
+                <div class="sub-nav-group" style="display: flex; align-items: center; gap: 8px;">
+                    <button onclick="navigateYear(-1)" class="month-btn-nav" title="Ano Anterior" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-angle-double-left" style="font-size:0.75rem;"></i></button>
+                    <span id="global-year-label" style="font-weight: 800; font-size: 0.95rem; min-width: 50px; text-align: center; color: var(--text-color); cursor:pointer;" onclick="openGlobalAnoModal()"><?php echo $m_year; ?></span>
+                    <button onclick="navigateYear(1)" class="month-btn-nav" title="Próximo Ano" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-angle-double-right" style="font-size:0.75rem;"></i></button>
+                </div>
             </div>
         </div>
     </div>
@@ -112,30 +125,32 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                 </button>
             </div>
         </div>
-        <div class="avail-legend period-legend-group">
-            <span style="display: flex; align-items: center; gap: 5px;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></span> Disponível</span>
-            <span style="display: flex; align-items: center; gap: 5px;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #f44336;"></span> Ocupado</span>
-            <span style="display: flex; align-items: center; gap: 5px;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #ffb300;"></span> Reservado</span>
-            <span style="display: flex; align-items: center; gap: 5px;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #1565c0;"></span> Feriado / Férias</span>
+        <div class="avail-legend period-legend-group" style="flex-wrap: wrap; justify-content: flex-start;">
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></span> Disp.</span>
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #f44336;"></span> Ocup.</span>
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #ffb300;"></span> Res.</span>
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #1565c0;"></span> Feriado</span>
         </div>
     </div>
 
-    <div class="action-buttons-group">
-        <button type="button" class="btn btn-primary" id="btn-modo-reserva-unificado" style="background: #ff8f00; border-color: #e65100; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="handleModoReservaClick()">
-            <i class="fas fa-bookmark" style="margin-right: 8px;"></i> Modo Reserva
-        </button>
-        <button type="button" class="btn btn-primary" id="btn-confirmar-reserva" style="display: none; background: #2e7d32; border-color: #1b5e20; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="confirmReservations()">
-            <i class="fas fa-check" style="margin-right: 8px;"></i> Confirmar Reserva
-        </button>
-        <?php if (isAdmin()): ?>
-            <button type="button" class="btn btn-secondary" id="btn-remover-selecionados" style="display: none; background: #d32f2f; border-color: #c62828; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="batchRemoveReservations()">
-                <i class="fas fa-trash-alt" style="margin-right: 8px;"></i> Remover Selecionados
+    <?php if ($can_reserve): ?>
+        <div class="action-buttons-group">
+            <button type="button" class="btn btn-primary" id="btn-modo-reserva-unificado" style="background: #ff8f00; border-color: #e65100; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="handleModoReservaClick()">
+                <i class="fas fa-bookmark" style="margin-right: 8px;"></i> Modo Reserva
             </button>
-        <?php endif; ?>
-        <button type="button" class="btn btn-back" id="btn-cancelar-reserva" style="display: none; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="handleCancelarReservaClick()">
-            <i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar
-        </button>
-    </div>
+            <button type="button" class="btn btn-primary" id="btn-confirmar-reserva" style="display: none; background: #2e7d32; border-color: #1b5e20; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="confirmReservations()">
+                <i class="fas fa-check" style="margin-right: 8px;"></i> Confirmar Reserva
+            </button>
+            <?php if (isAdmin()): ?>
+                <button type="button" class="btn btn-secondary" id="btn-remover-selecionados" style="display: none; background: #d32f2f; border-color: #c62828; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="batchRemoveReservations()">
+                    <i class="fas fa-trash-alt" style="margin-right: 8px;"></i> Remover Selecionados
+                </button>
+            <?php endif; ?>
+            <button type="button" class="btn btn-back" id="btn-cancelar-reserva" style="display: none; font-size: 0.8rem; padding: 10px 20px; border-radius: 8px; font-weight: 700;" onclick="handleCancelarReservaClick()">
+                <i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar
+            </button>
+        </div>
+    <?php endif; ?>
 
     <div id="availability-bar" class="avail-bar-container avail-bar-outer">
         <div class="avail-bar-track" style="height: 100%; display: flex;">
@@ -145,9 +160,11 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
 
     <div class="avail-footer avail-status-footer">
         <div id="avail-status-text" style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);"></div>
+        <?php if (isGestor() || isAdmin()): ?>
         <button class="btn btn-agendar-bar" id="btn-agendar-bar" onclick="openCalendarScheduleModal()" style="display: none; background: #2196f3; border-color: #1976d2; color: #fff; padding: 8px 20px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; align-items: center; gap: 8px;">
             <i class="fas fa-plus-circle"></i> Cadastrar Horário
         </button>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -163,20 +180,31 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
 
     function navigateMonth(offset) {
         const [year, month] = window.__currentMonth.split('-').map(Number);
-        // Semestral utiliza um salto de 6 meses
         const actualOffset = window.__viewMode === 'semestral' ? offset * 6 : offset;
         const date = new Date(year, month - 1 + actualOffset, 1);
+        updateDateAndReload(date);
+    }
+
+    function navigateYear(offset) {
+        const [year, month] = window.__currentMonth.split('-').map(Number);
+        const date = new Date(year + offset, month - 1, 1);
+        updateDateAndReload(date);
+    }
+
+    function updateDateAndReload(date) {
         const nextMonth = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+        const monthsPt = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const monthsPtFull = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
         
         const labelEl = document.getElementById('global-month-label');
-        const monthsPt = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        const yearEl = document.getElementById('global-year-label');
+        const labelBottomEl = document.getElementById('global-month-label-bottom');
         
         const prevYear = window.__currentMonth.split('-')[0];
         const newYear = nextMonth.split('-')[0];
 
         if (window.__viewMode === 'timeline') {
-            // Timeline Anual: Apenas rolar se for o mesmo ano, senão recarregar
-            if (prevYear !== newYear) {
+            if (prevYear != newYear) {
                 location.href = updateUrlParam(window.location.href, 'month', nextMonth);
                 return;
             }
@@ -186,39 +214,39 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                 document.querySelectorAll('.timeline-grid').forEach(grid => {
                     grid.scrollTo({ left: targetMonth.offsetLeft, behavior: 'smooth' });
                 });
-                if (labelEl) labelEl.textContent = monthsPt[date.getMonth()] + ' ' + date.getFullYear();
+                if (labelEl) labelEl.textContent = monthsPtFull[date.getMonth()];
+                if (yearEl) yearEl.textContent = date.getFullYear();
+                if (labelBottomEl) labelBottomEl.textContent = monthsPtFull[date.getMonth()] + ' ' + date.getFullYear();
                 window.__currentMonth = nextMonth;
                 updateUrlMonth(nextMonth);
             } else {
                 location.href = updateUrlParam(window.location.href, 'month', nextMonth);
             }
         } else if (window.__viewMode === 'calendar') {
-             // Calendário: atualiza a currentDate e renderiza novamente
              if (window.currentDate && typeof window.renderCalendar === 'function') {
                  window.currentDate = date;
                  window.__currentMonth = nextMonth;
                  
-                 // Se mudou o ano, recarrega os dados da API
-                 if (prevYear !== newYear && typeof window.loadDocenteAgenda === 'function' && window.currentDocenteId) {
+                 if (prevYear != newYear && typeof window.loadDocenteAgenda === 'function' && window.currentDocenteId) {
                      window.loadDocenteAgenda(window.currentDocenteId, nextMonth).then(() => {
-                         window.renderCalendar();
-                         if (typeof window.updateAvailabilityBar === 'function') window.updateAvailabilityBar();
+                          let l = monthsPtFull[date.getMonth()];
+                          if (labelEl) labelEl.textContent = l;
+                          if (yearEl) yearEl.textContent = date.getFullYear();
+                          if (labelBottomEl) labelBottomEl.textContent = l + ' ' + date.getFullYear();
+                          window.renderCalendar();
                      });
                  } else {
-                     window.renderCalendar();
-                     if (typeof window.updateAvailabilityBar === 'function') window.updateAvailabilityBar();
+                      let l = monthsPtFull[date.getMonth()];
+                      if (labelEl) labelEl.textContent = l;
+                      if (yearEl) yearEl.textContent = date.getFullYear();
+                      if (labelBottomEl) labelBottomEl.textContent = l + ' ' + date.getFullYear();
+                      window.renderCalendar();
                  }
-
-                 const newLabel = monthsPt[date.getMonth()] + ' ' + date.getFullYear();
-                 if (labelEl) labelEl.textContent = newLabel;
-                 const labelElBottom = document.getElementById('global-month-label-bottom');
-                 if (labelElBottom) labelElBottom.textContent = newLabel;
                  updateUrlMonth(nextMonth);
              } else {
                  location.href = updateUrlParam(window.location.href, 'month', nextMonth);
              }
         } else {
-            // Blocos ou Semestral: carrega conteúdo parcial via AJAX
             const url = new URL(window.location.href);
             url.searchParams.set('month', nextMonth);
             url.searchParams.set('ajax_render', '1');
@@ -233,15 +261,16 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                         document.querySelector('.table-container').replaceWith(newTable);
                         window.__currentMonth = nextMonth;
                         if (labelEl) {
-                           // Para o semestral, o rótulo pode ser diferente
-                           const mNum = date.getMonth() + 1;
                            if (window.__viewMode === 'semestral') {
+                               const mNum = date.getMonth() + 1;
                                const semNum = (mNum <= 6) ? 1 : 2;
-                               labelEl.textContent = semNum + 'º Semestre ' + date.getFullYear() + (semNum == 1 ? ' (Jan–Jun)' : ' (Jul–Dez)');
+                               labelEl.textContent = semNum + 'º Semestre';
                            } else {
-                               labelEl.textContent = monthsPt[date.getMonth()] + ' ' + date.getFullYear();
+                               labelEl.textContent = monthsPtFull[date.getMonth()];
                            }
                         }
+                        if (yearEl) yearEl.textContent = date.getFullYear();
+                        if (labelBottomEl) labelBottomEl.textContent = monthsPtFull[date.getMonth()] + ' ' + date.getFullYear();
                         updateUrlMonth(nextMonth);
                     }
                 });
@@ -288,6 +317,24 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
         });
         const btnModo = document.getElementById('btn-modo-reserva-unificado');
         if (btnModo) btnModo.style.display = 'inline-flex';
+    }
+
+    // Modal de Ano Global para a Agenda
+    function openGlobalAnoModal() {
+        const [year, month] = window.__currentMonth.split('-').map(Number);
+        
+        // Modal genérico de seleção de ano (Reaproveitado do professores_form ou customizado aqui)
+        // Por simplificação UX, vamos usar um prompt ou se você quiser a mesma estética, criamos o modal:
+        if (typeof showCustomYearPicker === 'function') {
+            showCustomYearPicker(year, (newYear) => {
+                navigateYear(newYear - year);
+            });
+        } else {
+            const y = prompt("Digite o ano (1926-2126):", year);
+            if (y && y >= 1926 && y <= 2126) {
+                navigateYear(parseInt(y) - year);
+            }
+        }
     }
 </script>
 
@@ -431,7 +478,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                 ?>
                 <div class="prof-row" data-prof-id="<?php echo $p['id']; ?>">
                     <div class="prof-info-row">
-                        <div onclick="openTimelineModal(<?php echo $p['id']; ?>, '<?php echo addslashes($p['nome']); ?>')" style="cursor:pointer; display:flex; align-items:center; gap:10px; flex: 1;">
+                        <div onclick="<?= !isProfessor() ? "openTimelineModal({$p['id']}, '" . addslashes($p['nome']) . "')" : "" ?>" style="<?= !isProfessor() ? "cursor:pointer;" : "" ?> display:flex; align-items:center; gap:10px; flex: 1;">
                             <div style="width:32px; height:32px; background: linear-gradient(135deg, #e53935, #c62828); color:#fff; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.8rem;"><?php echo mb_substr($p['nome'], 0, 1); ?></div>
                             <div>
                                 <div style="font-weight:800; font-size:0.95rem;"><?php echo htmlspecialchars($p['nome']); ?></div>
@@ -481,7 +528,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                     elseif ($is_reserved_s && $is_reserved_s['own']) $cell_class = 'sem-day-reserved-own';
                                     elseif ($is_all_off_sem) $cell_class = 'sem-day-sunday slot-disabled';
                                     elseif ($is_saturday) $cell_class = 'sem-day-weekend';
-                                    $clickable = (!$is_sunday && !$is_busy && !$is_all_off_sem && !($is_reserved_s && !$is_reserved_s['own']));
+                                    $clickable = (!$is_sunday && !$is_busy && !$is_all_off_sem && !($is_reserved_s && !$is_reserved_s['own']) && !isProfessor());
                                     
                                     $base_c = null;
                                     if ($cell_class === 'sem-day-busy' || $cell_class === 'sem-day-reserved' || $cell_class === 'sem-day-reserved-own' || $cell_class === 'sem-day-feriado') {
@@ -572,9 +619,9 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                         }
                         if ($cur_block) $blocks[] = $cur_block;
                         ?>
-                        <div class="blocks-bar-wrapper">
+                        <div class="blocks-bar-wrapper" style="overflow-x: auto; display: flex; -webkit-overflow-scrolling: touch; padding-bottom: 5px;">
                             <?php foreach ($blocks as $block):
-                                $range_text = ($block['start'] == $block['end']) ? 'Dia ' . str_pad($block['start'], 2, '0', STR_PAD_LEFT) : 'Dia ' . str_pad($block['start'], 2, '0', STR_PAD_LEFT) . ' &ndash; ' . str_pad($block['end'], 2, '0', STR_PAD_LEFT);
+                                $range_text = ($block['start'] == $block['end']) ? 'Dia ' . str_pad($block['start'], 2, '0', STR_PAD_LEFT) : 'Dia ' . str_pad($block['start'], 2, '0', STR_PAD_LEFT) . ' - ' . str_pad($block['end'], 2, '0', STR_PAD_LEFT);
                                 if (strpos($block['status'], 'busy:') === 0) $bclass = 'block-seg-busy';
                                 elseif ($block['status'] === 'feriado') $bclass = 'block-seg-feriado';
                                 elseif ($block['status'] === 'reserved') $bclass = 'block-seg-reserved';
@@ -582,12 +629,12 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                 elseif ($block['status'] === 'sunday') $bclass = 'block-seg-sunday';
                                 else $bclass = 'block-seg-free';
                                 $first_dt = sprintf("%s-%02d", $current_month, $block['start']);
-                                $is_clickable = ($block['status'] === 'free' || $block['status'] === 'reserved_own');
+                                $is_clickable = (($block['status'] === 'free' || $block['status'] === 'reserved_own') && !isProfessor());
                             ?>
-                                <div class="block-seg <?php echo $bclass; ?> <?php echo !$is_clickable ? 'slot-disabled' : ''; ?>" style="flex: <?php echo $block['count']; ?>;" title="<?php echo $range_text; ?>: <?php echo htmlspecialchars($block['label']); ?>"
+                                <div class="block-seg <?php echo $bclass; ?> <?php echo !$is_clickable ? 'slot-disabled' : ''; ?>" style="flex: 0 0 auto; min-width: 120px; margin-right: 5px; border-radius: 8px;" title="<?php echo $range_text; ?>: <?php echo htmlspecialchars($block['label']); ?>"
                                      <?php if ($is_clickable): ?>onclick="handleBarClick(<?php echo $p['id']; ?>, '<?php echo addslashes($p['nome']); ?>', '<?php echo $first_dt; ?>', this, event)"<?php endif; ?>>
-                                    <span class="block-range"><?php echo $range_text; ?></span>
-                                    <span class="block-label"><?php echo htmlspecialchars($block['label']); ?></span>
+                                    <span class="block-range" style="font-size: 0.7rem;"><?php echo $range_text; ?></span>
+                                    <span class="block-label" style="font-size: 0.8rem; font-weight: 800;"><?php echo htmlspecialchars($block['label']); ?></span>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -660,7 +707,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                             }
                                             
                                             $is_own_res_tl = ($is_reserved_tl && isset($is_reserved_tl['own']) && $is_reserved_tl['own']);
-                                            $is_clickable_tl = ($dow != 7 && !$is_feriado_tl && !($is_reserved_tl && !$is_own_res_tl) && ($has_free_shift_tl || $is_own_res_tl));
+                                            $is_clickable_tl = ($dow != 7 && !$is_feriado_tl && !($is_reserved_tl && !$is_own_res_tl) && ($has_free_shift_tl || $is_own_res_tl) && !isProfessor());
                                             
                                             $cursor_tl = $is_clickable_tl ? 'pointer' : 'default';
                                             $onclick_tl = ($cursor_tl === 'pointer') ? "onclick=\"handleBarClick({$p['id']}, '{$p_name_js}', '{$dt}', this, event)\"" : "";
@@ -737,6 +784,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
 <script>
     window.userIsCRI = <?php echo isCRI() ? 'true' : 'false'; ?>;
     window.userIsAdmin = <?php echo (isAdmin() || isGestor()) ? 'true' : 'false'; ?>;
+    window.userIsProfessor = <?php echo isProfessor() ? 'true' : 'false'; ?>;
 </script>
 <script>
 // Inicializa o calendário SPA caso esteja na visualização correspondente

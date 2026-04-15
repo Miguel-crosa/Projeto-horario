@@ -33,6 +33,7 @@ function formatDateBR(dateStr) {
 
 function handleBarClick(profId, profNome, dateStr, element) {
     // Bug fix: Se o elemento clicado tiver classe de indisponibilidade ou domingo, ignora.
+    if (window.userIsProfessor) return;
     if (element && (element.classList.contains('timeline-day-sunday') || 
                     element.classList.contains('sem-day-sunday') || 
                     element.classList.contains('block-seg-sunday'))) {

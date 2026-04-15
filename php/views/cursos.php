@@ -10,9 +10,11 @@ $cursos = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM curso ORDER BY nom
     <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <div class="search-box">
             <input type="text" id="filter-nome" placeholder="Filtrar por nome do curso..." class="form-input"
-                style="width: 300px;" onkeyup="filterCursos()">
+                style="width: 100%; max-width: 300px;" onkeyup="filterCursos()">
         </div>
-        <a href="cursos_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Curso</a>
+        <?php if (can_edit()): ?>
+            <a href="cursos_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Curso</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -143,7 +145,9 @@ $cursos = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM curso ORDER BY nom
                 <th onclick="sortTable(3)" style="cursor:pointer;">Área <span class="sort-icon"><i class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
                 <th onclick="sortTable(4)" style="cursor:pointer;">Carga Horária <span class="sort-icon"><i class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
                 <th onclick="sortTable(5)" style="cursor:pointer;">Semestral <span class="sort-icon"><i class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
-                <th>Ações</th>
+                <?php if (can_edit()): ?>
+                    <th>Ações</th>
+                <?php endif; ?>
             </tr>
         </thead>
         <tbody>
@@ -161,15 +165,17 @@ $cursos = mysqli_fetch_all(mysqli_query($conn, "SELECT * FROM curso ORDER BY nom
                         <td><?= htmlspecialchars($c['area']) ?></td>
                         <td><?= $c['carga_horaria_total'] ?>h</td>
                         <td><?= $c['semestral'] ? 'Sim' : 'Não' ?></td>
-                        <td>
-                            <div style="display: flex; gap: 5px;">
-                                <a href="cursos_form.php?id=<?= $c['id'] ?>" class="btn btn-edit" title="Editar"><i class="fas fa-edit"></i></a>
-                                <a href="../controllers/cursos_process.php?action=delete&id=<?= $c['id'] ?>"
-                                    class="btn btn-delete" title="Excluir"
-                                    onclick="return confirm('Tem certeza que deseja excluir este curso?')"><i
-                                        class="fas fa-trash"></i></a>
-                            </div>
-                        </td>
+                        <?php if (can_edit()): ?>
+                            <td>
+                                <div style="display: flex; gap: 5px;">
+                                    <a href="cursos_form.php?id=<?= $c['id'] ?>" class="btn btn-edit" title="Editar"><i class="fas fa-edit"></i></a>
+                                    <a href="../controllers/cursos_process.php?action=delete&id=<?= $c['id'] ?>"
+                                        class="btn btn-delete" title="Excluir"
+                                        onclick="return confirm('Tem certeza que deseja excluir este curso?')"><i
+                                            class="fas fa-trash"></i></a>
+                                </div>
+                            </td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>

@@ -1,6 +1,17 @@
 <?php
 require_once __DIR__ . '/php/configs/db.php';
 require_once __DIR__ . '/php/configs/utils.php';
+require_once __DIR__ . '/php/configs/auth.php';
+
+if (isCRI()) {
+    header("Location: php/views/dashboard_vendas.php");
+    exit;
+}
+
+if (isProfessor()) {
+    header("Location: php/views/dashboard_vendas.php");
+    exit;
+}
 
 if (!isset($_GET['ajax_render'])) {
     include __DIR__ . '/php/components/header.php';
@@ -174,13 +185,20 @@ foreach ($areas_raw as $ar) {
     }
 }
 sort($unique_areas);
-$areas_list = array_map(function($a) { return ['area_conhecimento' => $a]; }, $unique_areas);
+$areas_list = array_map(function ($a) {
+    return ['area_conhecimento' => $a];
+}, $unique_areas);
 
-$turmas_cidade = mysqli_fetch_all(mysqli_query($conn, "
-    SELECT COALESCE(amb.cidade, 'Sede') AS cidade, COUNT(t.id) AS total
-    FROM turma t LEFT JOIN ambiente amb ON t.ambiente_id = amb.id
-    GROUP BY COALESCE(amb.cidade, 'Sede') ORDER BY total DESC
-    "), MYSQLI_ASSOC);
+// --- Turmas Encerradas (Últimos 7 dias) ---
+$data_7_atras = date('Y-m-d', strtotime('-7 days'));
+$encerradas_query = mysqli_query($conn, "
+    SELECT t.id, t.sigla, c.nome AS curso_nome, t.data_fim
+    FROM turma t 
+    JOIN curso c ON t.curso_id = c.id
+    WHERE t.data_fim BETWEEN '$data_7_atras' AND '" . date('Y-m-d') . "'
+    ORDER BY t.data_fim DESC
+");
+$encerradas = mysqli_fetch_all($encerradas_query, MYSQLI_ASSOC);
 
 $proximas_query = mysqli_query($conn, "
     SELECT t.id, amb.cidade, c.nome AS curso_nome, t.data_inicio, t.tipo
@@ -258,6 +276,11 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                         <i class="fas fa-money-bill-wave"></i> <span class="hide-mobile">Previsão de
                             Despesas</span><span class="show-mobile">Despesas</span>
                     </button>
+                    <button class="btn btn-primary" onclick="openWorkloadModal()"
+                        style="background: #6a1b9a; border-color: #4a148c; box-shadow: 0 4px 10px rgba(106, 27, 154, 0.2); font-weight: 700;">
+                        <i class="fas fa-business-time"></i> <span class="hide-mobile">Carga Horária
+                            Docentes</span><span class="show-mobile">Carga H.</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -312,6 +335,30 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                             style="height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 0 15px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
                             <i class="fas fa-times"></i> Limpar Seleção
                         </button>
+
+                        <?php
+                        $hoje = date('Y-m-d');
+                        $fim_ano = date('Y-12-31');
+                        $inicio_ano = date('Y-01-01');
+                        $total_ano = calculateTeacherYearlyWorkload($conn, (int) $filtro_docente_id, $inicio_ano, $fim_ano);
+                        $saldo_remanescente = calculateTeacherYearlyWorkload($conn, (int) $filtro_docente_id, $hoje, $fim_ano);
+                        $porcentagem = ($total_ano > 0) ? round(($saldo_remanescente / $total_ano) * 100) : 0;
+                        ?>
+                        <div id="individual-workload-container"
+                            style="display: flex; flex-direction: column; gap: 4px; min-width: 200px; padding-left: 10px; border-left: 2px solid var(--border-color);">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 700; color: var(--text-color);">
+                                <span>Saldo de Horas (Ano)</span>
+                                <span style="color: #2e7d32; margin-left: 10px;"><?= round($saldo_remanescente) ?>h /
+                                    <?= round($total_ano) ?>h</span>
+                            </div>
+                            <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden; position: relative;"
+                                title="<?= $porcentagem ?>% de carga horária disponível (Cálculo deduz feriados, férias, planejamento e afastamentos)">
+                                <div
+                                    style="width: <?= $porcentagem ?>%; height: 100%; background: linear-gradient(90deg, #2e7d32, #4caf50); transition: width 1s ease-in-out;">
+                                </div>
+                            </div>
+                        </div>
                     <?php endif; ?>
                 </div>
 
@@ -339,31 +386,34 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
 
         <!-- Filtros por Área -->
         <?php if (!empty($areas_list)): ?>
-        <div class="area-filter-bar" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; padding: 16px 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; align-items: center;">
-            <span style="font-weight: 800; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-right: 8px; display: flex; align-items: center; gap: 6px;">
-                <i class="fas fa-filter"></i> Filtrar por Área:
-            </span>
-            <a href="?mes_sel=<?= urlencode($mes_sel) ?>&docente_id=<?= urlencode($filtro_docente_id) ?>&prof_page=1"
-                class="area-filter-btn <?= empty($filtro_area) ? 'active' : '' ?>"
-                style="padding: 7px 18px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-decoration: none; transition: all 0.25s ease; border: 1.5px solid <?= empty($filtro_area) ? 'var(--primary-red)' : 'var(--border-color)' ?>; background: <?= empty($filtro_area) ? 'var(--primary-red)' : 'var(--card-bg)' ?>; color: <?= empty($filtro_area) ? '#fff' : 'var(--text-color)' ?>; cursor: pointer;">
-                Todos
-            </a>
-            <?php foreach ($areas_list as $al): 
-                $area_val = $al['area_conhecimento'];
-                $is_active = ($filtro_area === $area_val);
-                // Conta docentes nessa área
-                $area_count_esc = mysqli_real_escape_string($conn, $area_val);
-                $area_count_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM docente WHERE ativo = 1 AND area_conhecimento LIKE '%$area_count_esc%'");
-                $area_count = mysqli_fetch_assoc($area_count_q)['c'];
-            ?>
-                <a href="?filtro_area=<?= urlencode($area_val) ?>&mes_sel=<?= urlencode($mes_sel) ?>&docente_id=<?= urlencode($filtro_docente_id) ?>&prof_page=1"
-                    class="area-filter-btn <?= $is_active ? 'active' : '' ?>"
-                    style="padding: 7px 18px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-decoration: none; transition: all 0.25s ease; border: 1.5px solid <?= $is_active ? 'var(--primary-red)' : 'var(--border-color)' ?>; background: <?= $is_active ? 'var(--primary-red)' : 'var(--card-bg)' ?>; color: <?= $is_active ? '#fff' : 'var(--text-color)' ?>; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                    <?= htmlspecialchars($area_val) ?>
-                    <span style="background: <?= $is_active ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.08)' ?>; padding: 1px 7px; border-radius: 10px; font-size: 0.7rem;"><?= $area_count ?></span>
+            <div class="area-filter-bar"
+                style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; padding: 16px 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; align-items: center;">
+                <span
+                    style="font-weight: 800; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-right: 8px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-filter"></i> Filtrar por Área:
+                </span>
+                <a href="?mes_sel=<?= urlencode($mes_sel) ?>&docente_id=<?= urlencode($filtro_docente_id) ?>&prof_page=1"
+                    class="area-filter-btn <?= empty($filtro_area) ? 'active' : '' ?>"
+                    style="padding: 7px 18px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-decoration: none; transition: all 0.25s ease; border: 1.5px solid <?= empty($filtro_area) ? 'var(--primary-red)' : 'var(--border-color)' ?>; background: <?= empty($filtro_area) ? 'var(--primary-red)' : 'var(--card-bg)' ?>; color: <?= empty($filtro_area) ? '#fff' : 'var(--text-color)' ?>; cursor: pointer;">
+                    Todos
                 </a>
-            <?php endforeach; ?>
-        </div>
+                <?php foreach ($areas_list as $al):
+                    $area_val = $al['area_conhecimento'];
+                    $is_active = ($filtro_area === $area_val);
+                    // Conta docentes nessa área
+                    $area_count_esc = mysqli_real_escape_string($conn, $area_val);
+                    $area_count_q = mysqli_query($conn, "SELECT COUNT(*) as c FROM docente WHERE ativo = 1 AND area_conhecimento LIKE '%$area_count_esc%'");
+                    $area_count = mysqli_fetch_assoc($area_count_q)['c'];
+                    ?>
+                    <a href="?filtro_area=<?= urlencode($area_val) ?>&mes_sel=<?= urlencode($mes_sel) ?>&docente_id=<?= urlencode($filtro_docente_id) ?>&prof_page=1"
+                        class="area-filter-btn <?= $is_active ? 'active' : '' ?>"
+                        style="padding: 7px 18px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-decoration: none; transition: all 0.25s ease; border: 1.5px solid <?= $is_active ? 'var(--primary-red)' : 'var(--border-color)' ?>; background: <?= $is_active ? 'var(--primary-red)' : 'var(--card-bg)' ?>; color: <?= $is_active ? '#fff' : 'var(--text-color)' ?>; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                        <?= htmlspecialchars($area_val) ?>
+                        <span
+                            style="background: <?= $is_active ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.08)' ?>; padding: 1px 7px; border-radius: 10px; font-size: 0.7rem;"><?= $area_count ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
 
         <div class="dashboard-grid">
@@ -662,23 +712,28 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
             </div>
 
             <div class="sidebar-column">
-                <div class="dash-section">
+                <div class="dash-section" style="border-left: 4px solid #1976d2; background: rgba(25, 118, 210, 0.03);">
                     <div class="dash-section-header">
-                        <h3><i class="fas fa-map-marked-alt" style="color: #1976d2;"></i> Turmas por Cidade</h3>
+                        <h3 style="color: #1976d2;"><i class="fas fa-history"></i> Turmas Encerradas (7 dias)</h3>
                     </div>
                     <div class="dash-section-body">
-                        <?php if (empty($turmas_cidade)): ?>
-                            <p class="text-center" style="color: var(--text-muted);">Nenhuma turma cadastrada.</p>
+                        <?php if (empty($encerradas)): ?>
+                            <p class="text-center" style="color: var(--text-muted); font-size: 0.85rem;">Nenhuma turma
+                                encerrada nos últimos 7 dias.</p>
                         <?php else: ?>
-                            <?php foreach ($turmas_cidade as $i => $tc):
-                                $cor = $cores[$i % count($cores)]; ?>
-                                <div class="city-list-item">
-                                    <div style="display: flex; align-items: center;">
-                                        <span class="city-dot" style="background: <?= $cor ?>;"></span>
-                                        <span style="font-weight: 600;"><?= htmlspecialchars($tc['cidade']) ?></span>
+                            <?php foreach ($encerradas as $te): ?>
+                                <div class="city-list-item"
+                                    style="flex-direction: column; align-items: flex-start; gap: 4px; border-bottom: 1px dashed rgba(25, 118, 210, 0.2); padding-bottom: 10px; margin-bottom: 10px;">
+                                    <div style="font-weight: 700; font-size: .9rem; color: #1976d2;">Turma
+                                        <?= htmlspecialchars($te['sigla']) ?>
                                     </div>
-                                    <span
-                                        style="font-weight: 800; font-size: 1.1rem; color: <?= $cor ?>;"><?= $tc['total'] ?></span>
+                                    <div style="font-size: .8rem; color: var(--text-muted);">
+                                        <?= htmlspecialchars($te['curso_nome']) ?>
+                                    </div>
+                                    <div style="font-size: .78rem; color: #555; font-weight: 700;">
+                                        <i class="fas fa-calendar-check"></i> Encerrada em:
+                                        <?= date('d/m/Y', strtotime($te['data_fim'])) ?>
+                                    </div>
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -746,8 +801,29 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
 
     <!-- Modais de Produção Aluno/Hora -->
     <link rel="stylesheet" href="css/producao_dashboard.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="js/producao_aluno_hora.js"></script>
+    <script src="js/workload_dashboard.js"></script>
+
+    <!-- Modal: Carga Horária Global -->
+    <div id="modal-workload-global" class="modal-producao">
+        <div class="modal-producao-content animate-pop-in">
+            <div class="modal-producao-header">
+                <h3><i class="fas fa-business-time"></i> Carga Horária Disponível por Docente</h3>
+                <button class="modal-producao-close" onclick="closeWorkloadModal()">&times;</button>
+            </div>
+            <div class="modal-producao-body">
+                <p
+                    style="text-align: center; color: var(--text-muted); font-size: 0.95rem; margin-top: -10px; margin-bottom: 25px; font-weight: 500;">
+                    <i class="fas fa-info-circle"></i> Disponibilidade estimada até o dia 31/12 em ordem decrescente.
+                </p>
+                <div class="producao-chart-section">
+                    <div class="chart-container-wrapper" style="height: 450px;">
+                        <canvas id="chartWorkloadDocentes"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal 1: Visão Geral e Gráfico -->
     <div id="modal-producao-geral" class="modal-producao">
@@ -763,22 +839,13 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     <i class="fas fa-info-circle"></i> Clique em uma barra para abrir o detalhamento por turma.
                 </p>
                 <div class="producao-kpi-container">
-                    <div class="producao-kpi-card">
+                    <div class="producao-kpi-card" style="margin-bottom: 20px;">
                         <span class="kpi-label">Produção Total Acumulada</span>
-                        <span class="kpi-value" id="total-producao-geral">0</span>
-                        <span class="kpi-subtext">Soma de todos os professores</span>
+                        <span class="kpi-value" id="total-producao-geral">0 A/H</span>
                     </div>
                 </div>
-
                 <div class="producao-chart-section">
-                    <div class="chart-controls">
-                        <div class="search-wrapper">
-                            <i class="fas fa-search"></i>
-                            <input type="text" id="search-producao-prof" placeholder="Pesquisar professor..."
-                                oninput="filterProducaoChart()">
-                        </div>
-                    </div>
-                    <div class="chart-container-wrapper">
+                    <div class="chart-container-wrapper" style="height: 400px;">
                         <canvas id="chartProducaoDocentes"></canvas>
                     </div>
                 </div>
@@ -879,14 +946,18 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     style="color: white;">&times;</button>
             </div>
             <div class="modal-producao-body">
-                <div class="producao-kpi-container" onclick="openRessarcimentoListaModal()" style="cursor: pointer;"
-                    title="Clique para ver o detalhamento por turma">
-                    <div class="producao-kpi-card"
-                        style="border-left-color: #388e3c; background: linear-gradient(135deg, #388e3c, #2e7d32);">
-                        <span class="kpi-label">Arrecadação Total Estimada</span>
+                <div class="producao-kpi-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="producao-kpi-card" onclick="openRessarcimentoListaModal()"
+                        style="cursor: pointer; border-left-color: #388e3c; background: linear-gradient(135deg, #388e3c, #2e7d32);">
+                        <span class="kpi-label">Arrecadação Real (Confirmada)</span>
                         <span class="kpi-value" id="total-ressarcido-geral">R$ 0,00</span>
-                        <span class="kpi-subtext"><i class="fas fa-search-plus"></i> Clique para ver o detalhamento
-                            individual</span>
+                        <span class="kpi-subtext"><i class="fas fa-search-plus"></i> Ver detalhamento real</span>
+                    </div>
+                    <div class="producao-kpi-card"
+                        style="border-left-color: #fb8c00; background: linear-gradient(135deg, #fb8c00, #ef6c00);">
+                        <span class="kpi-label">Pipeline (Reservas)</span>
+                        <span class="kpi-value" id="total-ressarcido-pipeline">R$ 0,00</span>
+                        <span class="kpi-subtext"><i class="fas fa-info-circle"></i> Turmas em negociação</span>
                     </div>
                 </div>
                 <div class="producao-chart-section">
@@ -928,14 +999,18 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     style="color: white;">&times;</button>
             </div>
             <div class="modal-producao-body">
-                <div class="producao-kpi-container" onclick="openDespesasListaModal()" style="cursor: pointer;"
-                    title="Clique para ver o detalhamento por turma">
-                    <div class="producao-kpi-card"
-                        style="border-left-color: #e65100; background: linear-gradient(135deg, #e65100, #bf360c);">
-                        <span class="kpi-label">Gasto Total Previsto</span>
+                <div class="producao-kpi-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="producao-kpi-card" onclick="openDespesasListaModal()"
+                        style="cursor: pointer; border-left-color: #e65100; background: linear-gradient(135deg, #e65100, #bf360c);">
+                        <span class="kpi-label">Gasto Real (Confirmado)</span>
                         <span class="kpi-value" id="total-previsao-despesas">R$ 0,00</span>
-                        <span class="kpi-subtext"><i class="fas fa-search-plus"></i> Clique para ver o detalhamento
-                            individual</span>
+                        <span class="kpi-subtext"><i class="fas fa-search-plus"></i> Ver detalhamento real</span>
+                    </div>
+                    <div class="producao-kpi-card"
+                        style="border-left-color: #546e7a; background: linear-gradient(135deg, #78909c, #546e7a);">
+                        <span class="kpi-label">Pipeline de Despesas (Reservas)</span>
+                        <span class="kpi-value" id="total-previsao-despesas-pipeline">R$ 0,00</span>
+                        <span class="kpi-subtext"><i class="fas fa-info-circle"></i> Previsão para reservas</span>
                     </div>
                 </div>
                 <div class="producao-chart-section">

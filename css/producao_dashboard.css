@@ -261,6 +261,20 @@ body.modal-open {
     justify-content: flex-start;
 }
 
+/* Responsividade de Labels */
+.show-mobile {
+    display: none;
+}
+
+@media (max-width: 1200px) {
+    .hide-mobile {
+        display: none !important;
+    }
+    .show-mobile {
+        display: inline !important;
+    }
+}
+
 /* Animations */
 .animate-pop-in {
     animation: popIn 0.3s ease-out;
