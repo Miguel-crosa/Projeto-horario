@@ -1052,21 +1052,18 @@ function calculateTeacherYearlyWorkload($conn, $docente_id, $data_inicio, $data_
     }
 
     // Cache de Feriados para o intervalo
-    static $feriados_cache = null;
-    if ($feriados_cache === null) {
-        $feriados_cache = [];
-        $res_f = mysqli_query($conn, "SELECT date as data FROM holidays WHERE (end_date IS NULL AND date BETWEEN '$data_inicio' AND '$data_fim') OR (end_date IS NOT NULL AND date <= '$data_fim' AND end_date >= '$data_inicio')");
-        if ($res_f) {
-            while ($f = mysqli_fetch_assoc($res_f)) {
-                $feriados_cache[$f['data']] = true;
-                // Se for intervalo, preenche os dias intermediários
-                if (isset($f['end_date']) && $f['end_date'] > $f['data']) {
-                    $curr_it = new DateTime($f['data']);
-                    $end_it = new DateTime($f['end_date']);
-                    while ($curr_it <= $end_it) {
-                        $feriados_cache[$curr_it->format('Y-m-d')] = true;
-                        $curr_it->modify('+1 day');
-                    }
+    $feriados_cache = [];
+    $res_f = mysqli_query($conn, "SELECT date as data, end_date FROM holidays WHERE (end_date IS NULL AND date BETWEEN '$data_inicio' AND '$data_fim') OR (end_date IS NOT NULL AND date <= '$data_fim' AND end_date >= '$data_inicio')");
+    if ($res_f) {
+        while ($f = mysqli_fetch_assoc($res_f)) {
+            $feriados_cache[$f['data']] = true;
+            // Se for intervalo, preenche os dias intermediários
+            if (isset($f['end_date']) && !empty($f['end_date']) && $f['end_date'] > $f['data']) {
+                $curr_it = new DateTime($f['data']);
+                $end_it = new DateTime($f['end_date']);
+                while ($curr_it <= $end_it) {
+                    $feriados_cache[$curr_it->format('Y-m-d')] = true;
+                    $curr_it->modify('+1 day');
                 }
             }
         }

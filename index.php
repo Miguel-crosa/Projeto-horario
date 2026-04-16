@@ -348,8 +348,8 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                             style="display: flex; flex-direction: column; gap: 4px; min-width: 200px; padding-left: 10px; border-left: 2px solid var(--border-color);">
                             <div
                                 style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 700; color: var(--text-color);">
-                                <span>Saldo de Horas (Ano)</span>
-                                <span style="color: #2e7d32; margin-left: 10px;"><?= round($saldo_remanescente) ?>h /
+                                <span>Horas Disponíveis (Ano)</span>
+                                <span style="color: #2e7d32; margin-left: 10px;"><?= round($saldo_remanescente - calculateConsumedHours($conn, (int) $filtro_docente_id, $hoje, $fim_ano)) ?>h /
                                     <?= round($total_ano) ?>h</span>
                             </div>
                             <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden; position: relative;"

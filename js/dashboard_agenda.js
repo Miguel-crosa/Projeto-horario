@@ -58,15 +58,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const startDayOfWeek = firstDay.getDay();
         const totalDays = lastDay.getDate();
 
-        let html = `<div class="cal-grid" style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; background: rgba(0,0,0,0.05); padding: 10px; border-radius: 12px;">`;
+        let html = `<div class="cal-grid" style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; background: rgba(0,0,0,0.05); padding: 10px; border-radius: 12px; height: 100%;">`;
 
         const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
         diasSemana.forEach(d => {
-            html += `<div style="text-align: center; font-weight: 800; font-size: 0.75rem; color: var(--text-muted); padding: 10px 0;">${d}</div>`;
+            html += `<div style="text-align: center; font-weight: 800; font-size: 0.75rem; color: var(--text-muted); padding: 5px 0;">${d}</div>`;
         });
 
         for (let i = 0; i < startDayOfWeek; i++) {
-            html += `<div style="min-height: 120px; background: rgba(255,255,255,0.02); border-radius: 8px;"></div>`;
+            html += `<div style="min-height: 80px; background: rgba(255,255,255,0.02); border-radius: 8px;"></div>`;
         }
 
         for (let day = 1; day <= totalDays; day++) {
@@ -107,14 +107,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     const timeStr = (isHoliday || isVacation) ? '' : (a.horario_inicio ? a.horario_inicio.substring(0, 5) : (a.periodo || ''));
                     const label = (isRes && a.sigla) ? a.sigla : (a.curso_nome || a.turma_nome || 'Reservado');
 
-                    contentHtml += `<div style="font-size: 0.75rem; background: ${color}1a; color: ${color}; padding: 4px 6px; border-radius: 4px; margin-top: 2px; border-left: 3px solid ${color}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; font-weight: 600;" title="${label} ${timeStr ? '(' + timeStr + ')' : ''}">
+                    contentHtml += `<div style="font-size: 0.7rem; background: ${color}1a; color: ${color}; padding: 3px 5px; border-radius: 4px; margin-top: 2px; border-left: 3px solid ${color}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; font-weight: 600;" title="${label} ${timeStr ? '(' + timeStr + ')' : ''}">
                         ${timeStr ? '<strong>' + timeStr + '</strong>: ' : ''}${label}
                     </div>`;
                 });
             }
 
-            html += `<div style="min-height: 120px; min-width: 0; background: ${bg}; border: 1px solid ${isToday ? 'var(--primary-red)' : borderColor}; border-radius: 8px; padding: 5px; display: flex; flex-direction: column; position: relative; ${isToday ? 'box-shadow: 0 0 10px rgba(229,57,53,0.2);' : ''}">
-                <span style="font-size: 0.8rem; font-weight: 800; opacity: 0.6; margin-bottom: 5px;">${day}</span>
+            html += `<div style="min-height: 80px; min-width: 0; background: ${bg}; border: 1px solid ${isToday ? 'var(--primary-red)' : borderColor}; border-radius: 8px; padding: 5px; display: flex; flex-direction: column; position: relative; ${isToday ? 'box-shadow: 0 0 10px rgba(229,57,53,0.2);' : ''}">
+                <span style="font-size: 0.8rem; font-weight: 800; opacity: 0.6; margin-bottom: 2px;">${day}</span>
                 <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;">
                     ${contentHtml}
                 </div>
@@ -123,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         html += `</div>`;
         area.innerHTML = html;
+        area.style.minHeight = 'auto'; // Garante que o container se ajuste
     }
 
     document.getElementById('btn-prev-month-summary')?.addEventListener('click', () => {
