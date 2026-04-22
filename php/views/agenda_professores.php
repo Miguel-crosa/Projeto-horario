@@ -346,7 +346,7 @@ if (!empty($bind_vals_count))
 $total_profs->execute();
 $total_count = $total_profs->get_result()->fetch_row()[0];
 
-$sort_sql = $ordem_disp == 'mais' ? "ORDER BY COALESCE(a.total_aulas, 0) ASC" : "ORDER BY COALESCE(a.total_aulas, 0) DESC";
+$sort_sql = "ORDER BY p.nome ASC";
 
 $stmt_profs = $mysqli->prepare("SELECT p.*, COALESCE(a.total_aulas, 0) as total_aulas $query_base $sort_sql LIMIT $limit OFFSET $offset");
 if (!empty($bind_vals_count))

@@ -18,6 +18,7 @@ if (isProfessor()) {
 if (!isset($_GET['ajax_render'])) {
     include __DIR__ . '/php/components/header.php';
     echo '<link rel="stylesheet" href="css/dashboard.css">';
+    echo '<link rel="stylesheet" href="css/metas_ah.css">';
     echo '<link rel="stylesheet" href="css/substituicao.css">';
     echo '<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>';
 }
@@ -27,7 +28,7 @@ $count_salas = mysqli_fetch_row(mysqli_query($conn, "SELECT COUNT(*) FROM ambien
 $count_turmas = mysqli_fetch_row(mysqli_query($conn, "SELECT COUNT(*) FROM turma"))[0];
 $count_cursos = mysqli_fetch_row(mysqli_query($conn, "SELECT COUNT(*) FROM curso"))[0];
 
-$filtro_prof = $_GET['filtro_prof'] ?? 'mais_livre';
+$filtro_prof = $_GET['filtro_prof'] ?? 'alfabetica';
 $filtro_area = $_GET['filtro_area'] ?? '';
 $filtro_nome = $_GET['filtro_nome'] ?? '';
 $filtro_docente_id = $_GET['docente_id'] ?? '';
@@ -82,12 +83,13 @@ usort($prof_resumo_temp, function ($a, $b) use ($filtro_prof) {
         if ($b['dias_ocupados_mes'] !== $a['dias_ocupados_mes']) {
             return $b['dias_ocupados_mes'] - $a['dias_ocupados_mes'];
         }
-        return strcmp($a['nome'], $b['nome']);
+    } elseif ($filtro_prof === 'mais_livre') {
+        if ($a['dias_ocupados_mes'] !== $b['dias_ocupados_mes']) {
+            return $a['dias_ocupados_mes'] - $b['dias_ocupados_mes'];
+        }
     }
-    if ($a['dias_ocupados_mes'] !== $b['dias_ocupados_mes']) {
-        return $a['dias_ocupados_mes'] - $b['dias_ocupados_mes'];
-    }
-    return strcmp($a['nome'], $b['nome']);
+    // Padrão ou fallback: Alfabética
+    return strcasecmp($a['nome'], $b['nome']);
 });
 
 $total_professores_filtered = count($prof_resumo_temp);
@@ -258,6 +260,11 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     <p>Visão geral do sistema com turmas, professores, ambientes e agenda.</p>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+                    <button class="btn btn-primary" onclick="initMetasAH()"
+                        style="background: #00897b; border-color: #00796b; box-shadow: 0 4px 10px rgba(0, 137, 123, 0.2); font-weight: 700;">
+                        <i class="fas fa-bullseye"></i> <span class="hide-mobile">META A/H</span><span
+                            class="show-mobile">META</span>
+                    </button>
                     <button class="btn btn-primary btn-producao-mobile" onclick="openProducaoModal()"
                         style="background: #1976d2; border-color: #1565c0; box-shadow: 0 4px 10px rgba(25, 118, 210, 0.2); font-weight: 700;">
                         <i class="fas fa-chart-line"></i> <span class="hide-mobile">Produção Aluno/Hora</span><span
@@ -1335,4 +1342,200 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
 </div>
 <?php endif; ?>
 <script src="js/substituicao.js"></script>
+<script src="js/metas_ah.js"></script>
+
+<!-- ============================================================ -->
+<!-- MODAIS DE METAS E CUSTOS A/H -->
+<!-- ============================================================ -->
+
+<!-- Modal 1: Metas de Ensino -->
+<div id="modal-metas-ensino" class="modal-producao">
+    <div class="modal-producao-content" style="max-width: 500px;">
+        <div class="modal-producao-header">
+            <h3><i class="fas fa-edit"></i> 1. Metas de Ensino</h3>
+            <button class="modal-producao-close" onclick="closeMetasModal('modal-metas-ensino')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-producao-body">
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 20px;">Defina a quantidade de horas e alunos esperada para cada modalidade no ano selecionado.</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <div class="meta-input-group">
+                    <label>CAI (Aprendizagem Industrial)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="meta-cai-horas" placeholder="Horas" class="form-control">
+                        <input type="number" id="meta-cai-alunos" placeholder="Alunos" class="form-control">
+                    </div>
+                </div>
+                <div class="meta-input-group">
+                    <label>CT (Cursos Técnicos)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="meta-ct-horas" placeholder="Horas" class="form-control">
+                        <input type="number" id="meta-ct-alunos" placeholder="Alunos" class="form-control">
+                    </div>
+                </div>
+                <div class="meta-input-group">
+                    <label>FIC (Formação Inicial e Continuada)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="meta-fic-horas" placeholder="Horas" class="form-control">
+                        <input type="number" id="meta-fic-alunos" placeholder="Alunos" class="form-control">
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
+                <button class="btn btn-primary btn-meta-action" onclick="nextToDespesas()">
+                    Próximo: Despesas <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 2: Despesas -->
+<div id="modal-metas-despesas" class="modal-producao">
+    <div class="modal-producao-content" style="max-width: 500px;">
+        <div class="modal-producao-header">
+            <h3><i class="fas fa-money-bill-wave"></i> 2. Despesas do Ano</h3>
+            <button class="modal-producao-close" onclick="closeMetasModal('modal-metas-despesas')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-producao-body">
+            <div style="background: #e0f2f1; padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #b2dfdb;">
+                <div style="font-size: 0.75rem; text-transform: uppercase; color: #00796b; font-weight: 800; letter-spacing: 0.5px;">Volume de A/H Esperado (Variável X)</div>
+                <div style="font-size: 1.8rem; font-weight: 900; color: #004d40;"><span id="display-total-ah-meta">0</span> A/H</div>
+            </div>
+
+            <div class="meta-input-group">
+                <label>Valor da Despesa Anual (R$)</label>
+                <input type="number" id="meta-despesa-anual" step="0.01" class="form-control" placeholder="Ex: 2.000.000,00">
+            </div>
+
+            <div style="margin-top: 30px; display: flex; justify-content: space-between;">
+                <button class="btn btn-export btn-meta-action" onclick="openMetasModal('modal-metas-ensino')">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
+                <button class="btn btn-primary btn-meta-action" onclick="saveAllMetas()">
+                    Salvar e Ver Dashboard <i class="fas fa-check"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 3: Dashboard Principal -->
+<div id="modal-metas-dashboard" class="modal-producao">
+    <div class="modal-producao-content" style="max-width: 1000px; width: 95%;">
+        <div class="modal-producao-header">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <h3><i class="fas fa-chart-bar"></i> Gestão de Metas e Custos A/H</h3>
+                <span class="meta-year-badge">
+                    Ano <?= date('Y') ?>
+                </span>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary btn-sm btn-meta-action" onclick="openMetasSimulationModal()" id="btn-simulate">
+                    <i class="fas fa-vial"></i> Simular
+                </button>
+                <button class="btn btn-primary btn-sm btn-meta-action" onclick="changeMetasVision()" id="btn-change-vision">
+                    <i class="fas fa-search-plus"></i> Detalhar por Curso
+                </button>
+                <?php if (isAdmin() || isGestor()): ?>
+                <button class="btn btn-primary btn-sm btn-meta-action" onclick="openEditMetas()">
+                    <i class="fas fa-edit"></i> Editar
+                </button>
+                <?php endif; ?>
+                <button class="modal-producao-close" onclick="closeMetasModal('modal-metas-dashboard')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="modal-producao-body">
+            <div class="metas-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                <div class="meta-card-info" style="padding: 25px; border-radius: 16px; border-left: 6px solid var(--meta-primary);">
+                    <div style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Custo A/H (Meta)</div>
+                    <div id="card-custo-meta" style="font-size: 2rem; font-weight: 900; color: var(--meta-primary); margin: 5px 0;">R$ 0,00</div>
+                    <div id="card-volume-meta" style="font-size: 0.9rem; font-weight: 600;">0 A/H Esperados</div>
+                </div>
+                <div class="meta-card-info" style="padding: 25px; border-radius: 16px; border-left: 6px solid var(--meta-secondary);">
+                    <div style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Custo A/H (Realizado)</div>
+                    <div id="card-custo-real" style="font-size: 2rem; font-weight: 900; color: var(--meta-secondary); margin: 5px 0;">R$ 0,00</div>
+                    <div id="card-volume-real" style="font-size: 0.9rem; font-weight: 600;">0 A/H Realizados</div>
+                </div>
+            </div>
+
+            <div class="meta-chart-container" style="padding: 25px; border-radius: 16px; height: 420px; border: 1px solid var(--meta-border); background: var(--meta-card-bg);">
+                <canvas id="chartMetasComparison"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modal-metas-simulacao" class="modal-producao">
+    <div class="modal-producao-content" style="max-width: 900px;">
+        <div class="modal-producao-header" style="background: var(--meta-accent); border-bottom: none;">
+            <h3><i class="fas fa-vial"></i> Ferramenta de Simulação</h3>
+            <button class="modal-producao-close" onclick="closeMetasSimulation()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-producao-body">
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 25px;">Ajuste os valores para ver como o custo A/H se comporta em diferentes cenários.</p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 30px;">
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="meta-input-group">
+                        <label>Simular Despesa Anual (Y)</label>
+                        <input type="number" id="sim-despesa" class="form-control" oninput="updateMetasSimulation()">
+                    </div>
+                    
+                    <div style="border-top: 1px solid var(--meta-border); padding-top: 15px; margin-top: 5px;">
+                        <label style="font-size: 0.75rem; font-weight: 800; color: var(--meta-accent); text-transform: uppercase; margin-bottom: 10px; display: block;">Simular Produção por Modalidade (A/H)</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                            <div class="meta-input-group">
+                                <label style="font-size: 0.65rem;">CAI</label>
+                                <input type="number" id="sim-cai" class="form-control" oninput="updateMetasSimulation()" style="padding: 8px;">
+                            </div>
+                            <div class="meta-input-group">
+                                <label style="font-size: 0.65rem;">TÉCNICO</label>
+                                <input type="number" id="sim-ct" class="form-control" oninput="updateMetasSimulation()" style="padding: 8px;">
+                            </div>
+                            <div class="meta-input-group">
+                                <label style="font-size: 0.65rem;">FIC</label>
+                                <input type="number" id="sim-fic" class="form-control" oninput="updateMetasSimulation()" style="padding: 8px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="simulation-panel animate-fade-in" style="display: grid; grid-template-columns: 1fr; gap: 15px; background: rgba(106, 27, 154, 0.05); padding: 20px; border-radius: 12px; border: 1px dashed var(--meta-accent); margin-top: 10px;">
+                        <div style="margin-bottom: 5px;">
+                            <div class="simulation-result-label">PRODUÇÃO TOTAL SIMULADA</div>
+                            <div id="sim-resultado-producao" style="font-size: 1.2rem; font-weight: 800; color: var(--meta-accent);">0 A/H</div>
+                        </div>
+                        <div style="margin-bottom: 5px;">
+                            <div class="simulation-result-label">CUSTO SIMULADO</div>
+                            <div id="sim-resultado-custo" class="simulation-result-value" style="color: var(--meta-accent); font-size: 1.8rem;">R$ 0,00</div>
+                        </div>
+                        <div>
+                            <div class="simulation-result-label">ATINGIMENTO DA META</div>
+                            <div id="sim-resultado-atingimento" class="simulation-result-value" style="color: var(--meta-accent);">0%</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 10px; text-align: center;">
+                        <button class="btn btn-export btn-meta-action" onclick="closeMetasSimulation()" style="width: 100%;">
+                            Encerrar Simulação
+                        </button>
+                    </div>
+                </div>
+
+                <div class="meta-chart-container" style="background: var(--meta-card-bg); border: 1px solid var(--meta-border); border-radius: 16px; padding: 20px; height: 100%; min-height: 350px;">
+                    <canvas id="chartSimulacao"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <?php include __DIR__ . '/php/components/footer.php'; ?>

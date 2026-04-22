@@ -6,9 +6,10 @@
  */
 
 // Se estiver sendo chamado via direct access, carregar o DB
-if (!isset($conn)) {
+if (!isset($conn) && !isset($mysqli)) {
     require_once __DIR__ . '/../configs/db.php';
 }
+global $conn;
 
 function run_migrations($conn) {
     // 1. Criar tabela de controle de migrações se não existir
