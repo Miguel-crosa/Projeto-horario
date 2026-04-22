@@ -3,10 +3,12 @@ require_once __DIR__ . '/php/configs/db.php';
 require_once __DIR__ . '/php/configs/utils.php';
 require_once __DIR__ . '/php/configs/auth.php';
 
+/* 
 if (isCRI()) {
     header("Location: php/views/dashboard_vendas.php");
     exit;
 }
+*/
 
 if (isProfessor()) {
     header("Location: php/views/dashboard_vendas.php");

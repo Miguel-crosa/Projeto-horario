@@ -145,29 +145,15 @@ $prefix = $is_in_subdir ? '../../' : '';
         </div>
 
         <div class="div-links">
-            <?php
+             <?php
             $dashboard_pages = ['index.php', 'dashboard_vendas.php'];
             $is_dashboard_active = in_array($current_page, $dashboard_pages);
-            ?>
-            <?php if (isCRI()): ?>
-                <!-- CRI vê apenas Dashboard Vendas, Agenda Professores e Gerenciar Reservas -->
-                <a href="<?= $prefix ?>php/views/dashboard_vendas.php"
-                    class="links <?= $current_page == 'dashboard_vendas.php' ? 'ativo' : '' ?>">
-                    <i class="bi bi-bar-chart-line" style="margin-right: 10px;"></i> Dashboard Vendas
-                </a>
-                <a href="<?= $prefix ?>php/views/agenda_professores.php"
-                    class="links <?= $current_page == 'agenda_professores.php' ? 'ativo' : '' ?>">
-                    <i class="bi bi-calendar-week" style="margin-right: 10px;"></i> Agenda Professores
-                </a>
-                <a href="<?= $prefix ?>php/views/gerenciar_reservas.php"
-                    class="links <?= $current_page == 'gerenciar_reservas.php' ? 'ativo' : '' ?>">
-                    <i class="bi bi-calendar2-heart" style="margin-right: 10px;"></i> Gerenciar Reservas
-                </a>
-            <?php elseif (isAdmin() || isGestor()): ?>
-                <?php
+
+            $can_see_full_dashboard = isAdmin() || isGestor() || isCRI();
+            if ($can_see_full_dashboard): 
                 $dashboard_open_cookie = $_COOKIE['menu_open_dashboard'] ?? null;
                 $is_dashboard_open = $dashboard_open_cookie === 'open' || ($dashboard_open_cookie === null && $is_dashboard_active);
-                ?>
+            ?>
                 <div class="menu-manutencao <?= $is_dashboard_open ? 'aberto' : '' ?>" data-menu-id="dashboard">
                     <a href="<?= $prefix ?>index.php"
                         class="links manutencao-btn <?= $is_dashboard_active ? 'ativo' : '' ?>">
@@ -187,6 +173,21 @@ $prefix = $is_in_subdir ? '../../' : '';
                         </a>
                     </div>
                 </div>
+            <?php endif; ?>
+
+            <?php if (isCRI()): ?>
+                <!-- CRI vê também Agenda Professores e Gerenciar Reservas como links diretos (facilitando o fluxo) -->
+                <a href="<?= $prefix ?>php/views/agenda_professores.php"
+                    class="links <?= $current_page == 'agenda_professores.php' ? 'ativo' : '' ?>">
+                    <i class="bi bi-calendar-week" style="margin-right: 10px;"></i> Agenda Professores
+                </a>
+                <a href="<?= $prefix ?>php/views/gerenciar_reservas.php"
+                    class="links <?= $current_page == 'gerenciar_reservas.php' ? 'ativo' : '' ?>">
+                    <i class="bi bi-calendar2-heart" style="margin-right: 10px;"></i> Gerenciar Reservas
+                </a>
+            <?php endif; ?>
+
+            <?php if (isAdmin() || isGestor()): ?>
 
                 <a href="<?= $prefix ?>php/views/professores.php"
                     class="links <?= $current_page == 'professores.php' ? 'ativo' : '' ?>">
