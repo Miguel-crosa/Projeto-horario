@@ -204,34 +204,51 @@ $encerradas_query = mysqli_query($conn, "
 ");
 $encerradas = mysqli_fetch_all($encerradas_query, MYSQLI_ASSOC);
 
+// --- Próximas Turmas (Intervalo fixo de 30 dias com paginação de lista) ---
+$proximas_page = (int)($_GET['proximas_page'] ?? 1);
+$proximas_limit = 10; // Mostra 10 por página conforme imagem de referência
+$proximas_start = date('Y-m-d');
+$proximas_end = date('Y-m-d', strtotime("+30 days"));
+
 $proximas_query = mysqli_query($conn, "
     SELECT t.id, amb.cidade, c.nome AS curso_nome, t.data_inicio, t.tipo
-    FROM turma t JOIN curso c ON t.curso_id = c.id LEFT JOIN ambiente amb ON t.ambiente_id = amb.id
-    WHERE t.data_inicio >= '" . date('Y-m-d') . "' ORDER BY t.data_inicio ASC LIMIT 15
+    FROM turma t 
+    JOIN curso c ON t.curso_id = c.id 
+    LEFT JOIN ambiente amb ON t.ambiente_id = amb.id
+    WHERE t.data_inicio <= '$proximas_end' 
+      AND (t.data_fim >= '$proximas_start' OR t.data_fim IS NULL)
+    ORDER BY t.data_inicio ASC LIMIT 100 -- Pega bastante para paginar no PHP
 ");
 
-$proximas = [];
+$all_proximas = [];
 if ($proximas_query) {
     while ($row = mysqli_fetch_assoc($proximas_query)) {
         $tid = (int) $row['id'];
-        $agenda_res = mysqli_query($conn, "SELECT MIN(data) as fd FROM agenda WHERE turma_id = $tid AND data >= '" . date('Y-m-d') . "'");
+        $agenda_res = mysqli_query($conn, "SELECT MIN(data) as fd FROM agenda WHERE turma_id = $tid AND data >= '$proximas_start'");
         $agenda_row = mysqli_fetch_assoc($agenda_res);
 
         $data_final = (!empty($agenda_row['fd'])) ? $agenda_row['fd'] : $row['data_inicio'];
 
-        // Se cair no domingo, pula para segunda
         if (date('w', strtotime($data_final)) == 0) {
             $data_final = date('Y-m-d', strtotime($data_final . ' +1 day'));
         }
 
         $row['data_inicio_real'] = $data_final;
-        $proximas[] = $row;
+        
+        if ($data_final >= $proximas_start && $data_final <= $proximas_end) {
+            $all_proximas[] = $row;
+        }
     }
 }
-usort($proximas, function ($a, $b) {
+usort($all_proximas, function ($a, $b) {
     return strcmp($a['data_inicio_real'], $b['data_inicio_real']);
 });
-$proximas = array_slice($proximas, 0, 5);
+
+$total_proximas_items = count($all_proximas);
+$total_proximas_pages = ceil($total_proximas_items / $proximas_limit);
+$proximas_page = max(1, min($proximas_page, $total_proximas_pages ?: 1));
+$offset_proximas = ($proximas_page - 1) * $proximas_limit;
+$proximas = array_slice($all_proximas, $offset_proximas, $proximas_limit);
 
 // --- Turmas Encerrando (Próximos 7 dias) ---
 $data_hoje = date('Y-m-d');
@@ -275,15 +292,22 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                         <i class="fas fa-hand-holding-usd"></i> <span class="hide-mobile">Métricas de
                             Ressarcimento</span><span class="show-mobile">Ressarc.</span>
                     </button>
-                    <button class="btn btn-primary" onclick="openSubstituicaoModal()"
-                        style="background: #1565c0; border-color: #0d47a1; box-shadow: 0 4px 10px rgba(21, 101, 192, 0.2); font-weight: 700;">
-                        <i class="fas fa-user-friends"></i> <span class="hide-mobile">Professores
-                            Disponíveis</span><span class="show-mobile">Subst.</span>
-                    </button>
+                    <?php if (!isCRI()): ?>
+                        <button class="btn btn-primary" onclick="openSubstituicaoModal()"
+                            style="background: #1565c0; border-color: #0d47a1; box-shadow: 0 4px 10px rgba(21, 101, 192, 0.2); font-weight: 700;">
+                            <i class="fas fa-user-friends"></i> <span class="hide-mobile">Professores
+                                Disponíveis</span><span class="show-mobile">Subst.</span>
+                        </button>
+                    <?php endif; ?>
                     <button class="btn btn-primary btn-financeiro-mobile" onclick="openDespesasModal()"
                         style="background: #e65100; border-color: #ef6c00; box-shadow: 0 4px 10px rgba(230, 81, 0, 0.2); font-weight: 700;">
                         <i class="fas fa-money-bill-wave"></i> <span class="hide-mobile">Previsão de
                             Despesas</span><span class="show-mobile">Despesas</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="openReportSelectProfModal()"
+                        style="background: #607d8b; border-color: #455a64; box-shadow: 0 4px 10px rgba(96, 125, 139, 0.2); font-weight: 700;">
+                        <i class="fas fa-file-invoice"></i> <span class="hide-mobile">Relatório Mensal</span><span
+                            class="show-mobile">Relat.</span>
                     </button>
                     <button class="btn btn-primary" onclick="openWorkloadModal()"
                         style="background: #6a1b9a; border-color: #4a148c; box-shadow: 0 4px 10px rgba(106, 27, 154, 0.2); font-weight: 700;">
@@ -389,6 +413,7 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                                 class="fas fa-chevron-right" style="font-size:0.75rem;"></i></button>
                     </div>
                     <input type="hidden" name="mes_sel" id="mes_sel_hidden" value="<?= $mes_sel ?>">
+                    <input type="hidden" name="proximas_page" id="proximas_page_hidden" value="<?= $proximas_page ?>">
                 </div>
             </form>
         </div>
@@ -780,24 +805,31 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                 </div>
 
                 <div class="dash-section">
-                    <div class="dash-section-header">
-                        <h3><i class="fas fa-rocket" style="color: #ff8f00;"></i> Próximas Turmas</h3>
+                    <div class="dash-section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0;"><i class="fas fa-rocket" style="color: #ff8f00;"></i> Próximas Turmas</h3>
+                        <?php if ($total_proximas_pages > 1): ?>
+                        <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.05); padding: 4px 10px; border-radius: 20px;">
+                            <button type="button" onclick="navigateProximasTurmas(-1)" title="Anterior" style="border:none; background:transparent; cursor:pointer; color:var(--text-color); <?= $proximas_page <= 1 ? 'opacity:0.3; pointer-events:none;' : '' ?>"><i class="fas fa-chevron-left" style="font-size:0.7rem;"></i></button>
+                            <span style="font-size: 0.75rem; font-weight: 800; color: #ff8f00; min-width: 60px; text-align: center;"><?= $proximas_page ?> / <?= $total_proximas_pages ?></span>
+                            <button type="button" onclick="navigateProximasTurmas(1)" title="Próximo" style="border:none; background:transparent; cursor:pointer; color:var(--text-color); <?= $proximas_page >= $total_proximas_pages ? 'opacity:0.3; pointer-events:none;' : '' ?>"><i class="fas fa-chevron-right" style="font-size:0.7rem;"></i></button>
+                        </div>
+                        <?php endif; ?>
                     </div>
                     <div class="dash-section-body">
                         <?php if (empty($proximas)): ?>
                             <p class="text-center" style="color: var(--text-muted);">Nenhuma turma futura.</p>
                         <?php else: ?>
                             <?php foreach ($proximas as $pt): ?>
-                                <div class="city-list-item" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-                                    <div style="font-weight: 700; font-size: .9rem;">Turma #<?= $pt['id'] ?></div>
-                                    <div style="font-size: .8rem; color: var(--text-muted);">
+                                <div class="city-list-item" style="flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--border-color);">
+                                    <div style="font-weight: 800; font-size: .95rem; color: var(--text-color);">Turma #<?= $pt['id'] ?></div>
+                                    <div style="font-size: .8rem; color: var(--text-muted); line-height: 1.4;">
                                         <?= htmlspecialchars($pt['curso_nome']) ?> · <?= $pt['tipo'] ?>
-                                        <?php if (!empty($pt['cidade'])): ?> · <i class="fas fa-map-marker-alt"></i>
-                                            <?= htmlspecialchars($pt['cidade']) ?>         <?php endif; ?>
+                                        <?php if (!empty($pt['cidade'])): ?>
+                                            · <i class="fas fa-map-marker-alt" style="font-size: 0.7rem;"></i> <?= htmlspecialchars($pt['cidade']) ?>
+                                        <?php endif; ?>
                                     </div>
-                                    <div style="font-size: .78rem; color: var(--primary-red); font-weight: 600;">
-                                        <i class="fas fa-calendar"></i> Início:
-                                        <?= date('d/m/Y', strtotime($pt['data_inicio_real'])) ?>
+                                    <div style="font-size: .85rem; color: #ef1c1c; font-weight: 800; margin-top: 2px; display: flex; align-items: center; gap: 6px;">
+                                        <i class="fas fa-calendar-alt"></i> Início: <?= date('d/m/Y', strtotime($pt['data_inicio_real'])) ?>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -1065,7 +1097,24 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
             const newMonth = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
 
             input.value = newMonth;
+            
+            // Reset proximas_offset se mudar o mês? Talvez não seja necessário, mas mantém a coerência
+            // document.getElementById('proximas_offset_hidden').value = 0;
 
+            refreshDashboardAjax();
+        }
+
+        function navigateProximasTurmas(delta) {
+            const input = document.getElementById('proximas_page_hidden');
+            if (!input) return;
+            
+            let current = parseInt(input.value) || 1;
+            input.value = current + delta;
+            
+            refreshDashboardAjax();
+        }
+
+        function refreshDashboardAjax() {
             const form = document.getElementById('dashboard-filter-form');
             const formData = new FormData(form);
             const params = new URLSearchParams(formData);
@@ -1434,7 +1483,7 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     <i class="fas fa-search-plus"></i> Detalhar por Curso
                 </button>
                 <?php if (isAdmin() || isGestor()): ?>
-                <button class="btn btn-primary btn-sm btn-meta-action" onclick="openEditMetas()">
+                <button type="button" class="btn btn-primary btn-sm btn-meta-action" onclick="event.preventDefault(); openEditMetas();">
                     <i class="fas fa-edit"></i> Editar
                 </button>
                 <?php endif; ?>

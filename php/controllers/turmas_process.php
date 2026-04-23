@@ -263,7 +263,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                       WHERE id = '$id'";
             mysqli_query($conn, $query);
 
-            dispararNotificacaoGlobal($conn, 'edicao_turma', 'Turma Atualizada', "A turma $display_nome ($periodo) teve seus dados atualizados.", BASE_URL . "/php/views/turmas.php", ['admin', 'gestor', 'professor', 'cri']);
+            dispararNotificacaoGlobal($conn, 'edicao_turma', 'Turma Atualizada', "A turma $display_nome ($periodo) teve seus dados atualizados.", BASE_URL . "/php/views/turmas.php?id=$id", ['admin', 'gestor', 'professor', 'cri']);
 
             mysqli_query($conn, "DELETE FROM agenda WHERE turma_id = '$id'");
             generateAgendaRecords($conn, $id, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_to_check);
@@ -278,7 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             mysqli_query($conn, $query);
             $turma_id = mysqli_insert_id($conn);
 
-            dispararNotificacaoGlobal($conn, 'registro_turma', 'Nova Turma Registrada', "A turma $display_nome ($periodo) foi cadastrada no sistema.", BASE_URL . "/php/views/turmas.php", ['admin', 'gestor', 'professor', 'cri']);
+            dispararNotificacaoGlobal($conn, 'registro_turma', 'Nova Turma Registrada', "A turma $display_nome ($periodo) foi cadastrada no sistema.", BASE_URL . "/php/views/turmas.php?id=$turma_id", ['admin', 'gestor', 'professor', 'cri']);
 
             generateAgendaRecords($conn, $turma_id, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_to_check);
 

@@ -61,18 +61,19 @@ if (!isset($feriados_data) && isset($conn)) {
         <div class="form-group" id="grp-unified-curso">
             <label class="form-label">CURSO / MODALIDADE</label>
             <div style="position: relative;">
-                <input type="hidden" name="curso_id" id="curso-id-unified" value="<?= $turma['curso_id'] ?>" required>
                 <button type="button" class="form-input" id="btn-abrir-modal-cursos-unified" 
                     style="text-align: left; display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); cursor: pointer; height: auto; min-height: 45px; padding: 10px 15px; border: 1px solid var(--border-color); border-radius: 8px; width: 100%;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <i class="fas fa-graduation-cap" style="color: var(--primary-red); opacity: 0.7;"></i>
                         <span id="curso-nome-display-unified" style="font-weight: 600;">
                             <?php 
+                                $turma_ch_inicial = 0;
                                 if (!empty($turma['curso_id'])) {
-                                    // Busca o nome do curso para exibição inicial se estiver editando
+                                    // Busca o nome e CH do curso para exibição inicial se estiver editando
                                     foreach ($grouped_cursos_ag as $area_l => $lista_l) {
                                         foreach ($lista_l as $c_l) {
                                             if ($c_l['id'] == $turma['curso_id']) {
+                                                $turma_ch_inicial = $c_l['carga_horaria_total'];
                                                 echo htmlspecialchars($c_l['nome']) . " (" . ($c_l['tipo'] ?: 'FIC') . ")";
                                                 break 2;
                                             }
@@ -86,6 +87,7 @@ if (!isset($feriados_data) && isset($conn)) {
                     </div>
                     <i class="fas fa-search" style="font-size: 0.9rem; opacity: 0.5;"></i>
                 </button>
+                <input type="hidden" name="curso_id" id="curso-id-unified" value="<?= $turma['curso_id'] ?>" data-ch="<?= $turma_ch_inicial ?>" required>
             </div>
         </div>
         <div class="form-group">

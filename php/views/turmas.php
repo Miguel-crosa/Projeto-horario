@@ -245,6 +245,31 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         const rows = document.querySelectorAll('#turmas-table tbody tr:not(.empty-row)');
         rows.forEach(r => r.classList.add('matches-filter'));
         updatePagination();
+
+        // Lógica para destacar turma vinda de notificação
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetId = urlParams.get('id');
+        if (targetId) {
+            const targetRow = document.querySelector(`tr[data-id="${targetId}"]`);
+            if (targetRow) {
+                // Se a turma estiver em outra página, precisamos ir para ela
+                const allVisibleRows = Array.from(document.querySelectorAll('#turmas-table tbody tr.matches-filter'));
+                const rowIndex = allVisibleRows.indexOf(targetRow);
+                if (rowIndex !== -1) {
+                    currentPage = Math.ceil((rowIndex + 1) / itemsPerPage);
+                    updatePagination();
+                }
+
+                // Destaque visual
+                targetRow.style.backgroundColor = 'rgba(237, 28, 36, 0.1)';
+                targetRow.style.transition = 'background-color 2s';
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                setTimeout(() => {
+                    targetRow.style.backgroundColor = '';
+                }, 3000);
+            }
+        }
     });
 </script>
 
@@ -295,7 +320,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                     $docentes_search = implode(' ', $docentes_list);
                     $dias_semana_raw = $t['dias_semana'] ?? '';
                     ?>
-                    <tr class="matches-filter" data-docentes="<?= xe($docentes_search) ?>" data-dias="<?= xe($dias_semana_raw) ?>">
+                    <tr class="matches-filter" data-id="<?= $t['id'] ?>" data-docentes="<?= xe($docentes_search) ?>" data-dias="<?= xe($dias_semana_raw) ?>">
                         <td style="color: var(--text-muted); font-size: 0.8rem;"><?= $idx++ ?></td>
                         <td>
                             <strong><?= xe($t['sigla']) ?></strong>

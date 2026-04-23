@@ -271,13 +271,25 @@ function changeMetasVision() {
 }
 
 function openEditMetas() {
-    // Preenche os campos da modal 1 com os dados atuais
-    document.getElementById('meta-cai-horas').value = metasData.cai_horas;
-    document.getElementById('meta-ct-horas').value = metasData.ct_horas;
-    document.getElementById('meta-fic-horas').value = metasData.fic_horas;
-    document.getElementById('meta-despesa-anual').value = metasData.despesa_anual;
+    if (!metasData) {
+        console.error('Dados de metas não carregados.');
+        return;
+    }
+
+    // Preenche os campos da modal 1 com os dados atuais (se os elementos existirem)
+    const fields = {
+        'meta-cai-horas': metasData.cai_horas,
+        'meta-ct-horas': metasData.ct_horas,
+        'meta-fic-horas': metasData.fic_horas,
+        'meta-despesa-anual': metasData.despesa_anual
+    };
+
+    for (const [id, value] of Object.entries(fields)) {
+        const el = document.getElementById(id);
+        if (el) el.value = value || 0;
+    }
     
-    closeMetasModal('modal-metas-dashboard');
+    // openMetasModal já fecha as outras modais ativas internamente
     openMetasModal('modal-metas-ensino');
 }
 
@@ -381,3 +393,13 @@ function updateSimulacaoChart(metaVal, realVal) {
         });
     }
 }
+
+// Listener global para garantir responsividade dos gráficos de metas ao redimensionar a janela
+window.addEventListener('resize', () => {
+    if (typeof metasChart !== 'undefined' && metasChart) {
+        metasChart.resize();
+    }
+    if (typeof simulacaoChart !== 'undefined' && simulacaoChart) {
+        simulacaoChart.resize();
+    }
+});

@@ -309,3 +309,10 @@ window.addEventListener('click', function (event) {
         }
     }
 });
+
+// Listener global para garantir responsividade dos gráficos de produção ao redimensionar a janela
+window.addEventListener('resize', () => {
+    if (typeof producaoChart !== 'undefined' && producaoChart) {
+        producaoChart.resize();
+    }
+});

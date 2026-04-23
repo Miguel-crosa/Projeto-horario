@@ -254,7 +254,7 @@ class AgendaModel
                 while ($cur->format('Y-m-d') <= $last->format('Y-m-d')) { // FIX
                     $dow = (int) $cur->format('N');
                     $dayName = $this->getDiaSemanaName($dow);
-                    if (mb_strtolower($dayName, 'UTF-8') === mb_strtolower($dayTarget, 'UTF-8')) {
+                    if ($this->normalizeDayName($dayName) === $this->normalizeDayName($dayTarget)) {
                         $newItem = $item;
                         $newItem['agenda_data'] = $cur->format('Y-m-d');
                         $expanded[] = $newItem;
@@ -274,7 +274,9 @@ class AgendaModel
                 while ($cur->format('Y-m-d') <= $last->format('Y-m-d')) { // FIX
                     $dow = (int) $cur->format('N');
                     $dayName = $this->getDiaSemanaName($dow);
-                    if (in_array($dayName, $dias_arr)) {
+                    
+                    $normalizedDays = array_map([$this, 'normalizeDayName'], $dias_arr);
+                    if (in_array($this->normalizeDayName($dayName), $normalizedDays)) {
                         $newItem = $item;
                         $newItem['agenda_data'] = $cur->format('Y-m-d');
                         $newItem['dia_semana'] = $dayName;
@@ -375,10 +377,11 @@ class AgendaModel
                 while ($cur->format('Y-m-d') <= $last->format('Y-m-d')) {
                     $dow     = (int) $cur->format('N');
                     $dayName = $this->getDiaSemanaName($dow);
+                    $dayNameNormalized = $this->normalizeDayName($dayName);
 
                     $match = false;
                     foreach ($days_list as $d_target) {
-                        if (mb_strtolower($dayName, 'UTF-8') === mb_strtolower($d_target, 'UTF-8')) {
+                        if ($dayNameNormalized === $this->normalizeDayName($d_target)) {
                             $match = true;
                             break;
                         }
@@ -401,5 +404,12 @@ class AgendaModel
     {
         $map = [1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado', 7 => 'Domingo'];
         return $map[$dow] ?? 'Desconhecido';
+    }
+
+    private function normalizeDayName($str)
+    {
+        $str = mb_strtolower($str, 'UTF-8');
+        $str = str_replace(['á', 'â', 'ã', 'é', 'ê', 'í', 'ó', 'ô', 'õ', 'ú', 'ç'], ['a', 'a', 'a', 'e', 'e', 'i', 'o', 'o', 'o', 'u', 'c'], $str);
+        return trim($str);
     }
 }

@@ -18,6 +18,17 @@ if ($action == 'activate') {
     exit;
 }
 
+if ($action == 'list_active') {
+    header('Content-Type: application/json');
+    $res = mysqli_query($conn, "SELECT id, nome, area_conhecimento FROM docente WHERE ativo = 1 ORDER BY nome ASC");
+    $list = [];
+    while ($row = mysqli_fetch_assoc($res)) {
+        $list[] = $row;
+    }
+    echo json_encode($list);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $id = mysqli_real_escape_string($conn, $_POST['id']);
     $nome = mysqli_real_escape_string($conn, $_POST['nome']);

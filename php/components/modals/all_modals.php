@@ -543,3 +543,83 @@
         }
     }
 </script>
+
+<!-- 10. Relatório Mensal - Modal 1: Seleção de Professor -->
+<div class="modal-overlay" id="modal-relatorio-select-prof">
+    <div class="modal-content" style="max-width: 550px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-file-invoice" style="color: var(--primary-red); margin-right: 12px;"></i> Selecionar Professor p/ Relatório</h3>
+            <button class="modal-close" onclick="closeModal('modal-relatorio-select-prof')"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="padding: 0 25px 10px;">
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label class="form-label">Buscar por nome</label>
+                <input type="text" id="report-prof-search" class="form-input" placeholder="Digite o nome do professor..." autocomplete="off">
+            </div>
+        </div>
+        <div id="report-prof-results" style="max-height: 400px; overflow-y: auto; padding: 0 25px 20px;">
+            <!-- Preenchido via JS -->
+        </div>
+    </div>
+</div>
+
+<!-- 11. Relatório Mensal - Modal 2: Detalhamento -->
+<div class="modal-overlay" id="modal-relatorio-mensal-detalhado">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-calendar-check" style="color: var(--primary-red);"></i> Relatório Mensal de Horários</h3>
+            <button class="modal-close" onclick="closeModal('modal-relatorio-mensal-detalhado')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+            <div class="report-month-nav">
+                <button class="btn-nav-report" id="report-prev-month"><i class="fas fa-chevron-left"></i> Anterior</button>
+                <div style="text-align: center;">
+                    <h4 id="report-month-label">Mês / Ano</h4>
+                    <span id="report-prof-name-label" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">Nome do Professor</span>
+                </div>
+                <button class="btn-nav-report" id="report-next-month">Próximo <i class="fas fa-chevron-right"></i></button>
+            </div>
+
+            <div class="report-table-container">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" style="width: 40px;">Data</th>
+                            <th rowspan="2" style="width: 40px;">Dia</th>
+                            <th rowspan="2" style="width: 60px;">Horas</th>
+                            <th colspan="2" style="background: rgba(76, 175, 80, 0.2);">Manhã</th>
+                            <th colspan="2" style="background: rgba(25, 118, 210, 0.2);">Tarde</th>
+                            <th colspan="2" style="background: rgba(106, 27, 154, 0.2);">Noite</th>
+                        </tr>
+                        <tr>
+                            <th style="font-size: 0.65rem;">ENT</th>
+                            <th style="font-size: 0.65rem;">SAÍ</th>
+                            <th style="font-size: 0.65rem;">ENT</th>
+                            <th style="font-size: 0.65rem;">SAÍ</th>
+                            <th style="font-size: 0.65rem;">ENT</th>
+                            <th style="font-size: 0.65rem;">SAÍ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report-table-body">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="report-summary">
+                <div class="summary-item">
+                    <span class="summary-label">Horas do Mês</span>
+                    <div class="summary-value" id="summary-hours-int">0</div>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Observações</span>
+                    <div class="summary-value" id="summary-obs" style="font-size: 1.1rem; text-transform: uppercase;">-</div>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Total Geral</span>
+                    <div class="summary-value"><span id="summary-total-time" class="summary-total-hhmm">00:00:00</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
