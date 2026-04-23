@@ -73,7 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.getElementById('modal-prof-close')?.addEventListener('click', () => profModal.classList.remove('active'));
-    profModal?.addEventListener('click', e => { if (e.target === profModal) profModal.classList.remove('active'); });
+    let profModalClickStart = null;
+    profModal?.addEventListener('mousedown', e => profModalClickStart = e.target);
+    profModal?.addEventListener('click', e => { if (e.target === profModal && e.target === profModalClickStart) profModal.classList.remove('active'); });
 
     profSearchInput?.addEventListener('input', renderProfessorResults);
     profAreaFilter?.addEventListener('change', renderProfessorResults);
@@ -1241,7 +1243,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCal = document.getElementById('modal-agendar-calendar');
     if (modalCal) {
         document.getElementById('modal-cal-close')?.addEventListener('click', () => modalCal.classList.remove('active'));
-        modalCal.addEventListener('click', e => { if (e.target === modalCal) modalCal.classList.remove('active'); });
+        let modalCalClickStart = null;
+        modalCal.addEventListener('mousedown', e => modalCalClickStart = e.target);
+        modalCal.addEventListener('click', e => { if (e.target === modalCal && e.target === modalCalClickStart) modalCal.classList.remove('active'); });
     }
 
     // ============================================================

@@ -1358,29 +1358,20 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
             </button>
         </div>
         <div class="modal-producao-body">
-            <p style="font-size: 0.85rem; color: #666; margin-bottom: 20px;">Defina a quantidade de horas e alunos esperada para cada modalidade no ano selecionado.</p>
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 20px;">Defina a produção total (A/H) esperada para cada modalidade no ano selecionado.</p>
             
             <div style="display: flex; flex-direction: column; gap: 15px;">
                 <div class="meta-input-group">
                     <label>CAI (Aprendizagem Industrial)</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="number" id="meta-cai-horas" placeholder="Horas" class="form-control">
-                        <input type="number" id="meta-cai-alunos" placeholder="Alunos" class="form-control">
-                    </div>
+                    <input type="number" id="meta-cai-horas" placeholder="Produção Total (A/H)" class="form-control">
                 </div>
                 <div class="meta-input-group">
                     <label>CT (Cursos Técnicos)</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="number" id="meta-ct-horas" placeholder="Horas" class="form-control">
-                        <input type="number" id="meta-ct-alunos" placeholder="Alunos" class="form-control">
-                    </div>
+                    <input type="number" id="meta-ct-horas" placeholder="Produção Total (A/H)" class="form-control">
                 </div>
                 <div class="meta-input-group">
                     <label>FIC (Formação Inicial e Continuada)</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="number" id="meta-fic-horas" placeholder="Horas" class="form-control">
-                        <input type="number" id="meta-fic-alunos" placeholder="Alunos" class="form-control">
-                    </div>
+                    <input type="number" id="meta-fic-horas" placeholder="Produção Total (A/H)" class="form-control">
                 </div>
             </div>
             

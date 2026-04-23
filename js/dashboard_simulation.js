@@ -204,8 +204,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (outrosModal) {
+        let outrosModalClickStart = null;
+        outrosModal.addEventListener('mousedown', e => outrosModalClickStart = e.target);
         outrosModal.addEventListener('click', e => {
-            if (e.target === outrosModal) closeOutrosModal();
+            if (e.target === outrosModal && e.target === outrosModalClickStart) closeOutrosModal();
         });
     }
 

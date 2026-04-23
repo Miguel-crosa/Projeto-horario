@@ -279,7 +279,14 @@ async function confirmarAdicao() {
     }
 }
 // Fechamento ao clicar fora da modal (no overlay)
+let producaoModalClickStart = null;
+window.addEventListener('mousedown', function(e) {
+    producaoModalClickStart = e.target;
+});
+
 window.addEventListener('click', function (event) {
+    if (event.target !== producaoModalClickStart) return;
+
     // Caso 1: Modais de Produção/Carga Horária (classe modal-producao)
     if (event.target.classList.contains('modal-producao')) {
         const modalId = event.target.id;

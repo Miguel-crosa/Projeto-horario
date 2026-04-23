@@ -69,14 +69,11 @@ function closeMetasSimulation() {
 async function nextToDespesas() {
     // Captura dados da Modal 1
     const cai_h = parseInt(document.getElementById('meta-cai-horas').value) || 0;
-    const cai_a = parseInt(document.getElementById('meta-cai-alunos').value) || 0;
     const ct_h = parseInt(document.getElementById('meta-ct-horas').value) || 0;
-    const ct_a = parseInt(document.getElementById('meta-ct-alunos').value) || 0;
     const fic_h = parseInt(document.getElementById('meta-fic-horas').value) || 0;
-    const fic_a = parseInt(document.getElementById('meta-fic-alunos').value) || 0;
 
-    // Lógica correta de Aluno/Hora: Soma das produções individuais
-    const totalAH = (cai_h * cai_a) + (ct_h * ct_a) + (fic_h * fic_a);
+    // Lógica simplificada: Soma direta das produções totais
+    const totalAH = cai_h + ct_h + fic_h;
 
     if (totalAH <= 0) {
         Swal.fire('Aviso', 'Por favor, insira valores válidos para as metas de ensino.', 'warning');
@@ -89,11 +86,11 @@ async function nextToDespesas() {
     metasData = {
         ano: selectedYear,
         cai_horas: cai_h,
-        cai_alunos: cai_a,
+        cai_alunos: 1,
         ct_horas: ct_h,
-        ct_alunos: ct_a,
+        ct_alunos: 1,
         fic_horas: fic_h,
-        fic_alunos: fic_a
+        fic_alunos: 1
     };
 
     closeMetasModal('modal-metas-ensino');
@@ -150,10 +147,10 @@ async function openMetasDashboard() {
 function updateMetasCards() {
     const despesa = parseFloat(metasData.despesa_anual);
     
-    // Variável X: Soma(H * A) - Lógica padrão SENAI/Indústria
-    const totalAH_Meta = (parseInt(metasData.cai_horas) * parseInt(metasData.cai_alunos)) + 
-                         (parseInt(metasData.ct_horas) * parseInt(metasData.ct_alunos)) + 
-                         (parseInt(metasData.fic_horas) * parseInt(metasData.fic_alunos));
+    // Variável X: Soma das produções totais de cada modalidade
+    const totalAH_Meta = parseInt(metasData.cai_horas) + 
+                         parseInt(metasData.ct_horas) + 
+                         parseInt(metasData.fic_horas);
     
     // Variável Z: Y / X
     const custoMeta = totalAH_Meta > 0 ? (despesa / totalAH_Meta) : 0;
@@ -181,9 +178,9 @@ function renderMetasChart() {
     if (currentVision === 'geral') {
         labels = ['Geral (Unidade)'];
         
-        const totalAH_Meta = (parseInt(metasData.cai_horas) * parseInt(metasData.cai_alunos)) + 
-                             (parseInt(metasData.ct_horas) * parseInt(metasData.ct_alunos)) + 
-                             (parseInt(metasData.fic_horas) * parseInt(metasData.fic_alunos));
+        const totalAH_Meta = parseInt(metasData.cai_horas) + 
+                             parseInt(metasData.ct_horas) + 
+                             parseInt(metasData.fic_horas);
 
         const custoMeta = totalAH_Meta > 0 ? (despesa / totalAH_Meta) : 0;
         const custoReal = realProductionData.Total > 0 ? (despesa / realProductionData.Total) : 0;
@@ -195,9 +192,9 @@ function renderMetasChart() {
         // Visão Detalhada: Comparando volumes (A/H) por modalidade
         labels = ['CAI', 'CT', 'FIC'];
         
-        const volMetaCAI = metasData.cai_horas * metasData.cai_alunos;
-        const volMetaCT = metasData.ct_horas * metasData.ct_alunos;
-        const volMetaFIC = metasData.fic_horas * metasData.fic_alunos;
+        const volMetaCAI = metasData.cai_horas;
+        const volMetaCT = metasData.ct_horas;
+        const volMetaFIC = metasData.fic_horas;
 
         metaValues = [volMetaCAI, volMetaCT, volMetaFIC];
         realValues = [
@@ -276,11 +273,8 @@ function changeMetasVision() {
 function openEditMetas() {
     // Preenche os campos da modal 1 com os dados atuais
     document.getElementById('meta-cai-horas').value = metasData.cai_horas;
-    document.getElementById('meta-cai-alunos').value = metasData.cai_alunos;
     document.getElementById('meta-ct-horas').value = metasData.ct_horas;
-    document.getElementById('meta-ct-alunos').value = metasData.ct_alunos;
     document.getElementById('meta-fic-horas').value = metasData.fic_horas;
-    document.getElementById('meta-fic-alunos').value = metasData.fic_alunos;
     document.getElementById('meta-despesa-anual').value = metasData.despesa_anual;
     
     closeMetasModal('modal-metas-dashboard');
@@ -305,10 +299,10 @@ function updateMetasSimulation() {
     
     const simProducaoTotal = simCAI + simCT + simFIC;
 
-    // Meta Original baseada na soma individual
-    const totalAH_Meta = (parseInt(metasData.cai_horas) * parseInt(metasData.cai_alunos)) + 
-                         (parseInt(metasData.ct_horas) * parseInt(metasData.ct_alunos)) + 
-                         (parseInt(metasData.fic_horas) * parseInt(metasData.fic_alunos));
+    // Meta Original baseada na soma direta
+    const totalAH_Meta = parseInt(metasData.cai_horas) + 
+                         parseInt(metasData.ct_horas) + 
+                         parseInt(metasData.fic_horas);
     
     // RECALCULA AMBOS OS CUSTOS COM A DESPESA SIMULADA
     const custoMetaSim = totalAH_Meta > 0 ? (simDespesa / totalAH_Meta) : 0;
