@@ -5,28 +5,27 @@ Um sistema web robusto e intuitivo desenvolvido para gerenciar o agendamento de 
 
 ## ✨ Funcionalidades Principais
 
-*   **Dashboard Inteligente**: Visualização em tempo real da ocupação de professores e salas, com filtros avançados e indicadores de desempenho.
-*   **Monitoramento de Carga Horária (Workload)**: 
-    *   **Barra de Saldo Individual**: Acompanhamento do saldo de horas de cada professor até o final do ano.
-    *   **Admissão Proporcional**: Cálculo automático do potencial anual baseado na data de ingresso.
-*   **Produção Aluno/Hora**: Sistema de métricas acadêmicas com acompanhamento de evasão e adição de alunos (**Métrica SENAI**).
-*   **Gestão Financeira & Vendas**: Dashboard dedicado para acompanhamento de ressarcimento, previsão de despesas e lucratividade por turma.
-*   **Integração com Excel**: Módulos robustos para importação e exportação de dados em massa (Docentes, Cursos, Turmas e Agenda).
-*   **Estratégia de Substituição**: Módulo dedicado para encontrar substitutos temporários com base na área de conhecimento e janelas de disponibilidade.
-*   **Gestão de Calendário**: Controle de feriados globais e férias docentes com suporte a recessos acadêmicos.
-*   **Sistema de Notificações**: Alertas em tempo real sobre conflitos de horários e lembretes administrativos.
-*   **Auditória e Reparo**: Ferramentas para regeneração global de agendas e limpeza de dados duplicados.
-
+*   **Dashboard de Alta Performance**: Visualização em tempo real da ocupação de professores e salas, com filtros avançados, indicadores de saúde financeira e **navegação paginada (periodo de 30 dias)** com carregamento AJAX.
+*   **Motor de Importação Inteligente (Excel)**: 
+    *   **Multi-abas**: Suporte a processamento em lote de Cursos, Docentes, Ambientes, Turmas e Agendas em um único arquivo.
+    *   **Normalização Heurística**: Tratamento automático de datas (Serial Excel/ISO), nomes com acentos e mapeamento inteligente de colunas.
+    *   **Auto-Agenda**: Geração automática de cronogramas completos baseados na carga horária e dias da semana caso a aba de agenda seja omitida.
+*   **Gestão de Metas e Custos A/H**: Painel analítico para acompanhamento de Custo Meta vs. Custo Realizado, incluindo ferramentas de **Simulação de Cenários** (What-if analysis).
+*   **Logística de Professores e Ambientes**:
+    *   **Estratégia de Substituição**: Busca de substitutos por área de conhecimento e janelas de disponibilidade.
+    *   **Gestão de Férias e Feriados**: Bloqueio automático de agendas e recalculo de disponibilidade baseado em calendários civis e férias docentes.
+    *   **Workload (Carga Horária)**: Monitoramento de saldo de horas anual com cálculo proporcional para admissões recentes.
+*   **Métrica SENAI (Produção Aluno/Hora)**: Acompanhamento detalhado de matrículas, evasão e aditamentos com impacto imediato nos indicadores de produtividade.
+*   **Redirecionamento Inteligente**: Sistema de notificações globais com links de "deep-linking" que levam diretamente ao registro com destaque visual.
 
 ## 🛠️ Tecnologias Utilizadas
 
-*   **Backend**: PHP 8.1+
-*   **Banco de Dados**: MySQL / MariaDB (InnoDB)
+*   **Backend**: PHP 8.1+ (Arquitetura MVC simplificada)
+*   **Banco de Dados**: MySQL / MariaDB (InnoDB) com transações ACID
 *   **Frontend**: HTML5, JavaScript (ES6+), Vanilla CSS
-*   **Gráficos**: Chart.js para visualização analítica profunda
-*   **Design**: Premium UI com foco em UX, Glassmorphism e micro-animações
-*   **Ícones**: Font Awesome 6
-*   **Tipografia**: Google Fonts (Inter / Roboto / Outfit)
+*   **Gráficos**: Chart.js 4.x para visualização analítica profunda
+*   **Design**: Premium UI (Dark/Light Mode), Glassmorphism e micro-animações
+*   **Integração**: PHPSpreadsheet / Custom Excel Parser
 
 ## ⚙️ Instalação e Configuração
 
@@ -55,31 +54,28 @@ $db   = 'gestao_escolar';
 ## 📂 Estrutura do Projeto
 
 ```text
-├───assets/          # Recursos visuais (Imagens, Mockups, Ícones)
-├───css/             # Estilização CSS personalizada (Glassmorphism UI)
-├───js/              # Scripts JavaScript (Dashboard, APIs, Charts)
+├───assets/          # Recursos visuais e mockups
+├───css/             # Design System (Variáveis HSL, Glassmorphism)
+├───js/              # Lógica de negócio (Dashboards, Charts, Notificações)
 ├───php/             
-│   ├───components/  # Componentes reutilizáveis (Header, Sidebar)
-│   ├───configs/     # Conexões DB e helpers (utils.php - motor de cálculos)
-│   ├───controllers/ # Lógica de negócio e endpoints AJAX
-│   ├───models/      # Modelagem de dados
-│   ├───scripts/     # Scripts de manutenção, migração e auditoria
-│   └───views/       # Telas do sistema (Docentes, Turmas, Financeiro)
-├───Sql/             # Scripts de criação e evolução do banco de dados
-└───index.php        # Interface principal / Dashboard Unificado
+│   ├───components/  # Componentes UI (Header, Sidebar, Forms Unificados)
+│   ├───configs/     # Motor de cálculos (utils.php) e Conexão DB
+│   ├───controllers/ # Endpoints AJAX e Processamento de dados
+│   ├───models/      # Abstrações de dados
+│   └───views/       # Telas de Gestão (CRI, Administrativo, Docente)
+├───Sql/             # Evolução do Schema (DML/DDL)
+└───index.php        # Dashboard Unificado e Roteamento Principal
 ```
 
 ## 🔒 Segurança e Regras de Negócio
 
-O sistema implementa validações críticas automatizadas:
-
-*   **Detecção de Conflitos**: Impede sobreposição de horários para professores e ambientes.
-*   **Regência vs. Atividade**: Cálculo de disponibilidade deduz automaticamente as horas de planejamento (Hora-Atividade).
-*   **Interatividade Premium**: Fechamento inteligente de modais ao clicar no overlay (Click-to-Close).
-*   **Controle de Acesso**: Sistema de permissões baseado em papéis (RBAC).
+*   **Validação de Conflitos**: Algoritmo robusto que impede a alocação dupla de docentes ou salas no mesmo horário/dia.
+*   **Controle de Acesso (RBAC)**: Níveis de permissão distintos (Admin, Gestor, CRI, Professor) com restrições de visualização e edição.
+*   **Cálculo de Hora-Atividade**: Dedução automática de horas de planejamento conforme regras contratuais.
+*   **Integridade de Dados**: Uso de transações SQL durante importações massivas para garantir "rollback" em caso de inconsistência no Excel.
 
 ## 📝 Autor
-Desenvolvido para otimização de fluxos acadêmicos e gestão estratégica de recursos educacionais.
+Desenvolvido para otimização estratégica de recursos educacionais e automação de fluxos acadêmicos SENAI.
 
 ---
-**Última atualização:** 15 de Abril de 2026.
+**Última atualização:** 23 de Abril de 2026.
