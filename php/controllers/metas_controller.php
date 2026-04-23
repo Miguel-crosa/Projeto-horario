@@ -64,10 +64,10 @@ if ($action === 'save_metas') {
 if ($action === 'get_real_production') {
     $ano = (int)($_GET['ano'] ?? date('Y'));
     
-    // Produção Real por Tipo de Curso
+    // Produção Real por Tipo de Curso (Usa o TIPO do CURSO como base)
     $query = "
         SELECT 
-            t.tipo,
+            c.tipo,
             SUM(t.vagas * c.carga_horaria_total) as producao
         FROM turma t
         JOIN curso c ON t.curso_id = c.id
@@ -75,7 +75,7 @@ if ($action === 'get_real_production') {
         AND t.tipo_custeio = 'Gratuidade'
         AND EXISTS (SELECT 1 FROM agenda a WHERE a.turma_id = t.id)
         AND YEAR(t.data_fim) = ?
-        GROUP BY t.tipo
+        GROUP BY c.tipo
     ";
     
     $stmt = $conn->prepare($query);
@@ -91,7 +91,9 @@ if ($action === 'get_real_production') {
     ];
     
     while ($row = $result->fetch_assoc()) {
-        $tipo = strtoupper($row['tipo'] ?? 'FIC');
+        $tipoRaw = $row['tipo'] ?? 'FIC';
+        // Normaliza para comparação (remove acentos e coloca em maiúsculo)
+        $tipo = mb_strtoupper($tipoRaw, 'UTF-8');
         $prod = (float)$row['producao'];
         
         if (strpos($tipo, 'CAI') !== false) {
@@ -99,6 +101,7 @@ if ($action === 'get_real_production') {
         } elseif (strpos($tipo, 'CT') !== false || strpos($tipo, 'TECNICO') !== false || strpos($tipo, 'TÉCNICO') !== false) {
             $production['CT'] += $prod;
         } else {
+            // Qualquer outro tipo (FIC, Q, A, etc) cai no balde FIC
             $production['FIC'] += $prod;
         }
     }

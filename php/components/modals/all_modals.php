@@ -225,6 +225,53 @@
     </div>
 </div>
 
+<!-- 3.2. Select Curso Modal (Unified Form - Selection) -->
+<div class="modal-overlay" id="modal-selecionar-curso-unified">
+    <div class="modal-content" style="max-width: 650px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-graduation-cap" style="color: var(--primary-red); margin-right: 12px;"></i>
+                Selecionar Curso</h3>
+            <button class="modal-close" onclick="closeModal('modal-selecionar-curso-unified')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div style="padding: 0 25px 15px;">
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label class="form-label">Buscar por nome ou sigla</label>
+                <input type="text" id="curso-search-input-unified" class="form-input"
+                    placeholder="Digite o nome do curso..." autocomplete="off">
+            </div>
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                    <label class="form-label">Filtrar por Área</label>
+                    <select id="curso-area-filter-unified" class="form-input">
+                        <option value="">Todas as áreas</option>
+                        <?php
+                        $areas_cursos = mysqli_fetch_all(mysqli_query($conn, "SELECT DISTINCT area FROM curso WHERE area IS NOT NULL AND area != '' ORDER BY area ASC"), MYSQLI_ASSOC);
+                        foreach ($areas_cursos as $ar): ?>
+                            <option value="<?= htmlspecialchars($ar['area']) ?>"><?= htmlspecialchars($ar['area']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Filtrar por Tipo</label>
+                    <select id="curso-tipo-filter-unified" class="form-input">
+                        <option value="">Todos os tipos</option>
+                        <?php
+                        $tipos_cursos = mysqli_fetch_all(mysqli_query($conn, "SELECT DISTINCT tipo FROM curso WHERE tipo IS NOT NULL AND tipo != '' ORDER BY tipo ASC"), MYSQLI_ASSOC);
+                        foreach ($tipos_cursos as $tp): ?>
+                            <option value="<?= htmlspecialchars($tp['tipo']) ?>"><?= htmlspecialchars($tp['tipo']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div id="curso-search-results-unified" style="max-height: 400px; overflow-y: auto; padding: 0 25px 20px;">
+            <!-- Preenchido via JS -->
+        </div>
+    </div>
+</div>
+
 <!-- 4. Schedule/Turma Modal (Planejamento) -->
 <div class="modal-overlay" id="modal-agendar-calendar">
     <div class="modal-content" style="max-width: 750px; padding: 0; border: none; overflow: hidden;">

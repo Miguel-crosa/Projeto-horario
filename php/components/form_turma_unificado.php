@@ -59,20 +59,34 @@ if (!isset($feriados_data) && isset($conn)) {
 
     <div class="form-grid">
         <div class="form-group" id="grp-unified-curso">
-            <label class="form-label">CURSO</label>
-            <select name="curso_id" class="form-input" required id="curso-select-unified">
-                <option value="" data-ch="0">Selecione o curso...</option>
-                <?php foreach ($grouped_cursos_ag as $area_label => $lista_ag): ?>
-                    <optgroup label="<?= htmlspecialchars(mb_strtoupper($area_label, 'UTF-8')) ?>" data-area="<?= htmlspecialchars($area_label) ?>">
-                        <?php foreach ($lista_ag as $c): ?>
-                            <?php $tipo_label = !empty($c['tipo']) ? " ( {$c['tipo']} )" : ""; ?>
-                            <option value="<?= $c['id'] ?>" data-ch="<?= $c['carga_horaria_total'] ?>" <?= $turma['curso_id'] == $c['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($c['nome']) ?><?= $tipo_label ?> - <?= $c['carga_horaria_total'] ?>h
-                            </option>
-                        <?php endforeach; ?>
-                    </optgroup>
-                <?php endforeach; ?>
-            </select>
+            <label class="form-label">CURSO / MODALIDADE</label>
+            <div style="position: relative;">
+                <input type="hidden" name="curso_id" id="curso-id-unified" value="<?= $turma['curso_id'] ?>" required>
+                <button type="button" class="form-input" id="btn-abrir-modal-cursos-unified" 
+                    style="text-align: left; display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); cursor: pointer; height: auto; min-height: 45px; padding: 10px 15px; border: 1px solid var(--border-color); border-radius: 8px; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-graduation-cap" style="color: var(--primary-red); opacity: 0.7;"></i>
+                        <span id="curso-nome-display-unified" style="font-weight: 600;">
+                            <?php 
+                                if (!empty($turma['curso_id'])) {
+                                    // Busca o nome do curso para exibição inicial se estiver editando
+                                    foreach ($grouped_cursos_ag as $area_l => $lista_l) {
+                                        foreach ($lista_l as $c_l) {
+                                            if ($c_l['id'] == $turma['curso_id']) {
+                                                echo htmlspecialchars($c_l['nome']) . " (" . ($c_l['tipo'] ?: 'FIC') . ")";
+                                                break 2;
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    echo "Clique para selecionar o curso...";
+                                }
+                            ?>
+                        </span>
+                    </div>
+                    <i class="fas fa-search" style="font-size: 0.9rem; opacity: 0.5;"></i>
+                </button>
+            </div>
         </div>
         <div class="form-group">
             <label class="form-label">SIGLA DA TURMA <span style="font-weight: normal; opacity: 0.7;">(Opcional)</span></label>
@@ -280,9 +294,25 @@ if (!isset($feriados_data) && isset($conn)) {
     // Garante que as variáveis sejam arrays mesmo que o PHP falhe
     const docentesData = <?= json_encode($docentes ?: [], JSON_UNESCAPED_UNICODE) ?> || [];
     const feriadosData = <?= json_encode($feriados_data ?: [], JSON_UNESCAPED_UNICODE) ?> || [];
+    
+    // Lista plana de cursos para facilitar a busca
+    const allCursos = [];
+    <?php foreach ($grouped_cursos_ag as $area => $lista): ?>
+        <?php foreach ($lista as $c): ?>
+            allCursos.push({
+                id: "<?= $c['id'] ?>",
+                nome: "<?= addslashes($c['nome']) ?>",
+                area: "<?= addslashes($c['area'] ?: 'Outros') ?>",
+                tipo: "<?= addslashes($c['tipo'] ?: 'FIC') ?>",
+                ch: <?= (int)$c['carga_horaria_total'] ?>
+            });
+        <?php endforeach; ?>
+    <?php endforeach; ?>
+
     let selectedDocentes = [];
 
     let modalDoc, searchInput, resultsContainer, areaFilter;
+    let modalCurso, cursoSearchInput, cursoResultsContainer, cursoAreaFilter, cursoTipoFilter;
 
     function normalizeString(str) {
         if (!str) return '';
@@ -304,8 +334,8 @@ if (!isset($feriados_data) && isset($conn)) {
                 }
             }
         }
-        const selectCurso = document.getElementById('curso-select-unified');
-        renderSelectedDocentes(selectCurso ? selectCurso.value : null);
+        const cursoId = document.getElementById('curso-id-unified')?.value;
+        renderSelectedDocentes(cursoId);
     }
 
     window.renderSelectedDocentes = function(forcedCursoId = null) {
@@ -349,8 +379,76 @@ if (!isset($feriados_data) && isset($conn)) {
 
     window.removeDocenteUnified = function(index) {
         selectedDocentes.splice(index, 1);
-        const selectCurso = document.getElementById('curso-select-unified');
-        renderSelectedDocentes(selectCurso ? selectCurso.value : null);
+        const cursoId = document.getElementById('curso-id-unified')?.value;
+        renderSelectedDocentes(cursoId);
+        calcularDataFimUnified();
+    }
+
+    // --- LÓGICA DE CURSOS ---
+    function renderModalCursosUnified() {
+        if (!cursoResultsContainer || !cursoSearchInput) return;
+        const query = normalizeString(cursoSearchInput.value);
+        const area = cursoAreaFilter ? cursoAreaFilter.value : '';
+        const tipo = cursoTipoFilter ? cursoTipoFilter.value : '';
+
+        let filtered = allCursos.filter(c => {
+            const matchesName = !query || normalizeString(c.nome).includes(query);
+            const matchesArea = !area || c.area === area;
+            const matchesTipo = !tipo || c.tipo === tipo;
+            return matchesName && matchesArea && matchesTipo;
+        });
+
+        if (filtered.length === 0) {
+            cursoResultsContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">Nenhum curso encontrado.</div>';
+            return;
+        }
+
+        cursoResultsContainer.innerHTML = filtered.map(c => `
+            <div class="curso-result-item" data-id="${c.id}" 
+                style="padding: 15px; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;">
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-color);">${c.nome}</span>
+                        <span style="font-size: 0.7rem; background: rgba(237,28,36,0.1); color: var(--primary-red); padding: 2px 6px; border-radius: 4px; font-weight: 800;">${c.tipo}</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #888; margin-top: 4px;">
+                        <i class="fas fa-layer-group"></i> ${c.area} &nbsp;&middot;&nbsp; 
+                        <i class="fas fa-clock"></i> ${c.ch} horas
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right" style="color: #ccc; font-size: 0.9rem;"></i>
+            </div>
+        `).join('');
+
+        cursoResultsContainer.querySelectorAll('.curso-result-item').forEach(item => {
+            item.onmouseover = function() { this.style.background = 'var(--bg-hover)'; };
+            item.onmouseout = function() { this.style.background = 'transparent'; };
+            item.onclick = function() {
+                const id = this.dataset.id;
+                const curso = allCursos.find(c => String(c.id) === String(id));
+                if (curso) {
+                    selectCursoUnified(curso);
+                }
+            };
+        });
+    }
+
+    function selectCursoUnified(curso) {
+        const idInput = document.getElementById('curso-id-unified');
+        const display = document.getElementById('curso-nome-display-unified');
+        
+        if (idInput) {
+            idInput.value = curso.id;
+            // Armazena CH no dataset para o cálculo de data fim
+            idInput.dataset.ch = curso.ch;
+        }
+        if (display) {
+            display.innerHTML = `${curso.nome} (${curso.tipo})`;
+            display.style.color = 'var(--text-color)';
+        }
+        
+        if (modalCurso) modalCurso.classList.remove('active');
+        
         calcularDataFimUnified();
     }
 
@@ -420,17 +518,16 @@ if (!isset($feriados_data) && isset($conn)) {
     }
 
     window.calcularDataFimUnified = function() {
-        const cursoSelect = document.getElementById('curso-select-unified');
+        const cursoIdInput = document.getElementById('curso-id-unified');
         const periodoSelect = document.getElementById('periodo-select-unified');
         const dataInicio = document.getElementById('data-inicio-unified');
         const dataFim = document.getElementById('data-fim-unified');
         const infoEl = document.getElementById('data-fim-info-unified');
         const btnSalvar = document.getElementById('btn-salvar-unified');
 
-        if (!cursoSelect || !periodoSelect || !dataInicio) return;
+        if (!cursoIdInput || !periodoSelect || !dataInicio) return;
 
-        const opt = cursoSelect.options[cursoSelect.selectedIndex];
-        const ch = parseInt(opt?.dataset.ch) || 0;
+        const ch = parseInt(cursoIdInput.dataset.ch) || 0;
         const periodo = periodoSelect.value;
         const inicio = dataInicio.value;
         const diasChecked = Array.from(document.querySelectorAll('#dias-semana-container-unified input[name="dias_semana[]"]:checked')).map(cb => cb.value);
@@ -580,7 +677,32 @@ if (!isset($feriados_data) && isset($conn)) {
             areaFilter.onchange = renderModalResultsUnified;
         }
 
-        const fields = ['curso-select-unified', 'periodo-select-unified', 'data-inicio-unified', 'horario_inicio_unified', 'horario_fim_unified'];
+        // Inicialização de Cursos
+        modalCurso = document.getElementById('modal-selecionar-curso-unified');
+        cursoSearchInput = document.getElementById('curso-search-input-unified');
+        cursoResultsContainer = document.getElementById('curso-search-results-unified');
+        cursoAreaFilter = document.getElementById('curso-area-filter-unified');
+        cursoTipoFilter = document.getElementById('curso-tipo-filter-unified');
+
+        const btnAbrirCurso = document.getElementById('btn-abrir-modal-cursos-unified');
+        if (btnAbrirCurso) {
+            btnAbrirCurso.onclick = () => {
+                if (modalCurso) {
+                    modalCurso.classList.add('active');
+                    if (cursoSearchInput) {
+                        cursoSearchInput.value = '';
+                        renderModalCursosUnified();
+                        setTimeout(() => cursoSearchInput.focus(), 100);
+                    }
+                }
+            };
+        }
+
+        if (cursoSearchInput) cursoSearchInput.oninput = renderModalCursosUnified;
+        if (cursoAreaFilter) cursoAreaFilter.onchange = renderModalCursosUnified;
+        if (cursoTipoFilter) cursoTipoFilter.onchange = renderModalCursosUnified;
+
+        const fields = ['periodo-select-unified', 'data-inicio-unified', 'horario_inicio_unified', 'horario_fim_unified'];
         fields.forEach(id => {
             const el = document.getElementById(id);
             if(el) el.addEventListener('change', calcularDataFimUnified);
@@ -764,10 +886,29 @@ if (!isset($feriados_data) && isset($conn)) {
             // Agora sempre mostramos a seção financeira, tanto para turmas quanto para reservas
             if(finSec) finSec.style.display = 'block';
             
-            const cursoSel = document.getElementById('curso-select-unified');
-            if(cursoSel) {
-                cursoSel.required = !data.is_reserva;
-                // Para reservas, permitimos que o curso seja opcional se o usuário desejar
+            const cursoIdInput = document.getElementById('curso-id-unified');
+            if(cursoIdInput) {
+                cursoIdInput.required = !data.is_reserva;
+            }
+
+            if (data.curso_id) {
+                const curso = allCursos.find(c => String(c.id) === String(data.curso_id));
+                if (curso) {
+                    if (cursoIdInput) {
+                        cursoIdInput.value = curso.id;
+                        cursoIdInput.dataset.ch = curso.ch;
+                    }
+                    const display = document.getElementById('curso-nome-display-unified');
+                    if (display) display.innerText = `${curso.nome} (${curso.tipo})`;
+                }
+            } else {
+                // Reset curso if none
+                const display = document.getElementById('curso-nome-display-unified');
+                if (display) display.innerText = "Clique para selecionar o curso...";
+                if (cursoIdInput) {
+                    cursoIdInput.value = "";
+                    cursoIdInput.dataset.ch = 0;
+                }
             }
 
             const btnText = document.getElementById('btn-text-unified');
