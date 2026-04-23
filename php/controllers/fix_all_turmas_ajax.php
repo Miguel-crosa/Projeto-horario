@@ -25,6 +25,41 @@ if (!$turma) {
     exit;
 }
 
+$ajuste_inteligente = false;
+$msg_ajuste = "";
+
+// --- LÓGICA INTELIGENTE: Detectar data_inicio incorreta (Bug de 1 dia na importação) ---
+$dias_semana_arr = !empty($turma['dias_semana']) ? explode(',', $turma['dias_semana']) : [];
+if (!empty($dias_semana_arr)) {
+    $daysMap = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
+    
+    $di_atual = $turma['data_inicio'];
+    $w_atual = (int)date('w', strtotime($di_atual));
+    $nome_dia_atual = $daysMap[$w_atual];
+    
+    $is_holiday_atual = isHoliday($conn, $di_atual);
+    $is_class_day_atual = in_array($nome_dia_atual, $dias_semana_arr);
+
+    // Se NÃO é dia de aula OU é feriado
+    if (!$is_class_day_atual || $is_holiday_atual) {
+        $di_seguinte = date('Y-m-d', strtotime($di_atual . ' +1 day'));
+        $w_seguinte = (int)date('w', strtotime($di_seguinte));
+        $nome_dia_seguinte = $daysMap[$w_seguinte];
+        
+        $is_holiday_seguinte = isHoliday($conn, $di_seguinte);
+        $is_class_day_seguinte = in_array($nome_dia_seguinte, $dias_semana_arr);
+
+        // Se o dia seguinte É dia de aula E NÃO é feriado
+        if ($is_class_day_seguinte && !$is_holiday_seguinte) {
+            $turma['data_inicio'] = $di_seguinte;
+            mysqli_query($conn, "UPDATE turma SET data_inicio = '$di_seguinte' WHERE id = '$id'");
+            $ajuste_inteligente = true;
+            $msg_ajuste = " (Início ajustado de " . date('d/m', strtotime($di_atual)) . " para " . date('d/m', strtotime($di_seguinte)) . ")";
+        }
+    }
+}
+// --------------------------------------------------------------------------------------
+
 // FIX: Se o período for Noite e o horário de fim for maior que 23:00, força para 23:00
 // Isso garante o cumprimento da regra de que aulas noturnas encerram obrigatoriamente às 23:00.
 $h_fim_check = !empty($turma['horario_fim']) ? substr($turma['horario_fim'], 0, 5) : '';
@@ -109,7 +144,7 @@ generateAgendaRecords(
 
 echo json_encode([
     'success' => true,
-    'message' => "Turma corrigida com sucesso.",
+    'message' => "Turma corrigida com sucesso." . $msg_ajuste,
     'sigla' => $turma['sigla'],
     'data_fim_antiga' => $turma['data_fim'],
     'data_fim_nova' => $nova_data_fim,

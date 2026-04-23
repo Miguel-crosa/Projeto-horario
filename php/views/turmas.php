@@ -6,7 +6,7 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'active';
 $is_archived_view = ($view === 'archived');
 
 // Migrated to lowercase table names for Linux compatibility
-$query = "SELECT t.*, c.nome as curso_nome,
+$query = "SELECT t.*, c.nome as curso_nome, c.carga_horaria_total,
           d1.nome as docente1_nome, d2.nome as docente2_nome, 
           d3.nome as docente3_nome, d4.nome as docente4_nome
           FROM turma t 
@@ -46,6 +46,13 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         <option value="Quinta-feira">Quinta</option>
         <option value="Sexta-feira">Sexta</option>
         <option value="Sábado">Sábado</option>
+    </select>
+    <select id="filter-sort" class="form-input" style="width: 180px;" onchange="applyQuickSort()">
+        <option value="">Ordenar por...</option>
+        <option value="ch_desc">Maior Carga Horária</option>
+        <option value="ch_asc">Menor Carga Horária</option>
+        <option value="data_desc">Data Início (Novas)</option>
+        <option value="data_asc">Data Início (Antigas)</option>
     </select>
     <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <div style="display: flex; gap: 8px;">
@@ -91,7 +98,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
 
         rows.forEach(row => {
             const text = row.innerText.toLowerCase();
-            const pCell = row.cells[3].innerText.trim();
+            const pCell = row.cells[4].innerText.trim();
             // Coluna oculta com nomes dos docentes (última coluna de dados, antes de ações)
             const docentesCell = row.dataset.docentes || '';
             const diasTurma = row.dataset.dias || '';
@@ -108,6 +115,23 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             }
         });
 
+        applySortAndPaginate();
+    }
+
+    function applyQuickSort() {
+        const sortVal = document.getElementById('filter-sort').value;
+        if (!sortVal) return;
+
+        if (sortVal === 'ch_desc') {
+            currentSort = { column: 3, direction: 'desc' };
+        } else if (sortVal === 'ch_asc') {
+            currentSort = { column: 3, direction: 'asc' };
+        } else if (sortVal === 'data_desc') {
+            currentSort = { column: 8, direction: 'desc' };
+        } else if (sortVal === 'data_asc') {
+            currentSort = { column: 8, direction: 'asc' };
+        }
+        
         applySortAndPaginate();
     }
 
@@ -157,14 +181,14 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 if (isEmptyA && isEmptyB) return 0;
 
                 // Sort logic based on column index
-                if ([7, 8].includes(currentSort.column)) { // Início (7), Fim (8)
+                if ([8, 9].includes(currentSort.column)) { // Início (8), Fim (9)
                     const parseDate = (d) => {
                         const parts = d.split('/');
                         return new Date(parts[2], parts[1] - 1, parts[0]);
                     };
                     valA = parseDate(valA);
                     valB = parseDate(valB);
-                } else if (currentSort.column === 9) { // Vagas
+                } else if (currentSort.column === 3 || currentSort.column === 10) { // C/H (3) ou Vagas (10)
                     valA = parseInt(valA) || 0;
                     valB = parseInt(valB) || 0;
                 } else {
@@ -233,17 +257,19 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                             style="opacity: 0.3;"></i></span></th>
                 <th onclick="sortTable(2)" style="cursor:pointer;">CURSO <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(3)" style="cursor:pointer;">PERÍODO <span class="sort-icon"><i
+                <th onclick="sortTable(3)" style="cursor:pointer;">C/H <span class="sort-icon"><i class="fas fa-sort"
+                            style="opacity: 0.3;"></i></span></th>
+                <th onclick="sortTable(4)" style="cursor:pointer;">PERÍODO <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
                 <th>HORÁRIO</th>
                 <th>DIAS</th>
-                <th onclick="sortTable(6)" style="cursor:pointer;">DOCENTE(S) <span class="sort-icon"><i
+                <th onclick="sortTable(7)" style="cursor:pointer;">DOCENTE(S) <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(7)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(8)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(8)" style="cursor:pointer;">FIM <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(9)" style="cursor:pointer;">FIM <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(9)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(10)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
                 <?php if (can_edit()): ?>
                     <th style="text-align: center;">AÇÕES</th>
@@ -280,7 +306,8 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                                 </span>
                             <?php endif; ?>
                         </td>
-                        <td><?= xe($t['curso_nome']) ?></td>
+                        <td><?= xe($t['curso_nome']) ?> <span style="font-size: 0.8rem; color: var(--text-muted); opacity: 0.8;">(<?= $t['carga_horaria_total'] ?>h)</span></td>
+                        <td style="font-weight: 700; color: var(--primary-color);"><?= $t['carga_horaria_total'] ?>h</td>
                         <td><?= xe($t['periodo']) ?></td>
                         <td>
                             <?php

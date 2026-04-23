@@ -93,9 +93,14 @@ function closeModal(id) {
     if (el) el.classList.remove('active');
 }
 
-// Global click-outside listener
+// Global click-outside listener helper
+let backdropClickStart = null;
+window.addEventListener('mousedown', (e) => {
+    backdropClickStart = e.target;
+});
+
 window.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-overlay')) {
+    if (e.target === backdropClickStart && e.target.classList.contains('modal-overlay')) {
         e.target.classList.remove('active');
     }
 });

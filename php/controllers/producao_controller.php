@@ -21,16 +21,17 @@ if ($action === 'get_data') {
         JOIN turma t ON a.turma_id = t.id
         JOIN curso c ON t.curso_id = c.id
         WHERE t.tipo_custeio = 'Gratuidade'
+        AND YEAR(t.data_fim) = YEAR(CURDATE())
         GROUP BY d.id, t.id
     ";
     
     $res = mysqli_query($conn, $query);
-    $data = [];
+    $ranking = [];
     
     while ($row = mysqli_fetch_assoc($res)) {
         $did = $row['docente_id'];
-        if (!isset($data[$did])) {
-            $data[$did] = [
+        if (!isset($ranking[$did])) {
+            $ranking[$did] = [
                 'id' => $did,
                 'nome' => $row['docente_nome'],
                 'producao_total' => 0,
@@ -39,8 +40,8 @@ if ($action === 'get_data') {
         }
         
         $producao = (int)$row['alunos'] * (int)$row['ch_total'];
-        $data[$did]['producao_total'] += $producao;
-        $data[$did]['turmas'][] = [
+        $ranking[$did]['producao_total'] += $producao;
+        $ranking[$did]['turmas'][] = [
             'id' => $row['turma_id'],
             'sigla' => $row['turma_sigla'] ?: ('Turma ' . $row['turma_id']),
             'curso' => $row['curso_nome'],
@@ -49,9 +50,24 @@ if ($action === 'get_data') {
             'producao' => $producao
         ];
     }
+
+    // Calcula o TOTAL UNIDADE (idêntico ao metas_controller.php)
+    $q_total = "
+        SELECT SUM(t.vagas * c.carga_horaria_total) as total
+        FROM turma t
+        JOIN curso c ON t.curso_id = c.id
+        WHERE t.ativo = 1 
+        AND t.tipo_custeio = 'Gratuidade'
+        AND EXISTS (SELECT 1 FROM agenda a WHERE a.turma_id = t.id)
+        AND YEAR(t.data_fim) = YEAR(CURDATE())
+    ";
+    $res_total = mysqli_query($conn, $q_total);
+    $total_unidade = (float)(mysqli_fetch_assoc($res_total)['total'] ?? 0);
     
-    // Converte para array indexado para o Chart.js
-    echo json_encode(array_values($data));
+    echo json_encode([
+        'ranking' => array_values($ranking),
+        'total_unidade' => $total_unidade
+    ]);
     exit;
 }
 

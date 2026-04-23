@@ -57,7 +57,7 @@ function parseExcelDate($v)
 
     // Numeric (Excel Serial)
     if (is_numeric($v) && (float) $v > 30000 && (float) $v < 60000) {
-        $unix = ((float) $v - 25569) * 86400;
+        $unix = ((float) $v - 25568) * 86400;
         return gmdate('Y-m-d', (int) $unix);
     }
 
@@ -1185,7 +1185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
 
                         // Fallbacks if missing
                         if (!$hi_excel || !$hf_excel) {
-                            $def_times = ['Manhã' => ['07:30', '11:30'], 'Tarde' => ['13:30', '17:30'], 'Noite' => ['18:00', '22:00'], 'Integral' => ['07:30', '17:30']];
+                            $def_times = ['Manhã' => ['07:30', '11:30'], 'Tarde' => ['13:30', '17:30'], 'Noite' => ['18:00', '23:00'], 'Integral' => ['07:30', '17:30']];
                             $hi_excel = $hi_excel ?: ($def_times[$periodo][0] ?? '07:30');
                             $hf_excel = $hf_excel ?: ($def_times[$periodo][1] ?? '11:30');
                         }
@@ -1572,7 +1572,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                     let v = row[c] !== undefined ? row[c] : '';
                     if (typeof v === 'number' && v > 30000 && v < 60000) {
                         // Converte serial do Excel para data UTC para evitar offset de timezone local
-                        const dateObj = new Date(Math.round((v - 25569) * 86400) * 1000);
+                        // Ajustado de 25569 para 25568 para corrigir bug de 1 dia de atraso
+                        const dateObj = new Date(Math.round((v - 25568) * 86400) * 1000);
                         const day = String(dateObj.getUTCDate()).padStart(2, '0');
                         const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
                         const year = dateObj.getUTCFullYear();

@@ -189,8 +189,8 @@ function getCompactDayStatus(doc, dateStr) {
     const busyPeriods = periods.filter(p => statusObj[p] === 'Ocupado');
 
     if (busyPeriods.length > 0) {
-        const aulas = events.filter(e => e.type === 'AULA' || e.type === 'RESERVA_LEGADO');
-        const label = aulas.length > 0 ? [...new Set(aulas.map(a => a.turma_nome || a.curso_nome))].join(' + ') : 'Ocupado';
+        const aulas = events.filter(e => e.type === 'AULA');
+        const label = aulas.length > 0 ? [...new Set(aulas.map(a => a.turma_nome || a.curso_nome))].filter(Boolean).join(' + ') : 'Ocupado';
         return {
             type: 'occupied',
             mainLabel: label,
@@ -202,12 +202,16 @@ function getCompactDayStatus(doc, dateStr) {
     // Prioridade 2: Reservas
     const reservedPeriods = periods.filter(p => statusObj[p] === 'Reservado');
     if (reservedPeriods.length > 0) {
-        const resList = events.filter(e => e.type === 'RESERVA');
-        const label = resList.length > 0 ? [...new Set(resList.map(r => r.sigla || r.curso_nome))].join(' + ') : 'Reservado';
+        const resList = events.filter(e => e.type === 'RESERVA' || e.type === 'RESERVA_LEGADO' || e.status === 'RESERVADO');
+        const label = resList.length > 0 ? [...new Set(resList.map(r => r.sigla || r.curso_nome))].filter(Boolean).join(' + ') : 'Reservado';
+        
+        // Garante que o label não seja vazio se o join ou map falharem
+        const finalLabel = (label && label.trim().length > 0) ? label : 'Reservado';
+
         return {
             type: 'reserved',
-            mainLabel: label,
-            curso: label,
+            mainLabel: finalLabel,
+            curso: finalLabel,
             count: reservedPeriods.length
         };
     }

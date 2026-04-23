@@ -30,17 +30,18 @@ function closeProducaoModal(id) {
 async function fetchProducaoData() {
     try {
         const response = await fetch('php/controllers/producao_controller.php?action=get_data');
-        producaoData = await response.json();
+        const data = await response.json();
+        producaoData = data.ranking;
+        window.totalUnidadeProducao = data.total_unidade;
     } catch (error) {
         console.error('Erro ao buscar dados de produção:', error);
     }
 }
 
 function updateTotalProducao() {
-    const total = producaoData.reduce((acc, curr) => acc + curr.producao_total, 0);
     const totalEl = document.getElementById('total-producao-geral');
     if (totalEl) {
-        totalEl.innerText = total.toLocaleString('pt-BR');
+        totalEl.innerText = (window.totalUnidadeProducao || 0).toLocaleString('pt-BR');
     }
 }
 
@@ -278,12 +279,21 @@ async function confirmarAdicao() {
     }
 }
 // Fechamento ao clicar fora da modal (no overlay)
+let producaoModalClickStart = null;
+window.addEventListener('mousedown', function(e) {
+    producaoModalClickStart = e.target;
+});
+
 window.addEventListener('click', function (event) {
+    if (event.target !== producaoModalClickStart) return;
+
     // Caso 1: Modais de Produção/Carga Horária (classe modal-producao)
     if (event.target.classList.contains('modal-producao')) {
         const modalId = event.target.id;
         if (modalId === 'modal-workload-global' && typeof closeWorkloadModal === 'function') {
             closeWorkloadModal();
+        } else if (modalId === 'modal-metas-simulacao' && typeof closeMetasSimulation === 'function') {
+            closeMetasSimulation();
         } else {
             closeProducaoModal(modalId);
         }

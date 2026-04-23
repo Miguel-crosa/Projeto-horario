@@ -34,6 +34,20 @@ if (empty($selected_prof_id) && !empty($professores) && count($professores) === 
         }
     }
 }
+
+// Cálculo de Horas Disponíveis para o professor selecionado
+$total_ano_selected = 0;
+$disponivel_selected = 0;
+$hoje = date('Y-m-d');
+$fim_ano = date('Y-12-31');
+
+if ($selected_prof_id) {
+    require_once __DIR__ . '/../configs/utils.php';
+    $total_ano_selected = calculateTeacherYearlyWorkload($conn, (int)$selected_prof_id, date('Y-01-01'), $fim_ano);
+    $potencial_restante = calculateTeacherYearlyWorkload($conn, (int)$selected_prof_id, $hoje, $fim_ano);
+    $consumido_restante = calculateConsumedHours($conn, (int)$selected_prof_id, $hoje, $fim_ano);
+    $disponivel_selected = max(0, $potencial_restante - $consumido_restante);
+}
 ?>
 
 <?php
@@ -79,6 +93,21 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
             <?php endif; ?>
         </div>
 
+        <?php if ($selected_prof_id): ?>
+            <div id="selected-prof-hours-container" style="background: rgba(46, 125, 50, 0.1); border: 1px solid rgba(46, 125, 50, 0.2); padding: 10px 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 4px; min-width: 180px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 700; color: var(--text-color);">
+                    <span>Horas Disponíveis (Ano)</span>
+                    <span style="color: #2e7d32; margin-left: 10px;"><?= round($disponivel_selected) ?>h / <?= round($total_ano_selected) ?>h</span>
+                </div>
+                <div style="width: 100%; height: 6px; background: rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden; position: relative;">
+                    <?php 
+                        $percentage = ($total_ano_selected > 0) ? min(100, ($disponivel_selected / $total_ano_selected) * 100) : 0;
+                    ?>
+                    <div style="width: <?= $percentage ?>%; height: 100%; background: linear-gradient(90deg, #4caf50, #2e7d32); border-radius: 10px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                </div>
+            </div>
+        <?php endif; ?>
+
         <div class="month-nav-group" <?php if ($view_mode == 'calendar'): ?>style="display:none;"<?php endif; ?>>
             <label class="period-label-text">Período de Exibição</label>
             <div class="month-nav-controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -117,7 +146,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                 <button type="button" class="period-btn period-btn-style" data-periodo="Tarde" data-inicio="13:30" data-fim="17:30" id="btn-tarde">
                     <i class="fas fa-cloud-sun" style="font-size: 0.9rem;"></i> Tarde
                 </button>
-                <button type="button" class="period-btn period-btn-style" data-periodo="Noite" data-inicio="19:30" data-fim="23:30" id="btn-noite">
+                <button type="button" class="period-btn period-btn-style" data-periodo="Noite" data-inicio="18:00" data-fim="23:00" id="btn-noite">
                     <i class="fas fa-moon" style="font-size: 0.9rem;"></i> Noite
                 </button>
                 <button type="button" class="period-btn period-btn-style" data-periodo="Integral" data-inicio="07:30" data-fim="17:30" id="btn-integral">

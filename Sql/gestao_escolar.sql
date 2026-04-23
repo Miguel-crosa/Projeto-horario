@@ -1,5 +1,5 @@
 -- ============================================================
--- GESTÃO ESCOLAR — Script Completo de Criação do Banco
+-- GESTÃO ESCOLAR – Script Completo de Criação do Banco
 -- Copie e cole este script inteiro no phpMyAdmin ou MySQL CLI.
 -- Ele cria o banco, todas as tabelas, índices e o usuário admin.
 -- ============================================================
@@ -56,20 +56,17 @@ CREATE TABLE IF NOT EXISTS docente (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================
--- 3.1 HORÁRIO DE TRABALHO (com suporte a Blocos Sazonais por Ano/Intervalo)
--- Cada linha representa uma regra de disponibilidade dentro de um "Bloco".
--- Um "Bloco" é definido por data_inicio e data_fim.
--- Múltiplos blocos permitem horários diferentes em períodos distintos do ano.
+-- 3.1 HORÁRIO DE TRABALHO (Blocos Sazonais)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS horario_trabalho (
     id INT(11) NOT NULL AUTO_INCREMENT,
     docente_id INT(11) NOT NULL,
-    dias VARCHAR(255) DEFAULT NULL,           -- Dias da semana autorizados (ex: "Segunda-feira,Quarta-feira")
-    periodo VARCHAR(50) DEFAULT NULL,         -- Período: Manhã, Tarde ou Noite
-    horario VARCHAR(50) DEFAULT NULL,         -- Horário (ex: "07:30 as 11:30")
-    data_inicio DATE DEFAULT NULL,            -- Início da vigência do bloco (ex: 2026-01-01)
-    data_fim DATE DEFAULT NULL,               -- Fim da vigência do bloco    (ex: 2026-04-30)
-    ano YEAR DEFAULT NULL,                    -- Ano do bloco (derivado de data_inicio para agrupamento na UI)
+    dias VARCHAR(255) DEFAULT NULL,
+    periodo VARCHAR(50) DEFAULT NULL,
+    horario VARCHAR(50) DEFAULT NULL,
+    data_inicio DATE DEFAULT NULL,
+    data_fim DATE DEFAULT NULL,
+    ano YEAR DEFAULT NULL,
     PRIMARY KEY (id),
     INDEX (docente_id),
     INDEX idx_ht_bloco (docente_id, data_inicio, data_fim),
@@ -243,6 +240,21 @@ CREATE TABLE IF NOT EXISTS preparacao_atestados (
     FOREIGN KEY (docente_id) REFERENCES docente(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ============================================================
+-- 12. METAS E CUSTOS A/H (Gestão Financeira)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS metas_ah (
+    ano YEAR NOT NULL PRIMARY KEY,
+    cai_horas INT DEFAULT 0,
+    cai_alunos INT DEFAULT 0,
+    ct_horas INT DEFAULT 0,
+    ct_alunos INT DEFAULT 0,
+    fic_horas INT DEFAULT 0,
+    fic_alunos INT DEFAULT 0,
+    despesa_anual DECIMAL(15,2) DEFAULT 0.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================
 -- ÍNDICES DE PERFORMANCE
@@ -260,67 +272,45 @@ CREATE INDEX idx_notificacoes_usuario ON notificacoes(usuario_id, lida);
 -- ============================================================
 INSERT INTO usuario (nome, email, senha, role, obrigar_troca_senha) 
 VALUES ('Administrador', 'admin@senai.br', '$2y$10$d8zHMItalmR8WxmucXWdquWSHknxyWy.imiT3sNO6H3L36DUcLVly', 'admin', 1);
-INSERT INTO usuario (nome, email, senha, role, obrigar_troca_senha) 
-VALUES ('roberto', 'roberto@senai.br', '$2y$10$XFjAiGRelFifZrzlE.pWheJrBhacywoE.14JdrbgWM7JsNLrF4b7G', 'admin', 0);
 
 -- ============================================================
--- MIGRATION (27/03/2026) - GESTÃO FINANCEIRA
--- Execute este comando se seu banco já estiver criado para não perder dados:
--- ============================================================
--- ALTER TABLE turma 
--- ADD COLUMN tipo_custeio ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade' AFTER local,
--- ADD COLUMN previsao_despesa DECIMAL(10,2) DEFAULT 0.00 AFTER tipo_custeio,
--- ADD COLUMN valor_turma DECIMAL(10,2) DEFAULT 0.00 AFTER previsao_despesa;
--- Rodar este comando para atualizar bancos existentes:
--- ALTER TABLE docente ADD COLUMN ativo TINYINT(1) DEFAULT 1;
-
--- ============================================================
--- MIGRATION (02/04/2026) - NOVOS CAMPOS TURMA
--- ============================================================
--- ALTER TABLE turma 
--- ADD COLUMN numero_proposta VARCHAR(100) DEFAULT NULL AFTER valor_turma,
--- ADD COLUMN tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão' AFTER numero_proposta,
--- ADD COLUMN parceiro VARCHAR(255) DEFAULT NULL AFTER tipo_atendimento,
--- ADD COLUMN IF NOT EXISTS ativo TINYINT(1) DEFAULT 1;
--- ============================================================
--- MIGRATION (08/04/2026) - UNIFICAÇÃO CAMPOS RESERVAS
--- ============================================================
--- ALTER TABLE reservas 
--- ADD COLUMN tipo_custeio ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade' AFTER tipo,
--- ADD COLUMN previsao_despesa DECIMAL(10,2) DEFAULT 0.00 AFTER tipo_custeio,
--- ADD COLUMN valor_turma DECIMAL(10,2) DEFAULT 0.00 AFTER previsao_despesa,
--- ADD COLUMN numero_proposta VARCHAR(100) DEFAULT NULL AFTER valor_turma,
--- ADD COLUMN tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão' AFTER numero_proposta,
--- ADD COLUMN parceiro VARCHAR(255) DEFAULT NULL AFTER tipo_atendimento,
--- ADD COLUMN contato_parceiro VARCHAR(255) DEFAULT NULL AFTER parceiro;
-
--- ============================================================
--- MIGRATION (08/04/2026) - BLOCOS SAZONAIS DE HORÁRIO DE TRABALHO
--- Execute estes comandos se seu banco já estiver criado.
--- São IDEMPOTENTES: podem ser rodados múltiplas vezes sem erro.
+-- COMANDOS DE ATUALIZAÇÃO (PARA QUEM JÁ POSSUI O BANCO)
+-- Execute apenas estes comandos se você não deseja refazer o banco.
 -- ============================================================
 
--- 1. Adicionar novas colunas na tabela horario_trabalho (somente se não existirem)
--- ALTER TABLE horario_trabalho
--- ADD COLUMN IF NOT EXISTS data_inicio DATE DEFAULT NULL COMMENT 'Início da vigência do bloco',
--- ADD COLUMN IF NOT EXISTS data_fim    DATE DEFAULT NULL COMMENT 'Fim da vigência do bloco',
--- ADD COLUMN IF NOT EXISTS ano         YEAR DEFAULT NULL COMMENT 'Ano do bloco para agrupamento na UI';
+/*
+-- 1. Criar tabela de metas
+CREATE TABLE IF NOT EXISTS metas_ah (
+    ano YEAR NOT NULL PRIMARY KEY,
+    cai_horas INT DEFAULT 0,
+    cai_alunos INT DEFAULT 0,
+    ct_horas INT DEFAULT 0,
+    ct_alunos INT DEFAULT 0,
+    fic_horas INT DEFAULT 0,
+    fic_alunos INT DEFAULT 0,
+    despesa_anual DECIMAL(15,2) DEFAULT 0.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 2. Criar índice de performance (ignora erro se já existir)
--- ALTER TABLE horario_trabalho
--- ADD INDEX IF NOT EXISTS idx_ht_bloco (docente_id, data_inicio, data_fim);
+-- 2. Adicionar colunas financeiras e de status se não existirem
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS tipo_custeio ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade';
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS previsao_despesa DECIMAL(10,2) DEFAULT 0.00;
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS valor_turma DECIMAL(10,2) DEFAULT 0.00;
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS numero_proposta VARCHAR(100) DEFAULT NULL;
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão';
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS parceiro VARCHAR(255) DEFAULT NULL;
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS contato_parceiro VARCHAR(255) DEFAULT NULL;
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS ativo TINYINT(1) DEFAULT 1;
 
--- 3. Migrar registros LEGADOS (sem data_inicio/data_fim) para um bloco padrão do ano corrente.
--- Isso garante que horários já cadastrados continuem funcionando normalmente.
+ALTER TABLE docente ADD COLUMN IF NOT EXISTS ativo TINYINT(1) DEFAULT 1;
+ALTER TABLE usuario ADD COLUMN IF NOT EXISTS ativo TINYINT(1) DEFAULT 1;
 
--- UPDATE horario_trabalho
--- SET
--- data_inicio = CONCAT(YEAR(CURDATE()), '-01-01'),
--- data_fim    = CONCAT(YEAR(CURDATE()), '-12-31'),
--- ano         = YEAR(CURDATE())
--- WHERE data_inicio IS NULL OR data_fim IS NULL;
-
--- ============================================================
--- MIGRATION (10/04/2026) - STATUS DE USUÁRIO
--- ============================================================
--- ALTER TABLE usuario ADD COLUMN ativo TINYINT(1) NOT NULL DEFAULT 1;
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS tipo_custeio ENUM('Gratuidade', 'Ressarcido') DEFAULT 'Gratuidade';
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS previsao_despesa DECIMAL(10,2) DEFAULT 0.00;
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS valor_turma DECIMAL(10,2) DEFAULT 0.00;
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS numero_proposta VARCHAR(100) DEFAULT NULL;
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão';
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS parceiro VARCHAR(255) DEFAULT NULL;
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS contato_parceiro VARCHAR(255) DEFAULT NULL;
+*/

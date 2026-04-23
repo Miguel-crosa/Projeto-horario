@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const periodConfig = {
         'Manhã': { inicio: '07:30', fim: '11:30', min: '07:30', max: '11:30' },
         'Tarde': { inicio: '13:30', fim: '17:30', min: '13:30', max: '17:30' },
-        'Noite': { inicio: '19:30', fim: '23:30', min: '19:30', max: '23:30' },
+        'Noite': { inicio: '18:00', fim: '23:00', min: '18:00', max: '23:00' },
         'Integral': { inicio: '07:30', fim: '17:30', min: '07:30', max: '17:30' }
     };
 
@@ -73,7 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.getElementById('modal-prof-close')?.addEventListener('click', () => profModal.classList.remove('active'));
-    profModal?.addEventListener('click', e => { if (e.target === profModal) profModal.classList.remove('active'); });
+    let profModalClickStart = null;
+    profModal?.addEventListener('mousedown', e => profModalClickStart = e.target);
+    profModal?.addEventListener('click', e => { if (e.target === profModal && e.target === profModalClickStart) profModal.classList.remove('active'); });
 
     profSearchInput?.addEventListener('input', renderProfessorResults);
     profAreaFilter?.addEventListener('change', renderProfessorResults);
@@ -1241,7 +1243,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCal = document.getElementById('modal-agendar-calendar');
     if (modalCal) {
         document.getElementById('modal-cal-close')?.addEventListener('click', () => modalCal.classList.remove('active'));
-        modalCal.addEventListener('click', e => { if (e.target === modalCal) modalCal.classList.remove('active'); });
+        let modalCalClickStart = null;
+        modalCal.addEventListener('mousedown', e => modalCalClickStart = e.target);
+        modalCal.addEventListener('click', e => { if (e.target === modalCal && e.target === modalCalClickStart) modalCal.classList.remove('active'); });
     }
 
     // ============================================================
