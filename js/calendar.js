@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const periodConfig = {
         'Manhã': { inicio: '07:30', fim: '11:30', min: '07:30', max: '11:30' },
         'Tarde': { inicio: '13:30', fim: '17:30', min: '13:30', max: '17:30' },
-        'Noite': { inicio: '19:30', fim: '23:30', min: '19:30', max: '23:30' },
+        'Noite': { inicio: '18:00', fim: '23:00', min: '18:00', max: '23:00' },
         'Integral': { inicio: '07:30', fim: '17:30', min: '07:30', max: '17:30' }
     };
 

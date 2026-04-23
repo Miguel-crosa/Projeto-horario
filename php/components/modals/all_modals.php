@@ -78,7 +78,7 @@
                     <label class="form-label">Período</label>
                     <div class="sim-period-selector" style="display:flex; gap:10px;">
                         <button type="button" class="sim-period" data-inicio="07:30" data-fim="11:30">Manhã</button>
-                        <button type="button" class="sim-period" data-inicio="19:30" data-fim="23:30">Noite</button>
+                        <button type="button" class="sim-period" data-inicio="18:00" data-fim="23:00">Noite</button>
                         <button type="button" class="sim-period" data-inicio="07:30" data-fim="17:30">Integral</button>
                     </div>
                 </div>

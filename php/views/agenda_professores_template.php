@@ -146,7 +146,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                 <button type="button" class="period-btn period-btn-style" data-periodo="Tarde" data-inicio="13:30" data-fim="17:30" id="btn-tarde">
                     <i class="fas fa-cloud-sun" style="font-size: 0.9rem;"></i> Tarde
                 </button>
-                <button type="button" class="period-btn period-btn-style" data-periodo="Noite" data-inicio="19:30" data-fim="23:30" id="btn-noite">
+                <button type="button" class="period-btn period-btn-style" data-periodo="Noite" data-inicio="18:00" data-fim="23:00" id="btn-noite">
                     <i class="fas fa-moon" style="font-size: 0.9rem;"></i> Noite
                 </button>
                 <button type="button" class="period-btn period-btn-style" data-periodo="Integral" data-inicio="07:30" data-fim="17:30" id="btn-integral">
