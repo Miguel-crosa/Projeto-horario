@@ -1174,4 +1174,4 @@ function calculateTeacherYearlyWorkload($conn, $docente_id, $data_inicio, $data_
     return $total_horas;
 }
 
-
+
