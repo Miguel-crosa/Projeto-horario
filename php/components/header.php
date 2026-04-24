@@ -9,6 +9,19 @@ $theme = $_COOKIE['tema'] ?? 'claro';
 $path_parts = explode('/', trim($_SERVER['PHP_SELF'], '/'));
 $is_in_subdir = !empty(array_intersect(['views', 'controllers', 'components', 'configs'], $path_parts));
 $prefix = $is_in_subdir ? '../../' : '';
+
+// Bloqueio de acesso direto via URL para CRI em páginas administrativas
+if (isCRI()) {
+    $restricted = [
+        'turmas.php', 'professores.php', 'cursos.php', 'salas.php', 'usuarios.php',
+        'turmas_form.php', 'professores_form.php', 'cursos_form.php', 'salas_form.php',
+        'form_turma_unificado.php'
+    ];
+    if (in_array($current_page, $restricted)) {
+        header('Location: ' . $prefix . 'index.php');
+        exit;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-br" data-tema="<?= htmlspecialchars($theme) ?>">
@@ -30,6 +43,110 @@ $prefix = $is_in_subdir ? '../../' : '';
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="<?= $prefix ?>js/dashboard_agenda.js" defer></script>
     <script src="<?= $prefix ?>js/relatorio_mensal.js" defer></script>
+
+    <style>
+        /* Skeleton Loaders */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(0,0,0,0.06) 25%, rgba(0,0,0,0.03) 50%, rgba(0,0,0,0.06) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 4px;
+            display: inline-block;
+            height: 1em;
+            width: 100%;
+        }
+        [data-tema="escuro"] .skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.05) 75%);
+            background-size: 200% 100%;
+        }
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Command Palette Modal */
+        #command-palette-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+        }
+        #command-palette {
+            display: none;
+            position: fixed;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            max-width: 90vw;
+            background: rgba(30, 41, 59, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            box-shadow: 0 20px 70px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 10001;
+            overflow: hidden;
+            animation: cpSlideIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes cpSlideIn {
+            from { opacity: 0; transform: translate(-50%, -20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .cp-input-wrapper {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .cp-input {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.1rem;
+            width: 100%;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+        }
+        .cp-results {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .cp-item {
+            padding: 12px 15px;
+            border-radius: 10px;
+            color: #cbd5e1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .cp-item:hover, .cp-item.active {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .cp-shortcut {
+            margin-left: auto;
+            font-size: 0.7rem;
+            background: rgba(255,255,255,0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #94a3b8;
+        }
+        .cp-section-title {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #64748b;
+            padding: 10px 15px 5px;
+            font-weight: 800;
+        }
+    </style>
 </head>
 
 <body class="<?= ($_COOKIE['sidebar'] ?? '') == 'closed' ? 'sidebar-closed' : '' ?>">
@@ -577,4 +694,91 @@ $prefix = $is_in_subdir ? '../../' : '';
 
             document.addEventListener('DOMContentLoaded', () => NotifSystem.init());
         </script>
-        <div class="content-wrapper">
+    <div id="command-palette-overlay" onclick="closeCommandPalette()"></div>
+    <div id="command-palette">
+        <div class="cp-input-wrapper">
+            <i class="fas fa-search" style="color: #64748b;"></i>
+            <input type="text" id="cp-input" class="cp-input" placeholder="O que você deseja fazer? (Ex: Turmas, Agenda...)" autocomplete="off">
+            <span class="cp-shortcut">ESC</span>
+        </div>
+        <div class="cp-results" id="cp-results">
+            <!-- Navegação -->
+            <div class="cp-section-title">Navegação</div>
+            <a href="<?= $prefix ?>index.php" class="cp-item">
+                <i class="fas fa-chart-line"></i> Dashboard Principal <span class="cp-shortcut">D</span>
+            </a>
+            <?php if (!isCRI()): ?>
+                <a href="<?= $prefix ?>php/views/turmas.php" class="cp-item">
+                    <i class="fas fa-users"></i> Gestão de Turmas <span class="cp-shortcut">T</span>
+                </a>
+            <?php endif; ?>
+            <a href="<?= $prefix ?>php/views/dashboard_vendas.php" class="cp-item">
+                <i class="bi bi-bar-chart-line"></i> Dashboard Vendas <span class="cp-shortcut">V</span>
+            </a>
+            <a href="<?= $prefix ?>php/views/agenda_professores.php" class="cp-item">
+                <i class="fas fa-calendar-alt"></i> Agenda de Professores <span class="cp-shortcut">A</span>
+            </a>
+            <?php if (!isCRI()): ?>
+                <a href="<?= $prefix ?>php/views/professores.php" class="cp-item">
+                    <i class="fas fa-chalkboard-teacher"></i> Cadastro de Docentes <span class="cp-shortcut">P</span>
+                </a>
+            <?php endif; ?>
+            <a href="<?= $prefix ?>php/views/gerenciar_reservas.php" class="cp-item">
+                <i class="bi bi-calendar2-heart"></i> Gerenciar Reservas <span class="cp-shortcut">G</span>
+            </a>
+            
+            <!-- Ações Rápidas -->
+            <div class="cp-section-title">Ações Rápidas</div>
+            <?php if (!isCRI()): ?>
+                <a href="<?= $prefix ?>php/views/turmas_form.php" class="cp-item">
+                    <i class="fas fa-plus-circle"></i> Criar Nova Turma <span class="cp-shortcut">N</span>
+                </a>
+            <?php endif; ?>
+            <a href="javascript:void(0)" onclick="openGlobalReserva()" class="cp-item">
+                <i class="fas fa-bookmark"></i> Nova Reserva de Docente <span class="cp-shortcut">R</span>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        function openCommandPalette() {
+            document.getElementById('command-palette-overlay').style.display = 'block';
+            const cp = document.getElementById('command-palette');
+            cp.style.display = 'block';
+            const input = document.getElementById('cp-input');
+            input.value = '';
+            input.focus();
+            filterCPResults('');
+        }
+
+        function closeCommandPalette() {
+            document.getElementById('command-palette-overlay').style.display = 'none';
+            document.getElementById('command-palette').style.display = 'none';
+        }
+
+        function filterCPResults(query) {
+            const items = document.querySelectorAll('.cp-item');
+            query = query.toLowerCase();
+            items.forEach(item => {
+                const text = item.innerText.toLowerCase();
+                item.style.display = text.includes(query) ? 'flex' : 'none';
+            });
+        }
+
+        document.getElementById('cp-input').addEventListener('input', (e) => filterCPResults(e.target.value));
+
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                openCommandPalette();
+            }
+            if (e.key === 'Escape') closeCommandPalette();
+        });
+
+        // Clique fora para fechar (já tratado pelo overlay, mas por segurança)
+        window.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('command-palette-overlay')) closeCommandPalette();
+        });
+    </script>
+
+    <div class="content-wrapper">

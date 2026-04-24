@@ -156,6 +156,29 @@ if ($action == 'bulk_update' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     exit;
 }
 
+if ($action === 'delete_bulk' && isAdmin()) {
+    $ids = $_POST['ids'] ?? [];
+    $return_url = $_POST['return_url'] ?? '../views/turmas.php';
+    if (!empty($ids)) {
+        $ids_sql = implode("','", array_map(function($id) use ($conn) { return mysqli_real_escape_string($conn, $id); }, $ids));
+        
+        // 1. Limpar Agendas
+        mysqli_query($conn, "DELETE FROM agenda WHERE turma_id IN ('$ids_sql')");
+        
+        // 2. Excluir Turmas
+        if (mysqli_query($conn, "DELETE FROM turma WHERE id IN ('$ids_sql')")) {
+            $msg = urlencode(count($ids) . " turmas foram excluídas permanentemente.");
+            $separator = (strpos($return_url, '?') !== false) ? '&' : '?';
+            header("Location: $return_url" . $separator . "msg=success&msg_text=$msg");
+        } else {
+            header("Location: $return_url?msg=error&msg_text=" . urlencode("Erro ao excluir: " . mysqli_error($conn)));
+        }
+    } else {
+        header("Location: $return_url");
+    }
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $is_ajax = isset($_POST['ajax']) && $_POST['ajax'] == '1';
 

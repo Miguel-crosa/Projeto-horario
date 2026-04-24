@@ -13,6 +13,27 @@
     /* Theme-specific for elements */
     --sim-form-bg: #f8fafc;
     --sim-item-border: #e2e8f0;
+
+    /* Skeleton & Animation Tokens */
+    --skeleton-bg: #e2e8f0;
+    --skeleton-highlight: #f1f5f9;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --transition-premium: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Skeleton Animation */
+@keyframes skeleton-pulse {
+    0% { background-color: var(--skeleton-bg); }
+    50% { background-color: var(--skeleton-highlight); }
+    100% { background-color: var(--skeleton-bg); }
+}
+
+.skeleton {
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+    border-radius: 4px;
+    display: inline-block;
 }
 
 /* Extra Classes for Tabela Professores Form and Header */
@@ -66,13 +87,30 @@
 .filter-bar {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
     background: var(--card-bg);
-    padding: 12px 20px;
-    border-radius: 12px;
-    margin-bottom: 25px;
+    padding: 16px 20px;
+    border-radius: 16px;
+    margin-bottom: 12px;
     border: 1px solid var(--border-color);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--shadow-sm);
+    flex-wrap: wrap;
+}
+
+[data-tema="escuro"] .filter-bar {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.filter-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 25px;
+    padding: 0 5px;
+    justify-content: flex-start;
+    min-height: 38px;
 }
 
 .filter-group {
@@ -112,6 +150,74 @@
 .links i {
     font-size: 1.2rem;
     margin-right: 10px;
+}
+
+/* --- Filter Chips --- */
+.filter-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    min-height: 30px;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-color);
+    transition: var(--transition-premium);
+    cursor: default;
+}
+
+.filter-chip .remove-chip {
+    cursor: pointer;
+    opacity: 0.6;
+    font-size: 0.8rem;
+}
+
+.filter-chip .remove-chip:hover {
+    opacity: 1;
+    color: var(--primary-red);
+}
+
+.filter-chip:hover {
+    border-color: var(--primary-red);
+    box-shadow: var(--shadow-sm);
+}
+
+/* --- Focus Mode for Dashboard --- */
+.focus-mode-active {
+    position: fixed !important;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    z-index: 10001;
+    background: var(--card-bg);
+    margin: 0 !important;
+    padding: 30px !important;
+    box-shadow: 0 0 100px rgba(0,0,0,0.5);
+    overflow-y: auto;
+    border-radius: 20px;
+}
+
+.focus-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(5px);
+    z-index: 10000;
+    display: none;
 }
 
 /* Period Selection Buttons */
@@ -189,6 +295,9 @@
     --sim-form-bg: #1a2233;
     --sim-item-bg: rgba(255, 255, 255, 0.03);
     --sim-item-border: rgba(255, 255, 255, 0.08);
+
+    --skeleton-bg: #1e293b;
+    --skeleton-highlight: #334155;
 }
 
 /* --- Reset --- */
@@ -225,12 +334,10 @@ body {
 @keyframes smoothFade {
     from {
         opacity: 0;
-        transform: scale(0.995);
     }
 
     to {
         opacity: 1;
-        transform: scale(1);
     }
 }
 
@@ -3203,4 +3310,209 @@ tbody tr:nth-child(n+6) {
 .prof-result-item:hover {
     background: rgba(237, 28, 36, 0.05) !important;
     padding-left: 20px !important;
+}
+
+/* --- Melhorias Premium de Paginação e UX --- */
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    margin-top: 10px;
+}
+
+.pagination-info {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.pagination-pages {
+    display: flex;
+    gap: 8px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.page-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-premium);
+    user-select: none;
+}
+
+.page-item:hover:not(.disabled) {
+    border-color: var(--primary-red);
+    color: var(--primary-red);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.page-item.active {
+    background: var(--primary-red);
+    border-color: var(--primary-red);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(237, 28, 36, 0.3);
+}
+
+.page-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: transparent;
+}
+
+.page-item.nav-btn {
+    width: auto;
+    padding: 0 15px;
+    font-size: 0.85rem;
+    gap: 8px;
+}
+
+/* Hover Cards (Table Previews) */
+.table-preview-tooltip {
+    position: absolute;
+    z-index: 10001;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: var(--shadow-lg);
+    width: 280px;
+    pointer-events: none;
+    display: none;
+    animation: slide-up-fade 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-left: 4px solid var(--primary-red);
+}
+
+.table-preview-tooltip h4 {
+    margin: 0 0 8px 0;
+    font-size: 1rem;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+}
+
+.table-preview-tooltip p {
+    margin: 4px 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.table-preview-tooltip .preview-label {
+    font-weight: 700;
+    color: var(--text-color);
+    min-width: 80px;
+}
+
+@keyframes slide-up-fade {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Chips de Filtro Avançados */
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(237, 28, 36, 0.08);
+    border: 1px solid rgba(237, 28, 36, 0.2);
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--primary-red);
+    transition: var(--transition-premium);
+    animation: scale-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+[data-tema="escuro"] .filter-chip {
+    background: rgba(237, 28, 36, 0.15);
+    border-color: rgba(237, 28, 36, 0.3);
+    color: #f87171;
+}
+
+.filter-chip:hover {
+    background: var(--primary-red);
+    color: #fff;
+    border-color: var(--primary-red);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(237, 28, 36, 0.25);
+}
+
+.filter-chip i.remove-chip {
+    cursor: pointer;
+    opacity: 0.7;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.filter-chip:hover i.remove-chip {
+    opacity: 1;
+    color: #fff;
+}
+
+.filter-chip .chip-label {
+    opacity: 0.7;
+    font-weight: 500;
+    margin-right: 4px;
+}
+
+.filter-chip-clear {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+}
+
+[data-tema="escuro"] .filter-chip-clear {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: #334155;
+}
+
+@keyframes scale-in {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Animações Globais Premium */
+.animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+}
+
+.animate-pop-in {
+    animation: scale-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Feedback Tátil Mobile */
+@media (max-width: 768px) {
+    .btn:active, 
+    .page-item:active, 
+    .links:active,
+    .filter-chip:active {
+        transform: scale(0.95);
+        opacity: 0.8;
+        background: rgba(0, 0, 0, 0.1);
+    }
+}
+
+/* Scroll Suave Global */
+html {
+    scroll-behavior: smooth;
 }

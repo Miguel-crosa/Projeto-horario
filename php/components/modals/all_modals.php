@@ -7,7 +7,7 @@
 
 <!-- 1. Simulation Modal (Dashboard) -->
 <div class="modal-overlay" id="dashboard-simulation-modal">
-    <div class="modal-content" style="max-width: 800px;">
+    <div class="modal-content animate-pop-in" style="max-width: 800px;">
         <div class="modal-header">
             <h3><i class="fas fa-vial" style="color: #2e7d32;"></i> Modo de Simulação (Seguro)</h3>
             <button class="modal-close" onclick="closeSimulationModal()"><i class="fas fa-times"></i></button>
@@ -122,7 +122,7 @@
 
 <!-- 2. Select Others Modal (Docente/Ambiente) -->
 <div class="modal-overlay" id="modal-selecionar-outros">
-    <div class="modal-content" style="max-width: 650px;">
+    <div class="modal-content animate-pop-in" style="max-width: 650px;">
         <div class="modal-header">
             <h3><i class="fas fa-exchange-alt" style="color: #2e7d32; margin-right: 12px;"></i> <span
                     id="outros-modal-title">Selecionar Outro</span></h3>
@@ -155,7 +155,7 @@
 
 <!-- 3. Select Professor Modal (Planejamento - Navegação) -->
 <div class="modal-overlay" id="modal-selecionar-professor">
-    <div class="modal-content" style="max-width: 550px;">
+    <div class="modal-content animate-pop-in" style="max-width: 550px;">
         <div class="modal-header">
             <h3><i class="fas fa-user-check" style="color: var(--primary-red); margin-right: 12px;"></i> Selecionar
                 Professor</h3>
@@ -192,7 +192,7 @@
 
 <!-- 3.1. Select Professor Modal (Unified Form - Selection) -->
 <div class="modal-overlay" id="modal-selecionar-professor-unified">
-    <div class="modal-content" style="max-width: 550px;">
+    <div class="modal-content animate-pop-in" style="max-width: 550px;">
         <div class="modal-header">
             <h3><i class="fas fa-chalkboard-teacher" style="color: var(--primary-red); margin-right: 12px;"></i>
                 Adicionar Professor à Turma</h3>
@@ -227,7 +227,7 @@
 
 <!-- 3.2. Select Curso Modal (Unified Form - Selection) -->
 <div class="modal-overlay" id="modal-selecionar-curso-unified">
-    <div class="modal-content" style="max-width: 650px;">
+    <div class="modal-content animate-pop-in" style="max-width: 650px;">
         <div class="modal-header">
             <h3><i class="fas fa-graduation-cap" style="color: var(--primary-red); margin-right: 12px;"></i>
                 Selecionar Curso</h3>
@@ -294,7 +294,7 @@
 
 <!-- 5. Timeline Modal (Agenda Professores) -->
 <div id="timelineModal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 95%; width: 1200px;">
+    <div class="modal-content animate-pop-in" style="max-width: 95%; width: 1200px;">
         <span class="close-modal" onclick="closeModal('timelineModal')">&times;</span>
         <div class="month-nav">
             <button class="month-btn" id="prev_month_btn"><i class="fas fa-chevron-left"></i></button>
@@ -307,7 +307,7 @@
 
 <!-- 6. Quick Schedule Modal (Agenda Professores) -->
 <div id="scheduleModal" class="modal-overlay">
-    <div class="modal-content">
+    <div class="modal-content animate-pop-in">
         <div class="modal-header">
             <h3><i class="fas fa-calendar-plus"></i> Agendar Período</h3>
             <button class="modal-close" onclick="closeModal('scheduleModal')"><i class="fas fa-times"></i></button>
@@ -436,7 +436,7 @@
 
 <!-- 8. Teacher Monthly Summary Modal (Dashboard/Agenda) -->
 <div id="teacherMonthlySummaryModal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 95%; width: 1000px;">
+    <div class="modal-content animate-pop-in" style="max-width: 95%; width: 1000px;">
         <div class="modal-header">
             <h3><i class="fas fa-calendar-alt" style="color: var(--primary-red);"></i> Resumo Mensal: <span
                     id="summary-prof-name"></span></h3>
@@ -565,7 +565,7 @@
 
 <!-- 11. Relatório Mensal - Modal 2: Detalhamento -->
 <div class="modal-overlay" id="modal-relatorio-mensal-detalhado">
-    <div class="modal-content">
+    <div class="modal-content animate-pop-in">
         <div class="modal-header">
             <h3><i class="fas fa-calendar-check" style="color: var(--primary-red);"></i> Relatório Mensal de Horários</h3>
             <button class="modal-close" onclick="closeModal('modal-relatorio-mensal-detalhado')"><i class="fas fa-times"></i></button>

@@ -411,12 +411,14 @@ if (!isset($feriados_data) && isset($conn)) {
                 style="padding: 15px; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;">
                 <div style="flex: 1;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-color);">${c.nome}</span>
+                        <span style="font-weight: 700; font-size: 1rem; color: var(--text-color);">${c.nome}</span>
                         <span style="font-size: 0.7rem; background: rgba(237,28,36,0.1); color: var(--primary-red); padding: 2px 6px; border-radius: 4px; font-weight: 800;">${c.tipo}</span>
                     </div>
-                    <div style="font-size: 0.75rem; color: #888; margin-top: 4px;">
-                        <i class="fas fa-layer-group"></i> ${c.area} &nbsp;&middot;&nbsp; 
-                        <i class="fas fa-clock"></i> ${c.ch} horas
+                    <div style="font-size: 0.8rem; color: #888; margin-top: 6px; display: flex; align-items: center; gap: 10px;">
+                        <span><i class="fas fa-layer-group" style="opacity: 0.6;"></i> ${c.area}</span>
+                        <span style="background: rgba(33, 150, 243, 0.1); color: #1976d2; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem;">
+                            <i class="fas fa-clock" style="font-size: 0.7rem;"></i> ${c.ch} HORAS
+                        </span>
                     </div>
                 </div>
                 <i class="fas fa-chevron-right" style="color: #ccc; font-size: 0.9rem;"></i>
@@ -446,8 +448,7 @@ if (!isset($feriados_data) && isset($conn)) {
             idInput.dataset.ch = curso.ch;
         }
         if (display) {
-            display.innerHTML = `${curso.nome} (${curso.tipo}) - ${curso.ch}h`;
-            display.style.color = 'var(--text-color)';
+            display.innerHTML = `<span style="color:var(--text-color)">${curso.nome} (${curso.tipo})</span> <span style="margin-left:8px; background:rgba(33,150,243,0.1); color:#1976d2; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.8rem;">${curso.ch} HORAS</span>`;
         }
         
         if (modalCurso) modalCurso.classList.remove('active');

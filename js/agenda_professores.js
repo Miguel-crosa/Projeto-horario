@@ -365,4 +365,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnAgendar = document.getElementById('btn-agendar-bar');
         if (btnAgendar) btnAgendar.style.display = 'flex';
     }
+    // --- Suporte a Swipe (Touch) para Modal de Agenda ---
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const agendaModalContent = document.querySelector('#timelineModal .modal-content');
+
+    if (agendaModalContent) {
+        agendaModalContent.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, {passive: true});
+
+        agendaModalContent.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleAgendaSwipe();
+        }, {passive: true});
+    }
+
+    function handleAgendaSwipe() {
+        const threshold = 100;
+        if (touchEndX < touchStartX - threshold) {
+            // Swipe Left -> Próximo Mês
+            changeMonth(1);
+        }
+        if (touchEndX > touchStartX + threshold) {
+            // Swipe Right -> Mês Anterior
+            changeMonth(-1);
+        }
+    }
 });

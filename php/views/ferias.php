@@ -299,23 +299,29 @@ $professores_status = mysqli_fetch_all(mysqli_query($conn, $prof_status_query), 
 
 <div class="page-header">
     <h2>Gestão de Férias e Fechamentos</h2>
-    <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <div class="search-box" style="flex: 1; min-width: 250px;">
-            <input type="text" id="tableSearch" placeholder="Buscar professor..." class="form-input"
-                style="width: 100%;" onkeyup="currentPage=1; updatePagination()">
-        </div>
-        <button onclick="openVacationModal()" class="btn btn-primary"><i class="fas fa-plus"></i> Registrar
-            Férias</button>
-        <button type="button" id="btn-delete-bulk" class="btn" style="background: #fb8c00; color: white; display: none;"
+</div>
+
+<div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
+    <div class="search-box" style="flex: 1; max-width: 350px;">
+        <input type="text" id="tableSearch" placeholder="Buscar professor ou tipo..." class="form-input"
+            style="width: 100%;" onkeyup="currentPage=1; updatePagination(); updateFilterChips();">
+    </div>
+    <div class="header-actions" style="display: flex; gap: 8px;">
+        <button onclick="openVacationModal()" class="btn btn-primary" style="font-weight: 700;"><i class="fas fa-plus"></i> REGISTRAR FÉRIAS</button>
+        <button type="button" id="btn-delete-bulk" class="btn" style="background: #fb8c00; color: white; display: none; font-weight: 700;"
             onclick="deleteSelectedVacations()">
             <i class="fas fa-trash-alt"></i> Excluir Selecionados
         </button>
         <?php if (isAdmin()): ?>
-            <button type="button" class="btn" style="background: #e53935; color: white;" onclick="deleteAllVacations()">
+            <button type="button" class="btn" style="background: #e53935; color: white; font-weight: 700;" onclick="deleteAllVacations()">
                 <i class="fas fa-dumpster-fire"></i> Excluir Tudo
             </button>
         <?php endif; ?>
     </div>
+</div>
+
+<div class="filter-chips-container dashboard-container" id="filter-chips-container" style="margin-bottom: 20px;">
+    <!-- Chips via JS -->
 </div>
 
 <?php if (isset($_GET['msg'])): ?>
@@ -1026,7 +1032,24 @@ $professores_status = mysqli_fetch_all(mysqli_query($conn, $prof_status_query), 
         });
     }
 
-    window.addEventListener('load', updatePagination);
+    function updateFilterChips() {
+        const container = document.getElementById('filter-chips-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const el = document.getElementById('tableSearch');
+        if (el && el.value) {
+            const chip = document.createElement('div');
+            chip.className = 'filter-chip animate-fade-in';
+            chip.innerHTML = `<i class="fas fa-search"></i> <span>Busca: ${el.value}</span> <i class="fas fa-times remove-chip" onclick="document.getElementById('tableSearch').value=''; updatePagination(); updateFilterChips();"></i>`;
+            container.appendChild(chip);
+        }
+    }
+
+    window.addEventListener('load', () => {
+        updatePagination();
+        updateFilterChips();
+    });
 </script>
 
 <?php include __DIR__ . '/../components/footer.php'; ?>

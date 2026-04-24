@@ -3,6 +3,50 @@
  * Gerencia o modal de resumo mensal para professores.
  */
 
+// Lógica de Modo Foco (Global)
+function toggleFocusMode(cardId) {
+    const overlay = document.getElementById('focus-overlay');
+    
+    if (cardId && !document.getElementById(cardId).classList.contains('focus-mode-active')) {
+        // Ativar modo foco
+        overlay.style.display = 'block';
+        const card = document.getElementById(cardId);
+        card.classList.add('focus-mode-active');
+        document.body.style.overflow = 'hidden'; // Prevenir scroll no fundo
+        
+        // Adicionar botão de fechar flutuante se não existir
+        if (!card.querySelector('.close-focus-btn')) {
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'close-focus-btn';
+            closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            closeBtn.style.cssText = 'position: absolute; top: 20px; right: 20px; background: var(--primary-red); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: var(--shadow-lg); transition: var(--transition-premium);';
+            closeBtn.onclick = (e) => {
+                e.stopPropagation();
+                toggleFocusMode(null);
+            };
+            card.appendChild(closeBtn);
+        }
+    } else {
+        // Desativar modo foco
+        overlay.style.display = 'none';
+        document.querySelectorAll('.focus-mode-active').forEach(c => {
+            c.classList.remove('focus-mode-active');
+            const btn = c.querySelector('.close-focus-btn');
+            if (btn) btn.remove();
+        });
+        document.body.style.overflow = '';
+    }
+}
+
+// Fechar com ESC
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        if (document.querySelector('.focus-mode-active')) {
+            toggleFocusMode(null);
+        }
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     let summaryCurrentProfId = null;
     let summaryCurrentDate = new Date();
@@ -126,17 +170,76 @@ document.addEventListener('DOMContentLoaded', () => {
         area.style.minHeight = 'auto'; // Garante que o container se ajuste
     }
 
-    document.getElementById('btn-prev-month-summary')?.addEventListener('click', () => {
-        const year = summaryCurrentDate.getFullYear();
-        const month = summaryCurrentDate.getMonth();
-        summaryCurrentDate = new Date(year, month - 1, 1);
-        loadSummaryAgenda();
-    });
-
     document.getElementById('btn-next-month-summary')?.addEventListener('click', () => {
         const year = summaryCurrentDate.getFullYear();
         const month = summaryCurrentDate.getMonth();
         summaryCurrentDate = new Date(year, month + 1, 1);
         loadSummaryAgenda();
     });
+
+    // --- Feedback Visual: Skeletons ---
+    window.showDashboardSkeletons = function() {
+        const containers = document.querySelectorAll('.stat-number, .stat-label, .month-group, .proximas-item');
+        containers.forEach(c => {
+            if (!c.querySelector('.skeleton')) {
+                const w = c.offsetWidth || 100;
+                const h = c.offsetHeight || 20;
+                c.setAttribute('data-old-html', c.innerHTML);
+                c.innerHTML = `<div class="skeleton" style="width:${w}px; height:${h}px"></div>`;
+            }
+        });
+    };
+
+    window.hideDashboardSkeletons = function() {
+        const containers = document.querySelectorAll('[data-old-html]');
+        containers.forEach(c => {
+            c.innerHTML = c.getAttribute('data-old-html');
+            c.removeAttribute('data-old-html');
+        });
+    };
+
+    // --- Suporte a Swipe (Touch) para Modal de Resumo ---
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const summaryModalContent = document.querySelector('#teacherMonthlySummaryModal .modal-content');
+
+    if (summaryModalContent) {
+        summaryModalContent.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, {passive: true});
+
+        summaryModalContent.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSummarySwipe();
+        }, {passive: true});
+    }
+
+    function handleSummarySwipe() {
+        const threshold = 100;
+        if (touchEndX < touchStartX - threshold || touchEndX > touchStartX + threshold) {
+            const area = document.getElementById('summary-calendar-area');
+            if (area) {
+                area.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                area.style.opacity = '0';
+                area.style.transform = touchEndX < touchStartX - threshold ? 'translateX(-20px)' : 'translateX(20px)';
+            }
+
+            setTimeout(() => {
+                if (touchEndX < touchStartX - threshold) {
+                    summaryCurrentDate.setMonth(summaryCurrentDate.getMonth() + 1);
+                } else {
+                    summaryCurrentDate.setMonth(summaryCurrentDate.getMonth() - 1);
+                }
+                loadSummaryAgenda();
+
+                if (area) {
+                    area.style.transform = touchEndX < touchStartX - threshold ? 'translateX(20px)' : 'translateX(-20px)';
+                    setTimeout(() => {
+                        area.style.opacity = '1';
+                        area.style.transform = 'translateX(0)';
+                    }, 50);
+                }
+            }, 200);
+        }
+    }
 });

@@ -1608,4 +1608,49 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     };
+    // --- Suporte a Swipe (Touch) ---
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const calendarContainer = document.getElementById('professor-calendar');
+
+    if (calendarContainer) {
+        calendarContainer.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, {passive: true});
+
+        calendarContainer.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleCalendarSwipe();
+        }, {passive: true});
+    }
+
+    function handleCalendarSwipe() {
+        if (touchEndX < touchStartX - threshold || touchEndX > touchStartX + threshold) {
+            const container = document.getElementById('professor-calendar');
+            if (container) {
+                container.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                container.style.opacity = '0';
+                container.style.transform = touchEndX < touchStartX - threshold ? 'translateX(-20px)' : 'translateX(20px)';
+            }
+
+            setTimeout(() => {
+                if (touchEndX < touchStartX - threshold) {
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                } else {
+                    currentDate.setMonth(currentDate.getMonth() - 1);
+                }
+                showingMonthPicker = false;
+                renderCalendar();
+                updateAvailabilityBar();
+
+                if (container) {
+                    container.style.transform = touchEndX < touchStartX - threshold ? 'translateX(20px)' : 'translateX(-20px)';
+                    setTimeout(() => {
+                        container.style.opacity = '1';
+                        container.style.transform = 'translateX(0)';
+                    }, 50);
+                }
+            }, 200);
+        }
+    }
 });

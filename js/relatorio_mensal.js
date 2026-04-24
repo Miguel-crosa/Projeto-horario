@@ -80,8 +80,38 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('report-prof-name-label').textContent = profName;
         
         if (modalReport) {
+            // Animação de Slide: O primeiro modal sai para a esquerda, o segundo entra pela direita
+            const modalSelect = document.getElementById('modal-relatorio-select-prof');
+            if (modalSelect) {
+                modalSelect.style.transform = 'translateX(-100%)';
+                modalSelect.style.opacity = '0';
+                setTimeout(() => modalSelect.classList.remove('active'), 300);
+            }
+            
             modalReport.classList.add('active');
+            modalReport.style.transform = 'translateX(0)';
+            modalReport.style.opacity = '1';
             loadReportData();
+        }
+    };
+
+    // Voltar para seleção
+    window.backToReportSelect = function() {
+        const modalReport = document.getElementById('modal-relatorio-mensal-detalhado');
+        const modalSelect = document.getElementById('modal-relatorio-select-prof');
+        
+        if (modalReport) {
+            modalReport.style.transform = 'translateX(100%)';
+            modalReport.style.opacity = '0';
+            setTimeout(() => modalReport.classList.remove('active'), 300);
+        }
+        
+        if (modalSelect) {
+            modalSelect.classList.add('active');
+            setTimeout(() => {
+                modalSelect.style.transform = 'translateX(0)';
+                modalSelect.style.opacity = '1';
+            }, 50);
         }
     };
 
@@ -146,22 +176,41 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const deduplicatedClasses = Array.from(uniqueClassesMap.values());
 
-            // --- CÁLCULO DE HORAS BASEADO NA JORNADA (WORK_SCHEDULE) ---
-            // O usuário deseja ver SOMENTE o bloco de horários do docente nesta coluna
+            // --- CÁLCULO DE HORAS ---
+            // Conforme solicitado, o relatório deve considerar APENAS a jornada prevista (Bloco de Horários),
+            // ignorando as horas de aulas reais para fins de somatório e exibição na coluna de horas.
             let dayScheduleSeconds = 0;
-            workSchedules.forEach(s => {
-                if (s.horario) {
-                    const parts = s.horario.toLowerCase().split(/ as | até | - /);
-                    if (parts.length >= 2) {
-                        const start = parseTime(parts[0].trim());
-                        const end = parseTime(parts[1].trim());
-                        dayScheduleSeconds += (end - start);
-                    }
-                }
-            });
+            if (!isHoliday && !isVacation) {
+                // Deduplicação de períodos para evitar somas redundantes (ex: Manhã + Integral)
+                const periods = workSchedules.map(s => s.periodo);
+                const hasIntegral = periods.includes('Integral');
+                const processedPeriods = new Set();
 
-            totalMonthlySeconds += dayScheduleSeconds;
-            const dayHoursDecimal = dayScheduleSeconds / 3600;
+                workSchedules.forEach(s => {
+                    if (!s.horario) return;
+
+                    // Se tem Integral, ignora registros individuais de Manhã e Tarde
+                    if (hasIntegral && (s.periodo === 'Manhã' || s.periodo === 'Tarde')) return;
+                    
+                    // Garante que processamos cada período apenas uma vez por dia
+                    if (!processedPeriods.has(s.periodo)) {
+                        const parts = s.horario.toLowerCase().split(/ as | até | - /);
+                        if (parts.length >= 2) {
+                            const start = parseTime(parts[0].trim());
+                            const end = parseTime(parts[1].trim());
+                            if (end > start) {
+                                dayScheduleSeconds += (end - start);
+                                processedPeriods.add(s.periodo);
+                            }
+                        }
+                    }
+                });
+            }
+
+            const dayEffectiveSeconds = dayScheduleSeconds;
+            
+            totalMonthlySeconds += dayEffectiveSeconds;
+            const dayHoursDecimal = dayEffectiveSeconds / 3600;
             
             // Lógica de alerta (Ocupado vs Livre)
             // Se tem aula mas não tem jornada, continua mostrando as horas de aula no alerta, mas não soma no total?
@@ -211,24 +260,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     cellClass = "bg-holiday";
                 } else if (scheduleInTurno) {
                     // SÓ MOSTRA SE POSSUI JORNADA (BLOCO DE DISPONIBILIDADE)
+                    // Definimos o horário base do bloco para exibição consistente
+                    if (scheduleInTurno.horario) {
+                        const parts = scheduleInTurno.horario.toLowerCase().split(/ as | até | - /);
+                        if (parts.length >= 2) {
+                            entrada = parts[0].trim().substring(0, 5);
+                            saida = parts[1].trim().substring(0, 5);
+                        } else {
+                            entrada = scheduleInTurno.horario.substring(0, 5);
+                            saida = "---";
+                        }
+                    }
+
                     if (classInTurno) {
                         // Ocupado dentro da jornada
                         cellClass = "bg-busy";
-                        entrada = classInTurno.horario_inicio ? classInTurno.horario_inicio.substring(0,5) : "---";
-                        saida = classInTurno.horario_fim ? classInTurno.horario_fim.substring(0,5) : "---";
                     } else {
                         // Livre dentro da jornada
                         cellClass = "bg-free";
-                        if (scheduleInTurno.horario) {
-                            const parts = scheduleInTurno.horario.toLowerCase().split(/ as | até | - /);
-                            if (parts.length >= 2) {
-                                entrada = parts[0].trim().substring(0, 5);
-                                saida = parts[1].trim().substring(0, 5);
-                            } else {
-                                entrada = scheduleInTurno.horario.substring(0, 5);
-                                saida = "---";
-                            }
-                        }
                     }
                 } else {
                     // FORA DA JORNADA: Ignora aulas extras e mostra vazio
@@ -295,13 +344,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Navegação
-    document.getElementById('report-prev-month')?.addEventListener('click', () => {
-        reportCurrentDate.setMonth(reportCurrentDate.getMonth() - 1);
-        loadReportData();
-    });
-
     document.getElementById('report-next-month')?.addEventListener('click', () => {
         reportCurrentDate.setMonth(reportCurrentDate.getMonth() + 1);
         loadReportData();
     });
+
+    // --- Suporte a Swipe (Touch) ---
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const reportModalContent = document.querySelector('#modal-relatorio-mensal-detalhado .modal-content');
+
+    if (reportModalContent) {
+        reportModalContent.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, {passive: true});
+
+        reportModalContent.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, {passive: true});
+    }
+
+    function handleSwipe() {
+        const threshold = 100;
+        if (touchEndX < touchStartX - threshold) {
+            // Swipe Left -> Próximo Mês
+            reportCurrentDate.setMonth(reportCurrentDate.getMonth() + 1);
+            loadReportData();
+        }
+        if (touchEndX > touchStartX + threshold) {
+            // Swipe Right -> Mês Anterior
+            reportCurrentDate.setMonth(reportCurrentDate.getMonth() - 1);
+            loadReportData();
+        }
+    }
 });

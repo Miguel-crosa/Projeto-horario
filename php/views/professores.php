@@ -14,33 +14,44 @@ $stmt->close();
 
 <div class="page-header">
     <h2>Gestão de Professores</h2>
-    <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <div class="search-box" style="flex: 1; min-width: 250px;">
-            <input type="text" id="tableSearch" placeholder="Buscar professor..." class="form-input"
-                style="width: 100%;" onkeyup="currentPage=1; updatePagination()">
-        </div>
+</div>
+
+<div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
+    <div class="search-box" style="flex: 1; max-width: 400px;">
+        <input type="text" id="filter-nome" placeholder="Buscar professor ou área..." class="form-input"
+            style="width: 100%;" onkeyup="filterProfessores()">
+    </div>
+    <div class="header-actions" style="display: flex; gap: 8px;">
         <?php if (can_edit()): ?>
-            <a href="professores_form.php" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Professor</a>
+            <a href="professores_form.php" class="btn btn-primary" style="font-weight: 700;"><i class="fas fa-plus"></i> NOVO PROFESSOR</a>
         <?php endif; ?>
         <?php if ($show_inactive): ?>
-            <a href="professores.php" class="btn btn-secondary"><i class="fas fa-eye"></i> Ver Apenas Ativos</a>
+            <a href="professores.php" class="btn btn-secondary" style="font-weight: 700;"><i class="fas fa-check-circle"></i> VER ATIVOS</a>
         <?php else: ?>
-            <a href="professores.php?show_inactive=1" class="btn btn-secondary"><i class="fas fa-eye-slash"></i> Ver Inativos</a>
+            <a href="professores.php?show_inactive=1" class="btn btn-secondary" style="font-weight: 700;"><i class="fas fa-archive"></i> VER INATIVOS</a>
         <?php endif; ?>
     </div>
 </div>
 
+<div class="filter-chips-container dashboard-container" id="filter-chips-container" style="margin-bottom: 20px;">
+    <!-- Chips serão inseridos aqui via JS -->
+</div>
+
 <div class="table-container">
-    <table>
+    <table id="professores-table">
         <thead>
             <tr>
                 <th style="width: 50px;">#</th>
-                <th>Nome</th>
-                <th>Área de Conhecimento</th>
+                <th style="cursor: pointer;"
+                    onclick="currentSort.column=1; currentSort.direction=(currentSort.direction==='asc'?'desc':'asc'); applySortAndPaginate();">
+                    Nome <i class="fas fa-sort"></i></th>
+                <th style="cursor: pointer;"
+                    onclick="currentSort.column=2; currentSort.direction=(currentSort.direction==='asc'?'desc':'asc'); applySortAndPaginate();">
+                    Área de Conhecimento <i class="fas fa-sort"></i></th>
                 <th>Limites (S/M)</th>
                 <th>Tipo Contrato</th>
                 <?php if (can_edit()): ?>
-                    <th>Ações</th>
+                    <th style="text-align: center;">Ações</th>
                 <?php endif; ?>
             </tr>
         </thead>
@@ -52,28 +63,47 @@ $stmt->close();
             <?php else: ?>
                 <?php $idx = 1;
                 foreach ($professores as $p): ?>
-                    <tr class="table-row">
-                        <td style="color: var(--text-muted); font-size: 0.8rem;"><?= $idx++ ?></td>
-                        <td>
+                    <tr class="table-row matches-filter" data-id="<?= $p['id'] ?>"
+                        data-area="<?= htmlspecialchars($p['area_conhecimento']) ?>">
+                        <td style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600;"><?= $idx++ ?></td>
+                        <td class="prof-name-cell" style="font-weight: 700; color: var(--text-color);">
                             <?= htmlspecialchars($p['nome']) ?>
-                            <?php if($p['ativo'] == 0): ?>
-                                <span class="badge" style="background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2); margin-left: 10px;">Inativo</span>
+                            <?php if ($p['ativo'] == 0): ?>
+                                <span class="badge"
+                                    style="background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2); margin-left: 10px; font-size: 0.65rem;">Inativo</span>
                             <?php endif; ?>
                         </td>
-                        <td><?= htmlspecialchars($p['area_conhecimento']) ?></td>
-                        <td><?= $p['weekly_hours_limit'] ?>h / <?= $p['monthly_hours_limit'] ?>h</td>
-                        <td><?= htmlspecialchars($p['tipo_contrato'] ?? 'N/A') ?></td>
+                        <td>
+                            <span class="area-badge"
+                                style="background: rgba(0,0,0,0.05); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; border: 1px solid rgba(0,0,0,0.08);">
+                                <?= htmlspecialchars($p['area_conhecimento']) ?>
+                            </span>
+                        </td>
+                        <td style="font-weight: 600; color: var(--primary-color);">
+                            <i class="fas fa-hourglass-half" style="font-size: 0.7rem; opacity: 0.5; margin-right: 4px;"></i>
+                            <?= $p['weekly_hours_limit'] ?>h / <?= $p['monthly_hours_limit'] ?>h
+                        </td>
+                        <td><span
+                                style="font-size: 0.85rem; color: var(--text-muted);"><?= htmlspecialchars($p['tipo_contrato'] ?? 'N/A') ?></span>
+                        </td>
                         <?php if (can_edit()): ?>
                             <td>
-                                <a href="professores_form.php?id=<?= $p['id'] ?>" class="btn btn-edit"><i
-                                        class="fas fa-edit"></i></a>
-                                <?php if ($p['ativo'] == 1): ?>
-                                    <a href="../controllers/professores_process.php?action=delete&id=<?= $p['id'] ?>"
-                                        class="btn btn-delete" onclick="return confirm('Desativar este professor? Ele deixará de aparecer nas listas, mas seus dados serão mantidos.')" title="Desativar"><i class="fas fa-user-slash"></i></a>
-                                <?php else: ?>
-                                    <a href="../controllers/professores_process.php?action=activate&id=<?= $p['id'] ?>"
-                                        class="btn btn-edit" style="background-color: #2e7d32;" onclick="return confirm('Reativar este professor?')" title="Reativar"><i class="fas fa-user-check"></i></a>
-                                <?php endif; ?>
+                                <div style="display: flex; gap: 5px; justify-content: center; align-items: center;">
+                                    <a href="professores_form.php?id=<?= $p['id'] ?>" class="btn btn-edit" title="Editar"><i
+                                            class="fas fa-edit"></i></a>
+                                    <?php if ($p['ativo'] == 1): ?>
+                                        <a href="../controllers/professores_process.php?action=delete&id=<?= $p['id'] ?>"
+                                            class="btn btn-delete"
+                                            onclick="return confirm('Desativar este professor? Ele deixará de aparecer nas listas, mas seus dados serão mantidos.')"
+                                            title="Desativar"><i class="fas fa-user-slash"></i></a>
+                                    <?php else: ?>
+                                        <a href="../controllers/professores_process.php?action=activate&id=<?= $p['id'] ?>"
+                                            class="btn btn-edit"
+                                            style="background-color: var(--primary-green); border-color: var(--primary-green);"
+                                            onclick="return confirm('Reativar este professor?')" title="Reativar"><i
+                                                class="fas fa-user-check"></i></a>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                         <?php endif; ?>
                     </tr>
@@ -83,44 +113,183 @@ $stmt->close();
     </table>
 </div>
 
-<div class="pagination-controls"
-    style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 20px;">
-    <button id="prev-page" class="btn" onclick="changePage(-1)"><i class="fas fa-chevron-left"></i> Anterior</button>
-    <span id="page-info">Página 1 de 1</span>
-    <button id="next-page" class="btn" onclick="changePage(1)">Próxima <i class="fas fa-chevron-right"></i></button>
+<div class="pagination-container">
+    <div class="pagination-info" id="page-info">
+        Exibindo página 1 de 1
+    </div>
+    <ul class="pagination-pages" id="pagination-list">
+        <!-- Gerado via JS -->
+    </ul>
+</div>
+
 </div>
 
 <script>
     let currentPage = 1;
     const itemsPerPage = 20;
+    let currentSort = { column: null, direction: 'asc' };
 
-    function updatePagination() {
-        const searchTerm = document.getElementById('tableSearch').value.toLowerCase();
-        const rows = Array.from(document.querySelectorAll('.table-row'));
-        
-        const filteredRows = rows.filter(row => {
-            return row.innerText.toLowerCase().includes(searchTerm);
+    function filterProfessores() {
+        const input = document.getElementById('filter-nome');
+        const term = input ? input.value.toLowerCase().trim() : '';
+        const rows = Array.from(document.querySelectorAll('#professores-table tbody tr:not(.empty-row)'));
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            if (text.includes(term)) {
+                row.classList.add('matches-filter');
+            } else {
+                row.classList.remove('matches-filter');
+            }
         });
 
-        rows.forEach(row => row.style.display = 'none');
+        updateFilterChips();
+        applySortAndPaginate();
+        initTableTooltips();
+    }
 
-        const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
-        
+    function initTableTooltips() {
+        const cells = document.querySelectorAll('#professores-table tbody tr td.prof-name-cell');
+        let tooltipTimeout;
+
+        let tooltip = document.getElementById('prof-hover-card');
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.id = 'prof-hover-card';
+            tooltip.className = 'table-preview-tooltip';
+            document.body.appendChild(tooltip);
+        }
+
+        cells.forEach(cell => {
+            cell.onmouseenter = (e) => {
+                const row = e.target.closest('tr');
+                if (!row) return;
+
+                const nome = row.cells[1].innerText.split('\n')[0];
+                const area = row.dataset.area || 'Não definida';
+                const limites = row.cells[3].innerText;
+                const contrato = row.cells[4].innerText;
+
+                tooltip.innerHTML = `
+                    <h4><i class="fas fa-user-tie"></i> Detalhes do Docente</h4>
+                    <p><span class="preview-label">Nome:</span> ${nome}</p>
+                    <p><span class="preview-label">Área:</span> ${area}</p>
+                    <p><span class="preview-label">Limites:</span> ${limites}</p>
+                    <p><span class="preview-label">Contrato:</span> ${contrato}</p>
+                    <div style="margin-top: 10px; font-size: 0.75rem; color: var(--primary-red); font-weight: 600;">
+                        <i class="fas fa-info-circle"></i> Perfil completo na edição
+                    </div>
+                `;
+
+                tooltipTimeout = setTimeout(() => {
+                    tooltip.style.display = 'block';
+                    const rect = e.target.getBoundingClientRect();
+                    // Offset aumentado para jogar mais para a direita (150px)
+                    tooltip.style.left = (rect.left + window.scrollX + 250) + 'px';
+                    tooltip.style.top = (rect.top + window.scrollY - 40) + 'px';
+                }, 400);
+            };
+
+            cell.onmouseleave = () => {
+                clearTimeout(tooltipTimeout);
+                tooltip.style.display = 'none';
+            };
+        });
+    }
+
+    function updateFilterChips() {
+        const container = document.getElementById('filter-chips-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const el = document.getElementById('filter-nome');
+        if (el && el.value) {
+            const chip = document.createElement('div');
+            chip.className = 'filter-chip animate-fade-in';
+            chip.innerHTML = `<i class="fas fa-search"></i> <span>Busca: ${el.value}</span> <i class="fas fa-times remove-chip" onclick="document.getElementById('filter-nome').value=''; filterProfessores();"></i>`;
+            container.appendChild(chip);
+        }
+    }
+
+    function applySortAndPaginate() {
+        const tbody = document.querySelector('#professores-table tbody');
+        const rows = Array.from(document.querySelectorAll('#professores-table tbody tr.table-row'));
+
+        if (currentSort.column !== null) {
+            rows.sort((a, b) => {
+                let valA = a.cells[currentSort.column].innerText.trim();
+                let valB = b.cells[currentSort.column].innerText.trim();
+
+                valA = valA.toLowerCase();
+                valB = valB.toLowerCase();
+
+                if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        updatePagination();
+    }
+
+    function updatePagination() {
+        const rows = Array.from(document.querySelectorAll('#professores-table tbody tr.matches-filter'));
+        const allRows = Array.from(document.querySelectorAll('#professores-table tbody tr.table-row'));
+        const totalPages = Math.ceil(rows.length / itemsPerPage);
+
         if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
         if (currentPage < 1) currentPage = 1;
+
+        allRows.forEach(row => row.style.display = 'none');
 
         const start = (currentPage - 1) * itemsPerPage;
         const end = start + itemsPerPage;
 
-        filteredRows.forEach((row, idx) => {
+        rows.forEach((row, idx) => {
             if (idx >= start && idx < end) {
                 row.style.display = '';
             }
         });
 
-        document.getElementById('page-info').innerText = `Página ${currentPage} de ${totalPages || 1}`;
-        document.getElementById('prev-page').disabled = currentPage === 1;
-        document.getElementById('next-page').disabled = currentPage === totalPages || totalPages === 0;
+        // Atualiza Texto de Info
+        const infoEl = document.getElementById('page-info');
+        if (infoEl) {
+            const currentTotal = rows.length;
+            const shownStart = currentTotal > 0 ? start + 1 : 0;
+            const shownEnd = Math.min(end, currentTotal);
+            infoEl.innerHTML = `Exibindo <strong>${shownStart}-${shownEnd}</strong> de <strong>${currentTotal}</strong> docentes`;
+        }
+
+        // Renderiza Lista de Páginas Premium
+        const listEl = document.getElementById('pagination-list');
+        if (listEl) {
+            listEl.innerHTML = '';
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item nav-btn ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<i class="fas fa-chevron-left"></i> Anterior`;
+            if (currentPage > 1) prevLi.onclick = () => changePage(-1);
+            listEl.appendChild(prevLi);
+
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+
+            for (let i = startPage; i <= endPage; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerText = i;
+                li.onclick = () => { currentPage = i; updatePagination(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+                listEl.appendChild(li);
+            }
+
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item nav-btn ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`;
+            nextLi.innerHTML = `Próximo <i class="fas fa-chevron-right"></i>`;
+            if (currentPage < totalPages && totalPages > 0) nextLi.onclick = () => changePage(1);
+            listEl.appendChild(nextLi);
+        }
     }
 
     function changePage(delta) {
@@ -128,7 +297,9 @@ $stmt->close();
         updatePagination();
     }
 
-    window.addEventListener('load', updatePagination);
+    window.addEventListener('load', () => {
+        filterProfessores();
+    });
 </script>
 
 <?php include __DIR__ . '/../components/footer.php'; ?>

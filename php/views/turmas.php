@@ -22,23 +22,23 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
 
 <div class="page-header">
     <h2>Gestão de Turmas</h2>
-
 </div>
 
-<div class="filter-bar"
-    style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: flex-end; background: transparent; padding: 0; border: none; box-shadow: none;">
-    <input type="text" id="filter-sigla" placeholder="Filtrar por Sigla ou Curso..." class="form-input"
-        style="width: 250px;" onkeyup="filterTurmas()">
-    <input type="text" id="filter-docente" placeholder="Filtrar por Docente..." class="form-input" style="width: 200px;"
+<div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
+    <div class="search-box" style="flex: 1; max-width: 300px;">
+        <input type="text" id="filter-sigla" placeholder="Filtrar por Sigla ou Curso..." class="form-input"
+            style="width: 100%;" onkeyup="filterTurmas()">
+    </div>
+    <input type="text" id="filter-docente" placeholder="Filtrar por Docente..." class="form-input" style="width: 180px;"
         onkeyup="filterTurmas()">
-    <select id="filter-periodo" class="form-input" style="width: 160px;" onchange="filterTurmas()">
+    <select id="filter-periodo" class="form-input" style="width: 140px;" onchange="filterTurmas()">
         <option value="">Todos Períodos</option>
         <option value="Manhã">Manhã</option>
         <option value="Tarde">Tarde</option>
         <option value="Noite">Noite</option>
         <option value="Integral">Integral</option>
     </select>
-    <select id="filter-dia" class="form-input" style="width: 140px;" onchange="filterTurmas()">
+    <select id="filter-dia" class="form-input" style="width: 130px;" onchange="filterTurmas()">
         <option value="">Todos Dias</option>
         <option value="Segunda-feira">Segunda</option>
         <option value="Terça-feira">Terça</option>
@@ -47,40 +47,28 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         <option value="Sexta-feira">Sexta</option>
         <option value="Sábado">Sábado</option>
     </select>
-    <select id="filter-sort" class="form-input" style="width: 180px;" onchange="applyQuickSort()">
+    <select id="filter-sort" class="form-input" style="width: 160px;" onchange="applyQuickSort()">
         <option value="">Ordenar por...</option>
         <option value="ch_desc">Maior Carga Horária</option>
         <option value="ch_asc">Menor Carga Horária</option>
         <option value="data_desc">Data Início (Novas)</option>
         <option value="data_asc">Data Início (Antigas)</option>
     </select>
-    <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <div style="display: flex; gap: 8px;">
-            <button type="button" id="btn-bulk-edit" class="btn" style="background: #6a1b9a; color: white; display: none; font-weight: 700;" onclick="openBulkEditModal()">
-                <i class="fas fa-edit"></i> Editar Selecionados (<span id="bulk-count">0</span>)
+    <div class="header-actions" style="display: flex; gap: 8px;">
+        <?php if (can_reserve()): ?>
+            <button type="button" onclick="openGlobalReserva()" class="btn btn-warning"
+                style="background: #ffb300; border: none; color: #5d4037; font-weight: 700; height: 38px;">
+                <i class="fas fa-bookmark"></i> RESERVA
             </button>
-            <a href="fix_turmas_loading.php" class="btn" style="color: var(--text-muted); font-size: 0.85rem;"
-                title="Ajustar horários">
-                <i class="fas fa-magic"></i> Ajustar horários
-            </a>
-            <?php if (can_reserve()): ?>
-                <button type="button" onclick="openGlobalReserva()" class="btn btn-warning"
-                    style="background: #ffb300; border: none; color: #5d4037; font-weight: 700; height: 38px;">
-                    <i class="fas fa-bookmark"></i> RESERVA
-                </button>
-            <?php endif; ?>
-            <?php if (can_edit()): ?>
-                <a href="javascript:void(0)" onclick="goToNewTurma()" class="btn btn-primary" style="font-weight: 700;"><i class="fas fa-plus"></i> NOVA
-                    TURMA</a>
-            <?php endif; ?>
-            <?php if ($is_archived_view): ?>
-                <a href="turmas.php" class="btn btn-secondary"><i class="fas fa-check-circle"></i> Ver Ativas</a>
-            <?php else: ?>
-                <a href="turmas.php?view=archived" class="btn btn-secondary"><i class="fas fa-archive"></i> Ver
-                    Arquivadas</a>
-            <?php endif; ?>
-        </div>
+        <?php endif; ?>
+        <?php if (can_edit()): ?>
+            <a href="javascript:void(0)" onclick="goToNewTurma()" class="btn btn-primary" style="font-weight: 700;"><i class="fas fa-plus"></i> NOVA TURMA</a>
+        <?php endif; ?>
     </div>
+</div>
+
+<div class="filter-chips-container dashboard-container" id="filter-chips-container" style="margin-bottom: 20px;">
+    <!-- Chips via JS -->
 </div>
 
 <script>
@@ -118,7 +106,113 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             }
         });
 
+        updateFilterChips();
         applySortAndPaginate();
+        initTableTooltips();
+    }
+
+    function initTableTooltips() {
+        const cells = document.querySelectorAll('#turmas-table tbody tr td:nth-child(3)'); // Sigla
+        let tooltipTimeout;
+
+        // Cria o elemento se não existir
+        let tooltip = document.getElementById('turma-hover-card');
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.id = 'turma-hover-card';
+            tooltip.className = 'table-preview-tooltip';
+            document.body.appendChild(tooltip);
+        }
+
+        cells.forEach(cell => {
+            cell.onmouseenter = (e) => {
+                const row = e.target.closest('tr');
+                if (!row || row.classList.contains('empty-row')) return;
+                
+                const sigla = row.cells[2].innerText;
+                const curso = row.cells[4].innerText;
+                const carga = row.cells[5].innerText;
+                const docentes = row.dataset.docentes || 'Nenhum docente';
+
+                tooltip.innerHTML = `
+                    <h4><i class="fas fa-info-circle"></i> Detalhes da Turma</h4>
+                    <p><span class="preview-label">Sigla:</span> ${sigla}</p>
+                    <p><span class="preview-label">Curso:</span> ${curso}</p>
+                    <p><span class="preview-label">Carga:</span> ${carga}</p>
+                    <p><span class="preview-label">Docentes:</span> ${docentes}</p>
+                    <div style="margin-top: 10px; font-size: 0.75rem; color: var(--primary-red); font-weight: 600;">
+                        <i class="fas fa-mouse-pointer"></i> Clique para gerenciar
+                    </div>
+                `;
+
+                tooltipTimeout = setTimeout(() => {
+                    tooltip.style.display = 'block';
+                    const rect = e.target.getBoundingClientRect();
+                    tooltip.style.left = (rect.left + window.scrollX + 20) + 'px';
+                    tooltip.style.top = (rect.top + window.scrollY - 40) + 'px';
+                }, 400); // Delay para não ser intrusivo
+            };
+            
+            cell.onmouseleave = () => {
+                clearTimeout(tooltipTimeout);
+                tooltip.style.display = 'none';
+            };
+        });
+    }
+
+    function updateFilterChips() {
+        const container = document.getElementById('filter-chips-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const filters = [
+            { id: 'filter-sigla', label: 'Busca', icon: 'fa-search' },
+            { id: 'filter-docente', label: 'Professor', icon: 'fa-user-tie' },
+            { id: 'filter-periodo', label: 'Período', icon: 'fa-clock' },
+            { id: 'filter-dia', label: 'Dia', icon: 'fa-calendar-day' }
+        ];
+
+        filters.forEach(f => {
+            const el = document.getElementById(f.id);
+            if (el && el.value) {
+                let valText = el.value;
+                if (el.tagName === 'SELECT') {
+                    valText = el.options[el.selectedIndex].text;
+                }
+                
+                const chip = document.createElement('div');
+                chip.className = 'filter-chip animate-fade-in';
+                chip.innerHTML = `
+                    <i class="fas ${f.icon}"></i>
+                    <span><strong>${f.label}:</strong> ${valText}</span>
+                    <i class="fas fa-times-circle remove-chip" onclick="clearSpecificFilter('${f.id}')"></i>
+                `;
+                container.appendChild(chip);
+            }
+        });
+
+        if (container.children.length > 0) {
+            const clearAll = document.createElement('div');
+            clearAll.className = 'filter-chip';
+            clearAll.style.cursor = 'pointer';
+            clearAll.style.background = 'rgba(237, 28, 36, 0.1)';
+            clearAll.style.borderColor = 'var(--primary-red)';
+            clearAll.style.color = 'var(--primary-red)';
+            clearAll.innerHTML = `<span>Limpar Tudo</span>`;
+            clearAll.onclick = () => {
+                filters.forEach(f => document.getElementById(f.id).value = '');
+                filterTurmas();
+            };
+            container.appendChild(clearAll);
+        }
+    }
+
+    function clearSpecificFilter(id) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.value = '';
+            filterTurmas();
+        }
     }
 
     function applyQuickSort() {
@@ -189,14 +283,14 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 if (isEmptyA && isEmptyB) return 0;
 
                 // Sort logic based on column index
-                if ([8, 9].includes(currentSort.column)) { // Início (8), Fim (9)
+                if ([10, 11].includes(currentSort.column)) { // Início (10), Fim (11)
                     const parseDate = (d) => {
                         const parts = d.split('/');
                         return new Date(parts[2], parts[1] - 1, parts[0]);
                     };
                     valA = parseDate(valA);
                     valB = parseDate(valB);
-                } else if (currentSort.column === 3 || currentSort.column === 10) { // C/H (3) ou Vagas (10)
+                } else if (currentSort.column === 5 || currentSort.column === 12) { // C/H (5) ou Vagas (12)
                     valA = parseInt(valA) || 0;
                     valB = parseInt(valB) || 0;
                 } else {
@@ -235,19 +329,207 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             }
         });
 
+        // Atualiza Texto de Info
         const infoEl = document.getElementById('page-info');
-        if (infoEl) infoEl.innerText = `Página ${currentPage} de ${totalPages || 1}`;
+        if (infoEl) {
+            const currentTotal = rows.length;
+            const shownStart = currentTotal > 0 ? start + 1 : 0;
+            const shownEnd = Math.min(end, currentTotal);
+            infoEl.innerHTML = `Exibindo <strong>${shownStart}-${shownEnd}</strong> de <strong>${currentTotal}</strong> turmas`;
+        }
 
-        const prevBtn = document.getElementById('prev-page');
-        const nextBtn = document.getElementById('next-page');
-        if (prevBtn) prevBtn.disabled = currentPage === 1;
-        if (nextBtn) nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+        // Renderiza Lista de Páginas Premium
+        const listEl = document.getElementById('pagination-list');
+        if (listEl) {
+            listEl.innerHTML = '';
+            
+            // Botão Anterior
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item nav-btn ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<i class="fas fa-chevron-left"></i> Anterior`;
+            if (currentPage > 1) prevLi.onclick = () => changePage(-1);
+            listEl.appendChild(prevLi);
+
+            // Números de Página
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            
+            if (endPage - startPage < maxVisible - 1) {
+                startPage = Math.max(1, endPage - maxVisible + 1);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerText = i;
+                li.onclick = () => {
+                    currentPage = i;
+                    updatePagination();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
+                listEl.appendChild(li);
+            }
+
+            // Botão Próximo
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item nav-btn ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}`;
+            nextLi.innerHTML = `Próximo <i class="fas fa-chevron-right"></i>`;
+            if (currentPage < totalPages && totalPages > 0) nextLi.onclick = () => changePage(1);
+            listEl.appendChild(nextLi);
+        }
     }
 
     function changePage(delta) {
         currentPage += delta;
         updatePagination();
     }
+
+    // Gestão de Seleção e Barra Flutuante
+    function handleRowSelect(checkbox) {
+        const row = checkbox.closest('tr');
+        if (checkbox.checked) {
+            row.classList.add('row-selected');
+        } else {
+            row.classList.remove('row-selected');
+        }
+        updateBulkButton();
+    }
+
+    function updateBulkButton() {
+        const selected = document.querySelectorAll('.turma-checkbox:checked');
+        const count = selected.length;
+        
+        // Botão clássico (topo)
+        const btnBulk = document.getElementById('btn-bulk-edit');
+        if (btnBulk) {
+            btnBulk.style.display = count > 0 ? 'inline-flex' : 'none';
+            const countSpan = document.getElementById('bulk-count');
+            if (countSpan) countSpan.innerText = count;
+        }
+
+        // Barra Flutuante
+        const floatingBar = document.getElementById('floating-bar');
+        const floatingCount = document.getElementById('floating-count');
+        if (floatingBar && floatingCount) {
+            if (count > 0) {
+                floatingBar.classList.add('active');
+                floatingCount.innerText = count;
+            } else {
+                floatingBar.classList.remove('active');
+            }
+        }
+    }
+
+    function toggleSelectAll(master) {
+        const checkboxes = document.querySelectorAll('.turma-checkbox');
+        checkboxes.forEach(cb => {
+            const row = cb.closest('tr');
+            if (row.style.display !== 'none') {
+                cb.checked = master.checked;
+                handleRowSelect(cb);
+            }
+        });
+    }
+
+    function clearSelection() {
+        document.querySelectorAll('.turma-checkbox').forEach(cb => {
+            cb.checked = false;
+            handleRowSelect(cb);
+        });
+        const selectAll = document.getElementById('selectAll');
+        if (selectAll) selectAll.checked = false;
+    }
+
+    function deleteSelectedTurmas() {
+        const selected = Array.from(document.querySelectorAll('.turma-checkbox:checked')).map(cb => cb.value);
+        if (selected.length === 0) return;
+
+        Swal.fire({
+            title: 'Excluir Turmas em Lote?',
+            html: `Você selecionou <strong>${selected.length} turmas</strong> para exclusão definitiva.<br><br>Para confirmar, digite <strong>EXCLUIR</strong> abaixo:`,
+            icon: 'warning',
+            input: 'text',
+            inputAttributes: {
+                autocapitalize: 'off',
+                placeholder: 'EXCLUIR'
+            },
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sim, excluir tudo',
+            cancelButtonText: 'Cancelar',
+            preConfirm: (value) => {
+                if (value !== 'EXCLUIR') {
+                    Swal.showValidationMessage('Você deve digitar EXCLUIR para confirmar');
+                }
+                return value === 'EXCLUIR';
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '../controllers/turmas_process.php';
+                
+                const actInput = document.createElement('input');
+                actInput.type = 'hidden';
+                actInput.name = 'action';
+                actInput.value = 'delete_bulk';
+                form.appendChild(actInput);
+
+                const urlInput = document.createElement('input');
+                urlInput.type = 'hidden';
+                urlInput.name = 'return_url';
+                urlInput.value = 'turmas.php?' + getCurrentFilterParams();
+                form.appendChild(urlInput);
+
+                selected.forEach(id => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'ids[]';
+                    input.value = id;
+                    form.appendChild(input);
+                });
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    }
+
+    // Atalhos de Teclado
+    document.addEventListener('keydown', (e) => {
+        // Ctrl + K (Busca)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            const searchInput = document.getElementById('filter-sigla');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.select();
+            }
+        }
+
+        // Esc (Limpar Filtros e Seleção)
+        if (e.key === 'Escape') {
+            const searchInput = document.getElementById('filter-sigla');
+            const profInput = document.getElementById('filter-docente');
+            if (searchInput) searchInput.value = '';
+            if (profInput) profInput.value = '';
+            document.getElementById('filter-periodo').value = '';
+            document.getElementById('filter-dia').value = '';
+            filterTurmas();
+            clearSelection();
+        }
+    });
+
+    // Tooltips para Docentes (Nativo Simples)
+    document.querySelectorAll('#turmas-table tbody tr').forEach(row => {
+        const docenteCell = row.cells[9]; // Coluna de Docentes
+        if (docenteCell) {
+            docenteCell.title = "Clique para filtrar todas as turmas deste docente";
+            docenteCell.style.cursor = 'help';
+        }
+    });
 
     window.addEventListener('load', () => {
         // Inicializa filtros da URL
@@ -284,8 +566,15 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         const rows = document.querySelectorAll('#turmas-table tbody tr:not(.empty-row)');
         rows.forEach(r => r.classList.add('matches-filter'));
         filterTurmas(); // Aplica filtros iniciais
+        updateBulkButton(); // Garante estado inicial da barra flutuante
 
-        // Lógica para destacar turma vinda de notificação
+        // Mover barra flutuante para o final do body (Portal pattern)
+        // Isso resolve problemas de position: fixed dentro de containers com transform/animation
+        const floatingBar = document.getElementById('floating-bar');
+        if (floatingBar) {
+            document.body.appendChild(floatingBar);
+        }
+
         const targetId = urlParams.get('id');
         if (targetId) {
             const targetRow = document.querySelector(`tr[data-id="${targetId}"]`);
@@ -332,7 +621,11 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             const finalUrl = cleanUrl + (newSearch.toString() ? '?' + newSearch.toString() : '');
             window.history.replaceState({}, document.title, finalUrl);
         }
+
+        // Garante tooltips iniciais
+        initTableTooltips();
     });
+
 
     function getCurrentFilterParams() {
         const params = new URLSearchParams();
@@ -367,31 +660,6 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         window.location.href = `turmas_form.php?id=${id}&return_url=${encodeURIComponent('../views/turmas.php?' + filters)}`;
     }
 
-    // --- Seleção Múltipla ---
-    function toggleSelectAll(master) {
-        const checkboxes = document.querySelectorAll('.turma-checkbox');
-        checkboxes.forEach(cb => {
-            const row = cb.closest('tr');
-            if (row.style.display !== 'none') {
-                cb.checked = master.checked;
-            }
-        });
-        updateBulkButton();
-    }
-
-    function updateBulkButton() {
-        const checked = document.querySelectorAll('.turma-checkbox:checked');
-        const btn = document.getElementById('btn-bulk-edit');
-        const countSpan = document.getElementById('bulk-count');
-        
-        if (checked.length > 0) {
-            btn.style.display = 'flex';
-            countSpan.innerText = checked.length;
-        } else {
-            btn.style.display = 'none';
-        }
-    }
-
     function openBulkEditModal() {
         const checked = document.querySelectorAll('.turma-checkbox:checked');
         const ids = Array.from(checked).map(cb => cb.value);
@@ -408,21 +676,22 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 <th style="width: 40px;">#</th>
                 <th onclick="sortTable(2)" style="cursor:pointer;">SIGLA <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(3)" style="cursor:pointer;">CURSO <span class="sort-icon"><i class="fas fa-sort"
+                <th>STATUS</th>
+                <th onclick="sortTable(4)" style="cursor:pointer;">CURSO <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(4)" style="cursor:pointer;">C/H <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(5)" style="cursor:pointer;">C/H <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(5)" style="cursor:pointer;">PERÍODO <span class="sort-icon"><i
+                <th onclick="sortTable(6)" style="cursor:pointer;">PERÍODO <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
                 <th>HORÁRIO</th>
                 <th>DIAS</th>
-                <th onclick="sortTable(8)" style="cursor:pointer;">DOCENTE(S) <span class="sort-icon"><i
+                <th onclick="sortTable(9)" style="cursor:pointer;">DOCENTE(S) <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(9)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(10)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(10)" style="cursor:pointer;">FIM <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(11)" style="cursor:pointer;">FIM <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(11)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(12)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
                 <?php if (can_edit()): ?>
                     <th style="text-align: center;">AÇÕES</th>
@@ -449,16 +718,35 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                     $dias_semana_raw = $t['dias_semana'] ?? '';
                     ?>
                     <tr class="matches-filter" data-id="<?= $t['id'] ?>" data-docentes="<?= xe($docentes_search) ?>" data-dias="<?= xe($dias_semana_raw) ?>">
-                        <td style="text-align: center;"><input type="checkbox" class="row-checkbox turma-checkbox" value="<?= $t['id'] ?>" onclick="updateBulkButton()"></td>
+                        <td style="text-align: center;"><input type="checkbox" class="row-checkbox turma-checkbox" value="<?= $t['id'] ?>" onchange="handleRowSelect(this)"></td>
                         <td style="color: var(--text-muted); font-size: 0.8rem;"><?= $idx++ ?></td>
                         <td>
                             <strong><?= xe($t['sigla']) ?></strong>
-                            <?php if ($is_archived_view): ?>
-                                <span
-                                    style="display: block; font-size: 0.65rem; color: #d32f2f; font-weight: 700; text-transform: uppercase; margin-top: 4px;">
-                                    <i class="fas fa-archive"></i> Arquivada
-                                </span>
-                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php
+                            $hoje = date('Y-m-d');
+                            $status_class = '';
+                            $status_label = '';
+                            $status_icon = '';
+
+                            if ($t['data_fim'] < $hoje) {
+                                $status_class = 'status-encerrada';
+                                $status_label = 'Encerrada';
+                                $status_icon = 'fa-check-circle';
+                            } elseif ($t['data_inicio'] > $hoje) {
+                                $status_class = 'status-futura';
+                                $status_label = 'Futura';
+                                $status_icon = 'fa-clock';
+                            } else {
+                                $status_class = 'status-andamento';
+                                $status_label = 'Em Curso';
+                                $status_icon = 'fa-play-circle';
+                            }
+                            ?>
+                            <span class="status-badge <?= $status_class ?>" title="De <?= date('d/m/Y', strtotime($t['data_inicio'])) ?> até <?= date('d/m/Y', strtotime($t['data_fim'])) ?>">
+                                <i class="fas <?= $status_icon ?>"></i> <?= $status_label ?>
+                            </span>
                         </td>
                         <td><?= xe($t['curso_nome']) ?> <span style="font-size: 0.8rem; color: var(--text-muted); opacity: 0.8;">(<?= $t['carga_horaria_total'] ?>h)</span></td>
                         <td style="font-weight: 700; color: var(--primary-color);"><?= $t['carga_horaria_total'] ?>h</td>
@@ -489,22 +777,25 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                             endforeach;
                             ?>
                         </td>
-                        <td style="max-width: 200px;">
-                            <?php if (!empty($docentes_list)): ?>
-                                <?php foreach ($docentes_list as $dn): ?>
-                                    <span
-                                        style="display: inline-block; background: rgba(229,57,53,0.08); color: var(--text-color); padding: 2px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; margin: 1px 2px; border: 1px solid rgba(229,57,53,0.15);">
-                                        <i class="fas fa-user"
-                                            style="font-size: 0.65rem; opacity: 0.6; margin-right: 3px;"></i><?= xe($dn) ?>
-                                    </span>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <span style="color: var(--text-muted); font-size: 0.8rem;">—</span>
-                            <?php endif; ?>
+                        <td style="max-width: 250px;">
+                            <div class="docente-list" style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                <?php if (!empty($docentes_list)): ?>
+                                    <?php foreach ($docentes_list as $dn): ?>
+                                        <span class="docente-badge docente-cell" 
+                                              style="background: rgba(229,57,53,0.08); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; border: 1px solid rgba(229,57,53,0.15); cursor: pointer; transition: all 0.2s;"
+                                              title="Filtrar por: <?= xe($dn) ?>"
+                                              onclick="document.getElementById('filter-docente').value='<?= xe($dn) ?>'; filterTurmas();">
+                                            <i class="fas fa-user-tie" style="font-size: 0.7rem; opacity: 0.6; margin-right: 4px;"></i><?= xe($dn) ?>
+                                        </span>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <span style="color: var(--text-muted); font-size: 0.8rem;">—</span>
+                                <?php endif; ?>
+                            </div>
                         </td>
                         <td><?= !empty($t['data_inicio']) ? date('d/m/Y', strtotime($t['data_inicio'])) : '-' ?></td>
                         <td><?= !empty($t['data_fim']) ? date('d/m/Y', strtotime($t['data_fim'])) : '-' ?></td>
-                        <td><?= $t['vagas'] ?></td>
+                        <td style="text-align: center; font-weight: 700;"><?= $t['vagas'] ?></td>
                         <?php if (can_edit()): ?>
                             <td>
                                 <div style="display: flex; gap: 5px; justify-content: center; align-items: center;">
@@ -539,23 +830,165 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
     </table>
 </div>
 
-<div class="pagination-controls"
-    style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 20px;">
-    <button id="prev-page" class="btn" onclick="changePage(-1)"><i class="fas fa-chevron-left"></i> Anterior</button>
-    <span id="page-info">Página 1 de 1</span>
-    <button id="next-page" class="btn" onclick="changePage(1)">Próxima <i class="fas fa-chevron-right"></i></button>
+<div class="pagination-container">
+    <div class="pagination-info" id="page-info">
+        Exibindo página 1 de 1
+    </div>
+    <ul class="pagination-pages" id="pagination-list">
+        <!-- Gerado via JS -->
+    </ul>
 </div>
 
-<style>
-    #turmas-table th {
-        vertical-align: middle;
-    }
 
+
+<style>
     #turmas-table td {
         vertical-align: middle;
         padding: 12px 15px;
+        transition: background-color 0.2s;
+    }
+
+    /* Badges de Status */
+    .status-badge {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.65rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+    .status-andamento { background: rgba(76, 175, 80, 0.15); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.3); }
+    .status-futura { background: rgba(33, 150, 243, 0.15); color: #2196f3; border: 1px solid rgba(33, 150, 243, 0.3); }
+    .status-encerrada { background: rgba(158, 158, 158, 0.15); color: #9e9e9e; border: 1px solid rgba(158, 158, 158, 0.3); }
+
+    /* Seleção de Linhas */
+    .row-selected { background-color: rgba(106, 27, 154, 0.1) !important; }
+
+    /* Barra Flutuante de Seleção */
+    .floating-selection-bar {
+        position: fixed;
+        bottom: -100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(30, 41, 59, 0.95);
+        backdrop-filter: blur(15px);
+        padding: 12px 30px;
+        border-radius: 50px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        border: 1px solid rgba(255,255,255,0.1);
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        z-index: 10002;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .floating-selection-bar.active { 
+        bottom: 30px;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+    .selection-count {
+        color: #fff;
+        font-weight: 800;
+        padding-right: 20px;
+        border-right: 1px solid rgba(255,255,255,0.1);
+        font-size: 0.9rem;
+    }
+    .bar-actions { display: flex; gap: 10px; }
+    .bar-btn {
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        padding: 8px 15px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+    .bar-btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+    .bar-btn.btn-delete:hover { color: #ff5252; background: rgba(255, 82, 82, 0.1); }
+
+    /* Estilo do Modal de Edição em Lote */
+    #modal-bulk-edit .modal-content {
+        background: #1e293b;
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    #modal-bulk-edit .modal-header {
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding: 20px 25px;
+    }
+    #modal-bulk-edit .close-modal {
+        background: transparent !important;
+        border: none !important;
+        color: #fff !important;
+        box-shadow: none !important;
+        font-size: 1.5rem !important;
+        width: auto !important;
+        height: auto !important;
+        line-height: 1;
+        opacity: 0.7;
+    }
+    #modal-bulk-edit .close-modal:hover { opacity: 1; }
+    #modal-bulk-edit .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        padding: 20px 25px;
+        background: rgba(0,0,0,0.2);
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    #modal-bulk-edit .btn-primary {
+        background: #ed1c16;
+        border: none;
+        color: #fff;
+        font-weight: 800;
+        padding: 10px 25px;
+        border-radius: 8px;
+    }
+    #modal-bulk-edit .btn-secondary {
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    /* Hover Inteligente Docente */
+    .docente-cell:hover {
+        background: rgba(229,57,53,0.15) !important;
+        border-color: rgba(229,57,53,0.3) !important;
+        transform: translateY(-2px);
     }
 </style>
+
+<!-- Barra Flutuante de Seleção Única -->
+<div id="floating-bar" class="floating-selection-bar">
+    <div class="selection-count"><span id="floating-count">0</span> selecionadas</div>
+    <div class="bar-actions">
+        <button class="bar-btn" style="background: #6a1b9a;" onclick="openBulkEditModal()">
+            <i class="fas fa-edit"></i> Editar Horários
+        </button>
+        <?php if (isAdmin()): ?>
+            <button class="bar-btn btn-delete" onclick="deleteSelectedTurmas()">
+                <i class="fas fa-trash"></i> Excluir
+            </button>
+        <?php endif; ?>
+        <button class="bar-btn" onclick="clearSelection()" style="opacity: 0.8;">
+            <i class="fas fa-times"></i> Cancelar
+        </button>
+    </div>
+</div>
 
 <script>
     // Dependências para o calendar.js / formulário unificado funcionar independentemente
