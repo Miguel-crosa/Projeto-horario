@@ -205,36 +205,40 @@ $encerradas_query = mysqli_query($conn, "
 $encerradas = mysqli_fetch_all($encerradas_query, MYSQLI_ASSOC);
 
 // --- Próximas Turmas (Intervalo fixo de 30 dias com paginação de lista) ---
-$proximas_page = (int)($_GET['proximas_page'] ?? 1);
+$proximas_page = (int) ($_GET['proximas_page'] ?? 1);
 $proximas_limit = 10; // Mostra 10 por página conforme imagem de referência
 $proximas_start = date('Y-m-d');
 $proximas_end = date('Y-m-d', strtotime("+30 days"));
 
 $proximas_query = mysqli_query($conn, "
-    SELECT t.id, amb.cidade, c.nome AS curso_nome, t.data_inicio, t.tipo
+    SELECT t.id, t.sigla, amb.cidade, c.nome AS curso_nome, t.data_inicio, t.tipo
     FROM turma t 
     JOIN curso c ON t.curso_id = c.id 
     LEFT JOIN ambiente amb ON t.ambiente_id = amb.id
-    WHERE t.data_inicio <= '$proximas_end' 
-      AND (t.data_fim >= '$proximas_start' OR t.data_fim IS NULL)
-    ORDER BY t.data_inicio ASC LIMIT 100 -- Pega bastante para paginar no PHP
+    WHERE t.data_inicio BETWEEN '$proximas_start' AND '$proximas_end'
+      AND t.ativo = 1
+    ORDER BY t.data_inicio ASC LIMIT 100
 ");
 
 $all_proximas = [];
 if ($proximas_query) {
     while ($row = mysqli_fetch_assoc($proximas_query)) {
         $tid = (int) $row['id'];
+        // Tenta achar a primeira aula real no futuro
         $agenda_res = mysqli_query($conn, "SELECT MIN(data) as fd FROM agenda WHERE turma_id = $tid AND data >= '$proximas_start'");
         $agenda_row = mysqli_fetch_assoc($agenda_res);
 
+        // Se tiver agenda, usa a data da agenda, senão usa a data de início oficial
         $data_final = (!empty($agenda_row['fd'])) ? $agenda_row['fd'] : $row['data_inicio'];
 
+        // Se cair num domingo, joga para segunda (regra de negócio aparente)
         if (date('w', strtotime($data_final)) == 0) {
             $data_final = date('Y-m-d', strtotime($data_final . ' +1 day'));
         }
 
         $row['data_inicio_real'] = $data_final;
-        
+
+        // Só adiciona se a data de início REAL for a partir de hoje
         if ($data_final >= $proximas_start && $data_final <= $proximas_end) {
             $all_proximas[] = $row;
         }
@@ -382,7 +386,9 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                             <div
                                 style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 700; color: var(--text-color);">
                                 <span>Horas Disponíveis (Ano)</span>
-                                <span style="color: #2e7d32; margin-left: 10px;"><?= round($saldo_remanescente - calculateConsumedHours($conn, (int) $filtro_docente_id, $hoje, $fim_ano)) ?>h /
+                                <span
+                                    style="color: #2e7d32; margin-left: 10px;"><?= round($saldo_remanescente - calculateConsumedHours($conn, (int) $filtro_docente_id, $hoje, $fim_ano)) ?>h
+                                    /
                                     <?= round($total_ano) ?>h</span>
                             </div>
                             <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden; position: relative;"
@@ -805,14 +811,23 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                 </div>
 
                 <div class="dash-section">
-                    <div class="dash-section-header" style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3 style="margin: 0;"><i class="fas fa-rocket" style="color: #ff8f00;"></i> Próximas Turmas</h3>
+                    <div class="dash-section-header"
+                        style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0;"><i class="fas fa-rocket" style="color: #ff8f00;"></i> Próximas Turmas
+                        </h3>
                         <?php if ($total_proximas_pages > 1): ?>
-                        <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.05); padding: 4px 10px; border-radius: 20px;">
-                            <button type="button" onclick="navigateProximasTurmas(-1)" title="Anterior" style="border:none; background:transparent; cursor:pointer; color:var(--text-color); <?= $proximas_page <= 1 ? 'opacity:0.3; pointer-events:none;' : '' ?>"><i class="fas fa-chevron-left" style="font-size:0.7rem;"></i></button>
-                            <span style="font-size: 0.75rem; font-weight: 800; color: #ff8f00; min-width: 60px; text-align: center;"><?= $proximas_page ?> / <?= $total_proximas_pages ?></span>
-                            <button type="button" onclick="navigateProximasTurmas(1)" title="Próximo" style="border:none; background:transparent; cursor:pointer; color:var(--text-color); <?= $proximas_page >= $total_proximas_pages ? 'opacity:0.3; pointer-events:none;' : '' ?>"><i class="fas fa-chevron-right" style="font-size:0.7rem;"></i></button>
-                        </div>
+                            <div
+                                style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.05); padding: 4px 10px; border-radius: 20px;">
+                                <button type="button" onclick="navigateProximasTurmas(-1)" title="Anterior"
+                                    style="border:none; background:transparent; cursor:pointer; color:var(--text-color); <?= $proximas_page <= 1 ? 'opacity:0.3; pointer-events:none;' : '' ?>"><i
+                                        class="fas fa-chevron-left" style="font-size:0.7rem;"></i></button>
+                                <span
+                                    style="font-size: 0.75rem; font-weight: 800; color: #ff8f00; min-width: 60px; text-align: center;"><?= $proximas_page ?>
+                                    / <?= $total_proximas_pages ?></span>
+                                <button type="button" onclick="navigateProximasTurmas(1)" title="Próximo"
+                                    style="border:none; background:transparent; cursor:pointer; color:var(--text-color); <?= $proximas_page >= $total_proximas_pages ? 'opacity:0.3; pointer-events:none;' : '' ?>"><i
+                                        class="fas fa-chevron-right" style="font-size:0.7rem;"></i></button>
+                            </div>
                         <?php endif; ?>
                     </div>
                     <div class="dash-section-body">
@@ -820,16 +835,23 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                             <p class="text-center" style="color: var(--text-muted);">Nenhuma turma futura.</p>
                         <?php else: ?>
                             <?php foreach ($proximas as $pt): ?>
-                                <div class="city-list-item" style="flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--border-color);">
-                                    <div style="font-weight: 800; font-size: .95rem; color: var(--text-color);">Turma #<?= $pt['id'] ?></div>
+                                <div class="city-list-item"
+                                    style="flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 0; border-bottom: 1px dashed rgba(255, 143, 0, 0.2);">
+                                    <div style="font-weight: 700; font-size: .9rem; color: #ff8f00;">Turma
+                                        <?= htmlspecialchars($pt['sigla']) ?>
+                                    </div>
                                     <div style="font-size: .8rem; color: var(--text-muted); line-height: 1.4;">
-                                        <?= htmlspecialchars($pt['curso_nome']) ?> · <?= $pt['tipo'] ?>
-                                        <?php if (!empty($pt['cidade'])): ?>
-                                            · <i class="fas fa-map-marker-alt" style="font-size: 0.7rem;"></i> <?= htmlspecialchars($pt['cidade']) ?>
+                                        <?= htmlspecialchars($pt['curso_nome']) ?>
+                                        <?php if (!empty($pt['tipo']) || !empty($pt['cidade'])): ?>
+                                            · <span style="font-size: 0.75rem; opacity: 0.8;">
+                                                <?= htmlspecialchars($pt['tipo']) ?>
+                                                            <?= !empty($pt['cidade']) ? ' · ' . htmlspecialchars($pt['cidade']) : '' ?>
+                                            </span>
                                         <?php endif; ?>
                                     </div>
-                                    <div style="font-size: .85rem; color: #ef1c1c; font-weight: 800; margin-top: 2px; display: flex; align-items: center; gap: 6px;">
-                                        <i class="fas fa-calendar-alt"></i> Início: <?= date('d/m/Y', strtotime($pt['data_inicio_real'])) ?>
+                                    <div style="font-size: .78rem; color: #ef1c1c; font-weight: 700; margin-top: 2px;">
+                                        <i class="fas fa-calendar-plus"></i> Início:
+                                        <?= date('d/m/Y', strtotime($pt['data_inicio_real'])) ?>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -1097,7 +1119,7 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
             const newMonth = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
 
             input.value = newMonth;
-            
+
             // Reset proximas_offset se mudar o mês? Talvez não seja necessário, mas mantém a coerência
             // document.getElementById('proximas_offset_hidden').value = 0;
 
@@ -1107,10 +1129,10 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
         function navigateProximasTurmas(delta) {
             const input = document.getElementById('proximas_page_hidden');
             if (!input) return;
-            
+
             let current = parseInt(input.value) || 1;
             input.value = current + delta;
-            
+
             refreshDashboardAjax();
         }
 
@@ -1407,8 +1429,9 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
             </button>
         </div>
         <div class="modal-producao-body">
-            <p style="font-size: 0.85rem; color: #666; margin-bottom: 20px;">Defina a produção total (A/H) esperada para cada modalidade no ano selecionado.</p>
-            
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 20px;">Defina a produção total (A/H) esperada para
+                cada modalidade no ano selecionado.</p>
+
             <div style="display: flex; flex-direction: column; gap: 15px;">
                 <div class="meta-input-group">
                     <label>CAI (Aprendizagem Industrial)</label>
@@ -1423,7 +1446,7 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     <input type="number" id="meta-fic-horas" placeholder="Produção Total (A/H)" class="form-control">
                 </div>
             </div>
-            
+
             <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
                 <button class="btn btn-primary btn-meta-action" onclick="nextToDespesas()">
                     Próximo: Despesas <i class="fas fa-arrow-right"></i>
@@ -1443,14 +1466,19 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
             </button>
         </div>
         <div class="modal-producao-body">
-            <div style="background: #e0f2f1; padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #b2dfdb;">
-                <div style="font-size: 0.75rem; text-transform: uppercase; color: #00796b; font-weight: 800; letter-spacing: 0.5px;">Volume de A/H Esperado (Variável X)</div>
-                <div style="font-size: 1.8rem; font-weight: 900; color: #004d40;"><span id="display-total-ah-meta">0</span> A/H</div>
+            <div
+                style="background: #e0f2f1; padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #b2dfdb;">
+                <div
+                    style="font-size: 0.75rem; text-transform: uppercase; color: #00796b; font-weight: 800; letter-spacing: 0.5px;">
+                    Volume de A/H Esperado (Variável X)</div>
+                <div style="font-size: 1.8rem; font-weight: 900; color: #004d40;"><span
+                        id="display-total-ah-meta">0</span> A/H</div>
             </div>
 
             <div class="meta-input-group">
                 <label>Valor da Despesa Anual (R$)</label>
-                <input type="number" id="meta-despesa-anual" step="0.01" class="form-control" placeholder="Ex: 2.000.000,00">
+                <input type="number" id="meta-despesa-anual" step="0.01" class="form-control"
+                    placeholder="Ex: 2.000.000,00">
             </div>
 
             <div style="margin-top: 30px; display: flex; justify-content: space-between;">
@@ -1476,14 +1504,17 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                 </span>
             </div>
             <div style="display: flex; gap: 10px;">
-                <button class="btn btn-primary btn-sm btn-meta-action" onclick="openMetasSimulationModal()" id="btn-simulate">
+                <button class="btn btn-primary btn-sm btn-meta-action" onclick="openMetasSimulationModal()"
+                    id="btn-simulate">
                     <i class="fas fa-vial"></i> Simular
                 </button>
-                <button class="btn btn-primary btn-sm btn-meta-action" onclick="changeMetasVision()" id="btn-change-vision">
+                <button class="btn btn-primary btn-sm btn-meta-action" onclick="changeMetasVision()"
+                    id="btn-change-vision">
                     <i class="fas fa-search-plus"></i> Detalhar por Curso
                 </button>
                 <?php if (isAdmin() || isGestor()): ?>
-                <button type="button" class="btn btn-primary btn-sm btn-meta-action" onclick="event.preventDefault(); openEditMetas();">
+                <button type="button" class="btn btn-primary btn-sm btn-meta-action"
+                    onclick="event.preventDefault(); openEditMetas();">
                     <i class="fas fa-edit"></i> Editar
                 </button>
                 <?php endif; ?>
@@ -1493,20 +1524,30 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
             </div>
         </div>
         <div class="modal-producao-body">
-            <div class="metas-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px;">
-                <div class="meta-card-info" style="padding: 25px; border-radius: 16px; border-left: 6px solid var(--meta-primary);">
-                    <div style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Custo A/H (Meta)</div>
-                    <div id="card-custo-meta" style="font-size: 2rem; font-weight: 900; color: var(--meta-primary); margin: 5px 0;">R$ 0,00</div>
+            <div class="metas-cards-grid"
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                <div class="meta-card-info"
+                    style="padding: 25px; border-radius: 16px; border-left: 6px solid var(--meta-primary);">
+                    <div style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
+                        Custo A/H (Meta)</div>
+                    <div id="card-custo-meta"
+                        style="font-size: 2rem; font-weight: 900; color: var(--meta-primary); margin: 5px 0;">R$ 0,00
+                    </div>
                     <div id="card-volume-meta" style="font-size: 0.9rem; font-weight: 600;">0 A/H Esperados</div>
                 </div>
-                <div class="meta-card-info" style="padding: 25px; border-radius: 16px; border-left: 6px solid var(--meta-secondary);">
-                    <div style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Custo A/H (Realizado)</div>
-                    <div id="card-custo-real" style="font-size: 2rem; font-weight: 900; color: var(--meta-secondary); margin: 5px 0;">R$ 0,00</div>
+                <div class="meta-card-info"
+                    style="padding: 25px; border-radius: 16px; border-left: 6px solid var(--meta-secondary);">
+                    <div style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
+                        Custo A/H (Realizado)</div>
+                    <div id="card-custo-real"
+                        style="font-size: 2rem; font-weight: 900; color: var(--meta-secondary); margin: 5px 0;">R$ 0,00
+                    </div>
                     <div id="card-volume-real" style="font-size: 0.9rem; font-weight: 600;">0 A/H Realizados</div>
                 </div>
             </div>
 
-            <div class="meta-chart-container" style="padding: 25px; border-radius: 16px; height: 420px; border: 1px solid var(--meta-border); background: var(--meta-card-bg);">
+            <div class="meta-chart-container"
+                style="padding: 25px; border-radius: 16px; height: 420px; border: 1px solid var(--meta-border); background: var(--meta-card-bg);">
                 <canvas id="chartMetasComparison"></canvas>
             </div>
         </div>
@@ -1522,56 +1563,68 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
             </button>
         </div>
         <div class="modal-producao-body">
-            <p style="font-size: 0.85rem; color: #666; margin-bottom: 25px;">Ajuste os valores para ver como o custo A/H se comporta em diferentes cenários.</p>
-            
+            <p style="font-size: 0.85rem; color: #666; margin-bottom: 25px;">Ajuste os valores para ver como o custo A/H
+                se comporta em diferentes cenários.</p>
+
             <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 30px;">
                 <div style="display: flex; flex-direction: column; gap: 20px;">
                     <div class="meta-input-group">
                         <label>Simular Despesa Anual (Y)</label>
                         <input type="number" id="sim-despesa" class="form-control" oninput="updateMetasSimulation()">
                     </div>
-                    
+
                     <div style="border-top: 1px solid var(--meta-border); padding-top: 15px; margin-top: 5px;">
-                        <label style="font-size: 0.75rem; font-weight: 800; color: var(--meta-accent); text-transform: uppercase; margin-bottom: 10px; display: block;">Simular Produção por Modalidade (A/H)</label>
+                        <label
+                            style="font-size: 0.75rem; font-weight: 800; color: var(--meta-accent); text-transform: uppercase; margin-bottom: 10px; display: block;">Simular
+                            Produção por Modalidade (A/H)</label>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
                             <div class="meta-input-group">
                                 <label style="font-size: 0.65rem;">CAI</label>
-                                <input type="number" id="sim-cai" class="form-control" oninput="updateMetasSimulation()" style="padding: 8px;">
+                                <input type="number" id="sim-cai" class="form-control" oninput="updateMetasSimulation()"
+                                    style="padding: 8px;">
                             </div>
                             <div class="meta-input-group">
                                 <label style="font-size: 0.65rem;">TÉCNICO</label>
-                                <input type="number" id="sim-ct" class="form-control" oninput="updateMetasSimulation()" style="padding: 8px;">
+                                <input type="number" id="sim-ct" class="form-control" oninput="updateMetasSimulation()"
+                                    style="padding: 8px;">
                             </div>
                             <div class="meta-input-group">
                                 <label style="font-size: 0.65rem;">FIC</label>
-                                <input type="number" id="sim-fic" class="form-control" oninput="updateMetasSimulation()" style="padding: 8px;">
+                                <input type="number" id="sim-fic" class="form-control" oninput="updateMetasSimulation()"
+                                    style="padding: 8px;">
                             </div>
                         </div>
                     </div>
 
-                    <div class="simulation-panel animate-fade-in" style="display: grid; grid-template-columns: 1fr; gap: 15px; background: rgba(106, 27, 154, 0.05); padding: 20px; border-radius: 12px; border: 1px dashed var(--meta-accent); margin-top: 10px;">
+                    <div class="simulation-panel animate-fade-in"
+                        style="display: grid; grid-template-columns: 1fr; gap: 15px; background: rgba(106, 27, 154, 0.05); padding: 20px; border-radius: 12px; border: 1px dashed var(--meta-accent); margin-top: 10px;">
                         <div style="margin-bottom: 5px;">
                             <div class="simulation-result-label">PRODUÇÃO TOTAL SIMULADA</div>
-                            <div id="sim-resultado-producao" style="font-size: 1.2rem; font-weight: 800; color: var(--meta-accent);">0 A/H</div>
+                            <div id="sim-resultado-producao"
+                                style="font-size: 1.2rem; font-weight: 800; color: var(--meta-accent);">0 A/H</div>
                         </div>
                         <div style="margin-bottom: 5px;">
                             <div class="simulation-result-label">CUSTO SIMULADO</div>
-                            <div id="sim-resultado-custo" class="simulation-result-value" style="color: var(--meta-accent); font-size: 1.8rem;">R$ 0,00</div>
+                            <div id="sim-resultado-custo" class="simulation-result-value"
+                                style="color: var(--meta-accent); font-size: 1.8rem;">R$ 0,00</div>
                         </div>
                         <div>
                             <div class="simulation-result-label">ATINGIMENTO DA META</div>
-                            <div id="sim-resultado-atingimento" class="simulation-result-value" style="color: var(--meta-accent);">0%</div>
+                            <div id="sim-resultado-atingimento" class="simulation-result-value"
+                                style="color: var(--meta-accent);">0%</div>
                         </div>
                     </div>
 
                     <div style="margin-top: 10px; text-align: center;">
-                        <button class="btn btn-export btn-meta-action" onclick="closeMetasSimulation()" style="width: 100%;">
+                        <button class="btn btn-export btn-meta-action" onclick="closeMetasSimulation()"
+                            style="width: 100%;">
                             Encerrar Simulação
                         </button>
                     </div>
                 </div>
 
-                <div class="meta-chart-container" style="background: var(--meta-card-bg); border: 1px solid var(--meta-border); border-radius: 16px; padding: 20px; height: 100%; min-height: 350px;">
+                <div class="meta-chart-container"
+                    style="background: var(--meta-card-bg); border: 1px solid var(--meta-border); border-radius: 16px; padding: 20px; height: 100%; min-height: 350px;">
                     <canvas id="chartSimulacao"></canvas>
                 </div>
             </div>
