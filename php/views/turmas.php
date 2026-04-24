@@ -56,6 +56,9 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
     </select>
     <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <div style="display: flex; gap: 8px;">
+            <button type="button" id="btn-bulk-edit" class="btn" style="background: #6a1b9a; color: white; display: none; font-weight: 700;" onclick="openBulkEditModal()">
+                <i class="fas fa-edit"></i> Editar Selecionados (<span id="bulk-count">0</span>)
+            </button>
             <a href="fix_turmas_loading.php" class="btn" style="color: var(--text-muted); font-size: 0.85rem;"
                 title="Ajustar horários">
                 <i class="fas fa-magic"></i> Ajustar horários
@@ -67,7 +70,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 </button>
             <?php endif; ?>
             <?php if (can_edit()): ?>
-                <a href="turmas_form.php" class="btn btn-primary" style="font-weight: 700;"><i class="fas fa-plus"></i> NOVA
+                <a href="javascript:void(0)" onclick="goToNewTurma()" class="btn btn-primary" style="font-weight: 700;"><i class="fas fa-plus"></i> NOVA
                     TURMA</a>
             <?php endif; ?>
             <?php if ($is_archived_view): ?>
@@ -132,12 +135,28 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             currentSort = { column: 8, direction: 'asc' };
         }
         
+        updateSortUI();
         applySortAndPaginate();
+    }
+
+    function updateSortUI() {
+        const headers = document.querySelectorAll('#turmas-table th');
+        headers.forEach((th, idx) => {
+            const icon = th.querySelector('.sort-icon');
+            if (icon) {
+                if (idx === currentSort.column) {
+                    icon.innerHTML = currentSort.direction === 'asc' ? ' <i class="fas fa-sort-up"></i>' : ' <i class="fas fa-sort-down"></i>';
+                    th.classList.add('active-sort');
+                } else {
+                    icon.innerHTML = ' <i class="fas fa-sort" style="opacity: 0.3;"></i>';
+                    th.classList.remove('active-sort');
+                }
+            }
+        });
     }
 
     function sortTable(columnIndex) {
         const table = document.querySelector('#turmas-table table');
-        const headers = table.querySelectorAll('th');
 
         // Update direction
         if (currentSort.column === columnIndex) {
@@ -148,18 +167,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         }
 
         // Update UI Indicators
-        headers.forEach((th, idx) => {
-            const icon = th.querySelector('.sort-icon');
-            if (icon) {
-                if (idx === columnIndex) {
-                    icon.innerHTML = currentSort.direction === 'asc' ? ' <i class="fas fa-sort-up"></i>' : ' <i class="fas fa-sort-down"></i>';
-                    th.classList.add('active-sort');
-                } else {
-                    icon.innerHTML = ' <i class="fas fa-sort" style="opacity: 0.3;"></i>';
-                    th.classList.remove('active-sort');
-                }
-            }
-        });
+        updateSortUI();
 
         applySortAndPaginate();
     }
@@ -242,12 +250,42 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
     }
 
     window.addEventListener('load', () => {
+        // Inicializa filtros da URL
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        const siglaParam = urlParams.get('sigla');
+        if (siglaParam) document.getElementById('filter-sigla').value = siglaParam;
+
+        const docenteParam = urlParams.get('docente');
+        if (docenteParam) document.getElementById('filter-docente').value = docenteParam;
+
+        const periodoParam = urlParams.get('periodo');
+        if (periodoParam) document.getElementById('filter-periodo').value = periodoParam;
+
+        const diaParam = urlParams.get('dia');
+        if (diaParam) document.getElementById('filter-dia').value = diaParam;
+
+        const sortParam = urlParams.get('sort');
+        if (sortParam) {
+            document.getElementById('filter-sort').value = sortParam;
+            applyQuickSort();
+        }
+
+        // Recupera ordenação por coluna clicada
+        const sortColParam = urlParams.get('sort_col');
+        const sortDirParam = urlParams.get('sort_dir');
+        if (sortColParam !== null) {
+            currentSort.column = parseInt(sortColParam);
+            currentSort.direction = sortDirParam || 'asc';
+            updateSortUI();
+            applySortAndPaginate();
+        }
+
         const rows = document.querySelectorAll('#turmas-table tbody tr:not(.empty-row)');
         rows.forEach(r => r.classList.add('matches-filter'));
-        updatePagination();
+        filterTurmas(); // Aplica filtros iniciais
 
         // Lógica para destacar turma vinda de notificação
-        const urlParams = new URLSearchParams(window.location.search);
         const targetId = urlParams.get('id');
         if (targetId) {
             const targetRow = document.querySelector(`tr[data-id="${targetId}"]`);
@@ -270,31 +308,121 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 }, 3000);
             }
         }
+
+        // --- NOVO: Exibição de mensagens (ex: Edição em Lote) ---
+        const msg = urlParams.get('msg');
+        const msgText = urlParams.get('msg_text');
+        if (msg && msgText) {
+            const isError = msg === 'error';
+            const isBulk = msg === 'bulk_success';
+            
+            Swal.fire({
+                title: isError ? 'Erro na Operação' : (isBulk ? 'Edição Concluída' : 'Sucesso!'),
+                html: decodeURIComponent(msgText),
+                icon: isError ? 'error' : 'success',
+                confirmButtonColor: isError ? '#d32f2f' : '#2e7d32',
+                confirmButtonText: 'Entendido'
+            });
+
+            // Limpa os parâmetros da URL para evitar repetir o alerta no refresh
+            const cleanUrl = window.location.href.split('?')[0];
+            const newSearch = new URLSearchParams(window.location.search);
+            newSearch.delete('msg');
+            newSearch.delete('msg_text');
+            const finalUrl = cleanUrl + (newSearch.toString() ? '?' + newSearch.toString() : '');
+            window.history.replaceState({}, document.title, finalUrl);
+        }
     });
+
+    function getCurrentFilterParams() {
+        const params = new URLSearchParams();
+        const sigla = document.getElementById('filter-sigla').value;
+        const docente = document.getElementById('filter-docente').value;
+        const periodo = document.getElementById('filter-periodo').value;
+        const dia = document.getElementById('filter-dia').value;
+        const sort = document.getElementById('filter-sort').value;
+
+        if (sigla) params.set('sigla', sigla);
+        if (docente) params.set('docente', docente);
+        if (periodo) params.set('periodo', periodo);
+        if (dia) params.set('dia', dia);
+        if (sort) params.set('sort', sort);
+        
+        // Persiste a ordenação atual da tabela (clique na coluna)
+        if (currentSort.column !== null) {
+            params.set('sort_col', currentSort.column);
+            params.set('sort_dir', currentSort.direction);
+        }
+        
+        return params.toString();
+    }
+
+    function goToNewTurma() {
+        const filters = getCurrentFilterParams();
+        window.location.href = `turmas_form.php?return_url=${encodeURIComponent('../views/turmas.php?' + filters)}`;
+    }
+
+    function goToEditTurma(id) {
+        const filters = getCurrentFilterParams();
+        window.location.href = `turmas_form.php?id=${id}&return_url=${encodeURIComponent('../views/turmas.php?' + filters)}`;
+    }
+
+    // --- Seleção Múltipla ---
+    function toggleSelectAll(master) {
+        const checkboxes = document.querySelectorAll('.turma-checkbox');
+        checkboxes.forEach(cb => {
+            const row = cb.closest('tr');
+            if (row.style.display !== 'none') {
+                cb.checked = master.checked;
+            }
+        });
+        updateBulkButton();
+    }
+
+    function updateBulkButton() {
+        const checked = document.querySelectorAll('.turma-checkbox:checked');
+        const btn = document.getElementById('btn-bulk-edit');
+        const countSpan = document.getElementById('bulk-count');
+        
+        if (checked.length > 0) {
+            btn.style.display = 'flex';
+            countSpan.innerText = checked.length;
+        } else {
+            btn.style.display = 'none';
+        }
+    }
+
+    function openBulkEditModal() {
+        const checked = document.querySelectorAll('.turma-checkbox:checked');
+        const ids = Array.from(checked).map(cb => cb.value);
+        document.getElementById('bulk-ids').value = ids.join(',');
+        openModal('modal-bulk-edit');
+    }
 </script>
 
 <div class="table-container" id="turmas-table">
     <table>
         <thead>
             <tr>
-                <th style="width: 50px;">#</th>
-                <th onclick="sortTable(1)" style="cursor:pointer;">SIGLA <span class="sort-icon"><i class="fas fa-sort"
+                <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
+                <th style="width: 40px;">#</th>
+                <th onclick="sortTable(2)" style="cursor:pointer;">SIGLA <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(2)" style="cursor:pointer;">CURSO <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(3)" style="cursor:pointer;">CURSO <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(3)" style="cursor:pointer;">C/H <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(4)" style="cursor:pointer;">C/H <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(4)" style="cursor:pointer;">PERÍODO <span class="sort-icon"><i
+                <th onclick="sortTable(5)" style="cursor:pointer;">PERÍODO <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
                 <th>HORÁRIO</th>
                 <th>DIAS</th>
-                <th onclick="sortTable(7)" style="cursor:pointer;">DOCENTE(S) <span class="sort-icon"><i
+                <th onclick="sortTable(8)" style="cursor:pointer;">DOCENTE(S) <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(8)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(9)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(9)" style="cursor:pointer;">FIM <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(10)" style="cursor:pointer;">FIM <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(10)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(11)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
                 <?php if (can_edit()): ?>
                     <th style="text-align: center;">AÇÕES</th>
@@ -321,6 +449,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                     $dias_semana_raw = $t['dias_semana'] ?? '';
                     ?>
                     <tr class="matches-filter" data-id="<?= $t['id'] ?>" data-docentes="<?= xe($docentes_search) ?>" data-dias="<?= xe($dias_semana_raw) ?>">
+                        <td style="text-align: center;"><input type="checkbox" class="row-checkbox turma-checkbox" value="<?= $t['id'] ?>" onclick="updateBulkButton()"></td>
                         <td style="color: var(--text-muted); font-size: 0.8rem;"><?= $idx++ ?></td>
                         <td>
                             <strong><?= xe($t['sigla']) ?></strong>
@@ -392,7 +521,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     <?php else: ?>
-                                        <a href="turmas_form.php?id=<?= $t['id'] ?>" class="btn btn-edit" title="Editar"><i
+                                        <a href="javascript:void(0)" onclick="goToEditTurma(<?= $t['id'] ?>)" class="btn btn-edit" title="Editar"><i
                                                 class="fas fa-edit"></i></a>
                                         <button type="button" class="btn btn-delete" title="Excluir" data-id="<?= $t['id'] ?>"
                                             data-sigla="<?= xe($t['sigla']) ?>" data-fim="<?= $t['data_fim'] ?>"
@@ -493,3 +622,79 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
 </script>
 
 <?php include __DIR__ . '/../components/footer.php'; ?>
+
+<!-- Modal: Edição em Lote -->
+<div id="modal-bulk-edit" class="modal-overlay">
+    <div class="modal-content animate-pop-in" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Edição em Lote</h3>
+            <button type="button" class="close-modal" onclick="closeModal('modal-bulk-edit')">&times;</button>
+        </div>
+        <form action="../controllers/turmas_process.php?action=bulk_update" method="POST">
+            <input type="hidden" name="ids" id="bulk-ids">
+            <input type="hidden" name="return_url" value="turmas.php">
+            
+            <div class="modal-body">
+                <p style="margin-bottom: 20px; color: var(--text-muted); font-size: 0.9rem;">
+                    Os campos preenchidos abaixo serão aplicados a todas as turmas selecionadas. Campos em branco não serão alterados.
+                </p>
+                
+                <div class="form-group">
+                    <label class="form-label">Período</label>
+                    <select name="periodo" id="bulk-periodo" class="form-input">
+                        <option value="">Manter atual...</option>
+                        <option value="Manhã">Manhã (07:30 - 11:30)</option>
+                        <option value="Tarde">Tarde (13:30 - 17:30)</option>
+                        <option value="Noite">Noite (18:00 - 23:00)</option>
+                        <option value="Integral">Integral (07:30 - 17:30)</option>
+                    </select>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Horário Início</label>
+                        <input type="time" name="horario_inicio" id="bulk-horario-inicio" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Horário Até</label>
+                        <input type="time" name="horario_fim" id="bulk-horario-fim" class="form-input">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-bulk-edit')">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="font-weight: 700;">SALVAR ALTERAÇÕES</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Atualiza o return_url do modal de bulk edit com os filtros atuais
+    document.querySelector('#modal-bulk-edit form').addEventListener('submit', function() {
+        const filters = getCurrentFilterParams();
+        this.querySelector('input[name="return_url"]').value = '../views/turmas.php?' + filters;
+    });
+
+    // Preenchimento automático de horários baseado no período (Bulk Edit)
+    document.getElementById('bulk-periodo').addEventListener('change', function() {
+        const val = this.value;
+        const hi = document.getElementById('bulk-horario-inicio');
+        const hf = document.getElementById('bulk-horario-fim');
+        
+        if (val === 'Manhã') {
+            hi.value = '07:30';
+            hf.value = '11:30';
+        } else if (val === 'Tarde') {
+            hi.value = '13:30';
+            hf.value = '17:30';
+        } else if (val === 'Noite') {
+            hi.value = '18:00';
+            hf.value = '23:00';
+        } else if (val === 'Integral') {
+            hi.value = '07:30';
+            hf.value = '17:30';
+        }
+    });
+</script>

@@ -55,6 +55,107 @@ if ($action == 'activate') {
     exit;
 }
 
+if ($action == 'bulk_update' && $_SERVER['REQUEST_METHOD'] == 'POST') {
+    $ids_str = mysqli_real_escape_string($conn, $_POST['ids'] ?? '');
+    $ids = array_filter(explode(',', $ids_str));
+    $return_url = $_POST['return_url'] ?? '../views/turmas.php';
+
+    if (empty($ids)) {
+        header("Location: $return_url&msg=error&error_text=Nenhuma turma selecionada.");
+        exit;
+    }
+
+    $periodo = mysqli_real_escape_string($conn, $_POST['periodo'] ?? '');
+    $horario_inicio = mysqli_real_escape_string($conn, $_POST['horario_inicio'] ?? '');
+    $horario_fim = mysqli_real_escape_string($conn, $_POST['horario_fim'] ?? '');
+
+    $update_fields = [];
+    if (!empty($periodo)) $update_fields[] = "periodo = '$periodo'";
+    if (!empty($horario_inicio)) $update_fields[] = "horario_inicio = '$horario_inicio'";
+    if (!empty($horario_fim)) $update_fields[] = "horario_fim = '$horario_fim'";
+
+    if (empty($update_fields)) {
+        header("Location: $return_url&msg=info&info_text=Nenhuma alteração informada.");
+        exit;
+    }
+
+    $success_count = 0;
+    $errors = [];
+
+    foreach ($ids as $t_id) {
+        $t_id = mysqli_real_escape_string($conn, $t_id);
+        $res = mysqli_query($conn, "SELECT * FROM turma WHERE id = '$t_id'");
+        if ($t_data = mysqli_fetch_assoc($res)) {
+            $sigla_display = $t_data['sigla'] ?: "Turma #$t_id";
+            
+            // Valores novos (se informados) ou atuais
+            $new_periodo = !empty($_POST['periodo']) ? mysqli_real_escape_string($conn, $_POST['periodo']) : $t_data['periodo'];
+            $new_h_ini = !empty($_POST['horario_inicio']) ? mysqli_real_escape_string($conn, $_POST['horario_inicio']) : $t_data['horario_inicio'];
+            $new_h_fim = !empty($_POST['horario_fim']) ? mysqli_real_escape_string($conn, $_POST['horario_fim']) : $t_data['horario_fim'];
+            
+            $dias_arr = !empty($t_data['dias_semana']) ? explode(',', $t_data['dias_semana']) : [];
+            $docentes = array_values(array_filter([$t_data['docente_id1'], $t_data['docente_id2'], $t_data['docente_id3'], $t_data['docente_id4']], function ($val) {
+                return $val !== null && $val > 0;
+            }));
+
+            $error_turma = null;
+
+            // --- VALIDAÇÃO ---
+            foreach ($docentes as $did) {
+                // 1. Conflito de Horário (Agenda)
+                $conf_res = checkDocenteConflicts($conn, $did, $t_id, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_h_ini, $new_h_fim);
+                if ($conf_res !== true) { $error_turma = $conf_res; break; }
+
+                // 2. Horário de Trabalho (Blocos Autorizados)
+                $work_res = checkDocenteWorkSchedule($conn, $did, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_periodo, $new_h_ini, $new_h_fim);
+                if ($work_res !== true) { $error_turma = $work_res; break; }
+
+                // 3. Limites de Carga Horária
+                $limit_res = checkDocenteLimits($conn, $did, $t_id, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_h_ini, $new_h_fim, $new_periodo);
+                if ($limit_res !== true) { $error_turma = $limit_res; break; }
+            }
+
+            // 4. Conflito de Ambiente
+            if (!$error_turma && !empty($t_data['ambiente_id']) && $t_data['ambiente_id'] > 0) {
+                $amb_res = checkAmbienteConflict($conn, $t_data['ambiente_id'], $t_id, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_h_ini, $new_h_fim);
+                if ($amb_res !== true) { $error_turma = $amb_res; }
+            }
+
+            if ($error_turma) {
+                $errors[] = "<strong>$sigla_display</strong>: $error_turma";
+                continue;
+            }
+
+            // --- EXECUÇÃO DO UPDATE ---
+            $fields = [];
+            if (!empty($_POST['periodo'])) $fields[] = "periodo = '$new_periodo'";
+            if (!empty($_POST['horario_inicio'])) $fields[] = "horario_inicio = '$new_h_ini'";
+            if (!empty($_POST['horario_fim'])) $fields[] = "horario_fim = '$new_h_fim'";
+
+            if (!empty($fields)) {
+                $sql = "UPDATE turma SET " . implode(', ', $fields) . " WHERE id = '$t_id'";
+                if (mysqli_query($conn, $sql)) {
+                    // Regenera Agenda
+                    mysqli_query($conn, "DELETE FROM agenda WHERE turma_id = '$t_id'");
+                    generateAgendaRecords($conn, $t_id, $dias_arr, $new_periodo, $new_h_ini, $new_h_fim, $t_data['data_inicio'], $t_data['data_fim'], $t_data['ambiente_id'], $docentes);
+                    $success_count++;
+                }
+            }
+        }
+    }
+    
+    // Prepara mensagem final
+    $msg_text = "Edição concluída: $success_count turmas atualizadas.";
+    if (!empty($errors)) {
+        $msg_text .= "<br><br><strong>Atenção:</strong> " . count($errors) . " turmas não puderam ser alteradas por conflitos:<br>" . implode("<br>", $errors);
+    }
+    
+    $msg_type = $success_count > 0 ? "bulk_success" : "error";
+    $separator = (strpos($return_url, '?') !== false) ? '&' : '?';
+    header("Location: $return_url" . $separator . "msg=$msg_type&msg_text=" . urlencode($msg_text));
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $is_ajax = isset($_POST['ajax']) && $_POST['ajax'] == '1';
 
@@ -226,7 +327,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if (mysqli_query($conn, $query)) {
             $res_id = $id ?: mysqli_insert_id($conn);
             $msg = $id ? "Reserva atualizada" : "Reserva criada com sucesso";
-            $next_url = "../views/agenda_professores.php?docente_id=" . $docentes_to_check[0] . "&msg=created";
+            $next_url = !empty($_POST['return_url']) ? $_POST['return_url'] : "../views/agenda_professores.php?docente_id=" . $docentes_to_check[0] . "&msg=created";
             handle_response($conn, true, $msg, $next_url, $is_ajax);
         } else {
             handle_response($conn, false, "Erro ao salvar reserva: " . mysqli_error($conn), "", $is_ajax);
@@ -268,7 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             mysqli_query($conn, "DELETE FROM agenda WHERE turma_id = '$id'");
             generateAgendaRecords($conn, $id, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_to_check);
 
-            $next_url = "../views/agenda_professores.php?docente_id=" . (!empty($docentes_to_check) ? $docentes_to_check[0] : '') . "&msg=updated";
+            $next_url = !empty($_POST['return_url']) ? $_POST['return_url'] : "../views/agenda_professores.php?docente_id=" . (!empty($docentes_to_check) ? $docentes_to_check[0] : '') . "&msg=updated";
             handle_response($conn, true, "Turma atualizada com sucesso", $next_url, $is_ajax);
         } else {
             // INSERT new turma
@@ -282,7 +383,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             generateAgendaRecords($conn, $turma_id, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_to_check);
 
-            $next_url = "../views/agenda_professores.php?docente_id=" . (!empty($docentes_to_check) ? $docentes_to_check[0] : '') . "&msg=created";
+            $next_url = !empty($_POST['return_url']) ? $_POST['return_url'] : "../views/agenda_professores.php?docente_id=" . (!empty($docentes_to_check) ? $docentes_to_check[0] : '') . "&msg=created";
             handle_response($conn, true, "Turma criada com sucesso", $next_url, $is_ajax);
         }
     }

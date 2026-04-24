@@ -8,6 +8,7 @@ if (!can_edit()) {
 }
 
 $id = isset($_GET['id']) ? mysqli_real_escape_string($conn, $_GET['id']) : null;
+$return_url = $_GET['return_url'] ?? '';
 $turma = [
     'curso_id' => '',
     'ambiente_id' => '',
@@ -48,7 +49,7 @@ if ($id) {
 
 <div class="page-header">
     <h2><?= $id ? 'Editar Turma' : 'Nova Turma' ?></h2>
-    <a href="turmas.php" class="btn btn-back"><i class="fas fa-arrow-left"></i> Voltar</a>
+    <a href="<?= !empty($return_url) ? htmlspecialchars($return_url) : 'turmas.php' ?>" class="btn btn-back"><i class="fas fa-arrow-left"></i> Voltar</a>
 </div>
 
 <div class="card" style="max-width: 700px; margin: 0 auto; padding: 30px;">

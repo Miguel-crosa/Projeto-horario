@@ -56,6 +56,7 @@ if (!isset($feriados_data) && isset($conn)) {
     <input type="hidden" name="id" id="unified-id" value="<?= $id ?>">
     <input type="hidden" name="ajax" value="1">
     <input type="hidden" name="is_reserva" id="unified-is-reserva" value="<?= isCRI() ? '1' : '0' ?>">
+    <input type="hidden" name="return_url" value="<?= htmlspecialchars($return_url ?? '') ?>">
 
     <div class="form-grid">
         <div class="form-group" id="grp-unified-curso">
@@ -74,7 +75,7 @@ if (!isset($feriados_data) && isset($conn)) {
                                         foreach ($lista_l as $c_l) {
                                             if ($c_l['id'] == $turma['curso_id']) {
                                                 $turma_ch_inicial = $c_l['carga_horaria_total'];
-                                                echo htmlspecialchars($c_l['nome']) . " (" . ($c_l['tipo'] ?: 'FIC') . ")";
+                                                echo htmlspecialchars($c_l['nome']) . " (" . ($c_l['tipo'] ?: 'FIC') . ") - " . $c_l['carga_horaria_total'] . "h";
                                                 break 2;
                                             }
                                         }
@@ -445,7 +446,7 @@ if (!isset($feriados_data) && isset($conn)) {
             idInput.dataset.ch = curso.ch;
         }
         if (display) {
-            display.innerHTML = `${curso.nome} (${curso.tipo})`;
+            display.innerHTML = `${curso.nome} (${curso.tipo}) - ${curso.ch}h`;
             display.style.color = 'var(--text-color)';
         }
         
