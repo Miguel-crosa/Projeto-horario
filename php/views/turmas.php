@@ -94,7 +94,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
 
         rows.forEach(row => {
             const text = row.innerText.toLowerCase();
-            const pCell = row.cells[4].innerText.trim();
+            const pCell = row.cells[6].innerText.trim();
             // Coluna oculta com nomes dos docentes (última coluna de dados, antes de ações)
             const docentesCell = row.dataset.docentes || '';
             const diasTurma = row.dataset.dias || '';

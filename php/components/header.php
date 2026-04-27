@@ -313,27 +313,27 @@ if (isCRI()) {
                     <i class="bi bi-person-workspace" style="margin-right: 10px;"></i> Docentes
                 </a>
                 <a href="<?= $prefix ?>php/views/salas.php"
-                    class="links <?= str_contains($_SERVER['PHP_SELF'], 'salas') ? 'ativo' : '' ?>">
+                    class="links <?= in_array($current_page, ['salas.php', 'salas_form.php']) ? 'ativo' : '' ?>">
                     <i class="bi bi-building" style="margin-right: 10px;"></i> Ambientes
                 </a>
                 <a href="<?= $prefix ?>php/views/cursos.php"
-                    class="links <?= str_contains($_SERVER['PHP_SELF'], 'cursos') ? 'ativo' : '' ?>">
+                    class="links <?= in_array($current_page, ['cursos.php', 'cursos_form.php']) ? 'ativo' : '' ?>">
                     <i class="bi bi-journal-bookmark-fill" style="margin-right: 10px;"></i> Cursos
                 </a>
                 <a href="<?= $prefix ?>php/views/turmas.php"
-                    class="links <?= str_contains($_SERVER['PHP_SELF'], 'turmas') ? 'ativo' : '' ?>">
+                    class="links <?= in_array($current_page, ['turmas.php', 'turmas_form.php']) ? 'ativo' : '' ?>">
                     <i class="bi bi-people-fill" style="margin-right: 10px;"></i> Turmas
                 </a>
                 <a href="<?= $prefix ?>php/views/feriados.php"
-                    class="links <?= str_contains($_SERVER['PHP_SELF'], 'feriados') ? 'ativo' : '' ?>">
+                    class="links <?= $current_page == 'feriados.php' ? 'ativo' : '' ?>">
                     <i class="bi bi-calendar-event" style="margin-right: 10px;"></i> Feriados
                 </a>
                 <a href="<?= $prefix ?>php/views/ferias.php"
-                    class="links <?= str_contains($_SERVER['PHP_SELF'], 'ferias') ? 'ativo' : '' ?>">
+                    class="links <?= $current_page == 'ferias.php' ? 'ativo' : '' ?>">
                     <i class="bi bi-sun" style="margin-right: 10px;"></i> Férias
                 </a>
                 <a href="<?= $prefix ?>php/views/preparacao.php"
-                    class="links <?= str_contains($_SERVER['PHP_SELF'], 'preparacao') ? 'ativo' : '' ?>">
+                    class="links <?= in_array($current_page, ['preparacao.php', 'preparacao_form.php']) ? 'ativo' : '' ?>">
                     <i class="bi bi-briefcase-fill" style="margin-right: 10px;"></i> Preparação / Ausências
                 </a>
             <?php endif; ?>
