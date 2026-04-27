@@ -338,7 +338,9 @@ class AgendaModel
                 $last = new DateTime(min($item['data_fim'], $end_date));
                 $last->setTime(0, 0, 0); // FIX
 
-                $lbl = ($item['tipo'] === 'atestado' ? 'Atestado Médico' : 'Preparação de Aula');
+                $lbl = 'Preparação de Aula';
+                if ($item['tipo'] === 'atestado') $lbl = 'Atestado Médico';
+                if ($item['tipo'] === 'ausência') $lbl = 'Ausência Particular';
                 $dias_permitidos = !empty($item['dias_semana']) ? explode(',', $item['dias_semana']) : [];
 
                 while ($cur->format('Y-m-d') <= $last->format('Y-m-d')) { // FIX

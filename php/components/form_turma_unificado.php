@@ -572,11 +572,13 @@ if (!isset($feriados_data) && isset($conn)) {
         if (h_ini && h_fim && h_ini.value && h_fim.value) {
             const [h1, m1] = h_ini.value.split(':').map(Number);
             const [h2, m2] = h_fim.value.split(':').map(Number);
-            horasPorDia = ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
+            let rawHours = ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
             
-            // Se for Integral, subtrai 1h de almoço se a duração for superior a 4h
-            if (periodo === 'Integral' && horasPorDia > 4) {
-                horasPorDia -= 1;
+            if (periodo === 'Integral') {
+                if (rawHours > 4) rawHours -= 2; // Almoço (11:30 - 13:30)
+                horasPorDia = Math.min(8, rawHours);
+            } else {
+                horasPorDia = Math.min(4, rawHours);
             }
         }
         if (horasPorDia <= 0) horasPorDia = (periodo === 'Integral' ? 8 : 4);

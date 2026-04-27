@@ -17,7 +17,7 @@ $user = 'root';
 $pass = '';
 
 $db = 'gestao_escolar';
-$port = 3308;
+$port = 3306;
 
 // Ativar exibição de erros apenas para log, ocultar do usuário final
 mysqli_report(MYSQLI_REPORT_OFF);

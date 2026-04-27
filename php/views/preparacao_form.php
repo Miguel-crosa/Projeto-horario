@@ -22,7 +22,7 @@ $professores = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome, area_conhe
 
 <div class="page-header">
     <h2>
-        <?= $id ? 'Editar' : 'Novo' ?> Registro de Preparação/Atestado
+        <?= $id ? 'Editar' : 'Novo' ?> Registro de Preparação / Ausências
     </h2>
 </div>
 
@@ -66,6 +66,7 @@ $professores = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome, area_conhe
                 <option value="preparação" <?= $prep['tipo'] === 'preparação' ? 'selected' : '' ?>>Preparação de Aula
                 </option>
                 <option value="atestado" <?= $prep['tipo'] === 'atestado' ? 'selected' : '' ?>>Atestado Médico</option>
+                <option value="ausência" <?= $prep['tipo'] === 'ausência' ? 'selected' : '' ?>>Ausência Particular</option>
             </select>
         </div>
 
@@ -112,7 +113,7 @@ $professores = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome, area_conhe
         </div>
 
         <div id="time-fields"
-            style="display: <?= $prep['tipo'] === 'preparação' ? 'flex' : 'none' ?>; gap: 20px; margin-bottom: 20px;">
+            style="display: flex; gap: 20px; margin-bottom: 20px;">
             <div class="form-group" style="flex: 1;">
                 <label class="form-label" style="font-weight: 700;">Hora Início (Opcional)</label>
                 <input type="time" name="horario_inicio" class="form-input"
@@ -178,14 +179,11 @@ $professores = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome, area_conhe
 
 <script>
     function toggleTimeFields(val) {
-        const fields = document.getElementById('time-fields');
         const weekdays = document.getElementById('weekday-selector');
 
         if (val === 'preparação') {
-            fields.style.display = 'flex';
             weekdays.style.display = 'block';
         } else {
-            fields.style.display = 'none';
             weekdays.style.display = 'none';
         }
     }

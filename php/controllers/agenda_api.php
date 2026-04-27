@@ -309,8 +309,26 @@ switch ($action) {
         }
 
         // 2. Check Exclusivity and Hour Limits
-        $hoursMap = ['Manhã' => 4, 'Tarde' => 4, 'Noite' => 4, 'Integral' => 12];
-        $target_h_per_day = $hoursMap[$periodo] ?? 0;
+        $h_ini_check = $_POST['horario_inicio'] ?? '';
+        $h_fim_check = $_POST['horario_fim'] ?? '';
+        
+        // Se não enviado, busca os defaults do período para o cálculo de limite
+        if (!$h_ini_check || !$h_fim_check) {
+            $periodDefaults = ['Manhã' => ['07:30', '11:30'], 'Tarde' => ['13:30', '17:30'], 'Noite' => ['18:00', '23:00'], 'Integral' => ['07:30', '17:30']];
+            $h_ini_check = $h_ini_check ?: ($periodDefaults[$periodo][0] ?? '00:00');
+            $h_fim_check = $h_fim_check ?: ($periodDefaults[$periodo][1] ?? '00:00');
+        }
+
+        $t1 = strtotime($h_ini_check);
+        $t2 = strtotime($h_fim_check);
+        $target_h_per_day = ($t2 - $t1) / 3600;
+
+        if ($periodo === 'Integral') {
+            if ($target_h_per_day > 4) $target_h_per_day -= 2; // Almoço (11:30 - 13:30)
+            if ($target_h_per_day > 8) $target_h_per_day = 8;
+        } else {
+            if ($target_h_per_day > 4) $target_h_per_day = 4;
+        }
 
         foreach ($all_docente_ids as $did) {
             $lim_res = mysqli_query($conn, "SELECT nome, weekly_hours_limit, monthly_hours_limit FROM docente WHERE id = $did");

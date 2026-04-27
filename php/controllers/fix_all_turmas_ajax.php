@@ -82,22 +82,20 @@ $horas_por_dia = 0;
 if ($h_ini && $h_fim) {
     $t1 = strtotime($h_ini);
     $t2 = strtotime($h_fim);
-    $horas_por_dia = ($t2 - $t1) / 3600;
+    $raw_h = ($t2 - $t1) / 3600;
 
-    // Se for Integral, subtrai 1h de almoço se a duração for superior a 4h
-    if ($turma['periodo'] === 'Integral' && $horas_por_dia > 4) {
-        $horas_por_dia -= 1;
+    if ($turma['periodo'] === 'Integral') {
+        if ($raw_h > 4) $raw_h -= 2; // Almoço (11:30 - 13:30)
+        $horas_por_dia = min(8, $raw_h);
+    } else {
+        $horas_por_dia = min(4, $raw_h);
     }
 }
 
 // Fallback por período se o horário estiver zerado
 if ($horas_por_dia <= 0) {
     $periodo = $turma['periodo'];
-    if ($periodo === 'Integral') {
-        $horas_por_dia = 8;
-    } else {
-        $horas_por_dia = 4;
-    }
+    $horas_por_dia = ($periodo === 'Integral' ? 8 : 4);
 }
 
 // 3. Prepara dados para o cálculo

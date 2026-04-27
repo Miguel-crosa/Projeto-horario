@@ -1450,8 +1450,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
         'FÉRIAS': { icon: 'fa-plane', color: '#8c52ff', label: 'Férias' },
         'FERIADOS': { icon: 'fa-umbrella-beach', color: '#ff5252', label: 'Feriados' },
         HORARIO_TRABALHO: { icon: 'fa-briefcase', color: '#007bff', label: 'Horário de Trabalho' },
-        BLOQUEIOS: { icon: 'fa-ban', color: '#ff6b35', label: 'Bloqueios (Preparação/Atestado)' },
-        PREPARACAO_ATESTADOS: { icon: 'fa-ban', color: '#ff6b35', label: 'Preparação/Atestados' },
+        BLOQUEIOS: { icon: 'fa-ban', color: '#ff6b35', label: 'Bloqueios (Preparação / Ausências)' },
+        PREPARACAO_ATESTADOS: { icon: 'fa-ban', color: '#ff6b35', label: 'Preparação / Ausências' },
         RESERVAS: { icon: 'fa-bookmark', color: '#17a2b8', label: 'Reservas' }
     };
 

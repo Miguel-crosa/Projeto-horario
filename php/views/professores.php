@@ -145,57 +145,8 @@ $stmt->close();
 
         updateFilterChips();
         applySortAndPaginate();
-        initTableTooltips();
     }
 
-    function initTableTooltips() {
-        const cells = document.querySelectorAll('#professores-table tbody tr td.prof-name-cell');
-        let tooltipTimeout;
-
-        let tooltip = document.getElementById('prof-hover-card');
-        if (!tooltip) {
-            tooltip = document.createElement('div');
-            tooltip.id = 'prof-hover-card';
-            tooltip.className = 'table-preview-tooltip';
-            document.body.appendChild(tooltip);
-        }
-
-        cells.forEach(cell => {
-            cell.onmouseenter = (e) => {
-                const row = e.target.closest('tr');
-                if (!row) return;
-
-                const nome = row.cells[1].innerText.split('\n')[0];
-                const area = row.dataset.area || 'Não definida';
-                const limites = row.cells[3].innerText;
-                const contrato = row.cells[4].innerText;
-
-                tooltip.innerHTML = `
-                    <h4><i class="fas fa-user-tie"></i> Detalhes do Docente</h4>
-                    <p><span class="preview-label">Nome:</span> ${nome}</p>
-                    <p><span class="preview-label">Área:</span> ${area}</p>
-                    <p><span class="preview-label">Limites:</span> ${limites}</p>
-                    <p><span class="preview-label">Contrato:</span> ${contrato}</p>
-                    <div style="margin-top: 10px; font-size: 0.75rem; color: var(--primary-red); font-weight: 600;">
-                        <i class="fas fa-info-circle"></i> Perfil completo na edição
-                    </div>
-                `;
-
-                tooltipTimeout = setTimeout(() => {
-                    tooltip.style.display = 'block';
-                    const rect = e.target.getBoundingClientRect();
-                    // Offset aumentado para jogar mais para a direita (150px)
-                    tooltip.style.left = (rect.left + window.scrollX + 250) + 'px';
-                    tooltip.style.top = (rect.top + window.scrollY - 40) + 'px';
-                }, 400);
-            };
-
-            cell.onmouseleave = () => {
-                clearTimeout(tooltipTimeout);
-                tooltip.style.display = 'none';
-            };
-        });
-    }
 
     function updateFilterChips() {
         const container = document.getElementById('filter-chips-container');

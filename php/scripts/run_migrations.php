@@ -81,6 +81,15 @@ function run_migrations($conn) {
         mysqli_query($conn, "INSERT INTO sys_migrations (migration_name) VALUES ('$migration_turma_novos_campos')");
     }
 
+    // 5. Migração: Adicionar tipo 'ausência' na tabela preparacao_atestados
+    $migration_prep_ausencia = 'add_tipo_ausencia_to_preparacao_2026_04_27';
+    $check_prep = mysqli_query($conn, "SELECT id FROM sys_migrations WHERE migration_name = '$migration_prep_ausencia'");
+    if (mysqli_num_rows($check_prep) == 0) {
+        // Primeiro, alteramos o ENUM para incluir 'ausência'
+        mysqli_query($conn, "ALTER TABLE preparacao_atestados MODIFY COLUMN tipo ENUM('preparação', 'atestado', 'ausência') NOT NULL");
+        mysqli_query($conn, "INSERT INTO sys_migrations (migration_name) VALUES ('$migration_prep_ausencia')");
+    }
+
     return false;
 }
 

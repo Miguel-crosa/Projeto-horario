@@ -334,7 +334,7 @@ if (isCRI()) {
                 </a>
                 <a href="<?= $prefix ?>php/views/preparacao.php"
                     class="links <?= str_contains($_SERVER['PHP_SELF'], 'preparacao') ? 'ativo' : '' ?>">
-                    <i class="bi bi-briefcase-fill" style="margin-right: 10px;"></i> Preparação/Atestados
+                    <i class="bi bi-briefcase-fill" style="margin-right: 10px;"></i> Preparação / Ausências
                 </a>
             <?php endif; ?>
 

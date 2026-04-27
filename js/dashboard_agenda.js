@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     let color = 'var(--primary-red)';
                     if (isRes) color = '#ffb300'; // Laranja para reservas
                     if (isHoliday || isVacation) color = '#1565c0'; // Azul para Feriado/Férias
-                    if (isPrep) color = '#e53935'; // Vermelho para Preparação/Atestado
+                    if (isPrep) color = '#e53935'; // Vermelho para Preparação / Ausências
 
                     const timeStr = (isHoliday || isVacation) ? '' : (a.horario_inicio ? a.horario_inicio.substring(0, 5) : (a.periodo || ''));
                     const label = (isRes && a.sigla) ? a.sigla : (a.curso_nome || a.turma_nome || 'Reservado');

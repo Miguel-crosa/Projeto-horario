@@ -225,10 +225,12 @@ function getCompactDayStatus(doc, dateStr) {
         return { type: 'holiday', mainLabel: label, curso: label, count: 3 };
     }
 
-    // Prioridade 4: Preparação / Atestado
+    // Prioridade 4: Preparação / Ausências
     const preps = events.filter(e => e.type === 'PREPARACAO');
     if (preps.length > 0) {
-        const label = preps[0].tipo === 'atestado' ? 'ATESTADO' : 'PREPARAÇÃO';
+        let label = 'PREPARAÇÃO';
+        if (preps[0].tipo === 'atestado') label = 'ATESTADO';
+        if (preps[0].tipo === 'ausência') label = 'AUSÊNCIA';
         return { type: 'indisponivel', mainLabel: label, curso: label, count: 3 };
     }
 

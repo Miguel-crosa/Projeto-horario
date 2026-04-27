@@ -11,7 +11,7 @@ $prep = mysqli_fetch_all(mysqli_query($conn, "SELECT p.*, d.nome AS professor_no
 ?>
 
 <div class="page-header">
-    <h2>Preparação e Atestados</h2>
+    <h2>Preparação / Ausências</h2>
 </div>
 
 <div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
@@ -51,8 +51,10 @@ $prep = mysqli_fetch_all(mysqli_query($conn, "SELECT p.*, d.nome AS professor_no
                         <td>
                             <?php if ($p['tipo'] === 'preparação'): ?>
                                 <span class="badge" style="background:#673ab7; color: #fff !important; font-weight: 700;">Preparação</span>
-                            <?php else: ?>
+                            <?php elseif ($p['tipo'] === 'atestado'): ?>
                                 <span class="badge" style="background:#e91e63; color: #fff !important; font-weight: 700;">Atestado</span>
+                            <?php else: ?>
+                                <span class="badge" style="background:#ff9800; color: #fff !important; font-weight: 700;">Ausência</span>
                             <?php endif; ?>
                         </td>
                         <td>

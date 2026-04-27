@@ -61,6 +61,11 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 <i class="fas fa-bookmark"></i> RESERVA
             </button>
         <?php endif; ?>
+        <?php if (isAdmin()): ?>
+            <a href="fix_turmas_loading.php" class="btn" style="font-weight: 700; background: #00796b; color: #ffffff; border: none; height: 38px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.3s ease;">
+                <i class="fas fa-magic"></i> AJUSTAR HORÁRIOS
+            </a>
+        <?php endif; ?>
         <?php if (can_edit()): ?>
             <a href="javascript:void(0)" onclick="goToNewTurma()" class="btn btn-primary" style="font-weight: 700;"><i class="fas fa-plus"></i> NOVA TURMA</a>
         <?php endif; ?>
@@ -108,57 +113,8 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
 
         updateFilterChips();
         applySortAndPaginate();
-        initTableTooltips();
     }
 
-    function initTableTooltips() {
-        const cells = document.querySelectorAll('#turmas-table tbody tr td:nth-child(3)'); // Sigla
-        let tooltipTimeout;
-
-        // Cria o elemento se não existir
-        let tooltip = document.getElementById('turma-hover-card');
-        if (!tooltip) {
-            tooltip = document.createElement('div');
-            tooltip.id = 'turma-hover-card';
-            tooltip.className = 'table-preview-tooltip';
-            document.body.appendChild(tooltip);
-        }
-
-        cells.forEach(cell => {
-            cell.onmouseenter = (e) => {
-                const row = e.target.closest('tr');
-                if (!row || row.classList.contains('empty-row')) return;
-                
-                const sigla = row.cells[2].innerText;
-                const curso = row.cells[4].innerText;
-                const carga = row.cells[5].innerText;
-                const docentes = row.dataset.docentes || 'Nenhum docente';
-
-                tooltip.innerHTML = `
-                    <h4><i class="fas fa-info-circle"></i> Detalhes da Turma</h4>
-                    <p><span class="preview-label">Sigla:</span> ${sigla}</p>
-                    <p><span class="preview-label">Curso:</span> ${curso}</p>
-                    <p><span class="preview-label">Carga:</span> ${carga}</p>
-                    <p><span class="preview-label">Docentes:</span> ${docentes}</p>
-                    <div style="margin-top: 10px; font-size: 0.75rem; color: var(--primary-red); font-weight: 600;">
-                        <i class="fas fa-mouse-pointer"></i> Clique para gerenciar
-                    </div>
-                `;
-
-                tooltipTimeout = setTimeout(() => {
-                    tooltip.style.display = 'block';
-                    const rect = e.target.getBoundingClientRect();
-                    tooltip.style.left = (rect.left + window.scrollX + 20) + 'px';
-                    tooltip.style.top = (rect.top + window.scrollY - 40) + 'px';
-                }, 400); // Delay para não ser intrusivo
-            };
-            
-            cell.onmouseleave = () => {
-                clearTimeout(tooltipTimeout);
-                tooltip.style.display = 'none';
-            };
-        });
-    }
 
     function updateFilterChips() {
         const container = document.getElementById('filter-chips-container');
@@ -522,14 +478,6 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         }
     });
 
-    // Tooltips para Docentes (Nativo Simples)
-    document.querySelectorAll('#turmas-table tbody tr').forEach(row => {
-        const docenteCell = row.cells[9]; // Coluna de Docentes
-        if (docenteCell) {
-            docenteCell.title = "Clique para filtrar todas as turmas deste docente";
-            docenteCell.style.cursor = 'help';
-        }
-    });
 
     window.addEventListener('load', () => {
         // Inicializa filtros da URL
@@ -622,8 +570,6 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             window.history.replaceState({}, document.title, finalUrl);
         }
 
-        // Garante tooltips iniciais
-        initTableTooltips();
     });
 
 
