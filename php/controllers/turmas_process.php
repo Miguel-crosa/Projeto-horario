@@ -103,21 +103,21 @@ if ($action == 'bulk_update' && $_SERVER['REQUEST_METHOD'] == 'POST') {
             // --- VALIDAÇÃO ---
             foreach ($docentes as $did) {
                 // 1. Conflito de Horário (Agenda)
-                $conf_res = checkDocenteConflicts($conn, $did, $t_id, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_h_ini, $new_h_fim);
+                $conf_res = checkDocenteConflicts($conn, $did, $t_id, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_h_ini, $new_h_fim, $t_data['tipo_agenda'], $t_data['agenda_flexivel']);
                 if ($conf_res !== true) { $error_turma = $conf_res; break; }
 
                 // 2. Horário de Trabalho (Blocos Autorizados)
-                $work_res = checkDocenteWorkSchedule($conn, $did, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_periodo, $new_h_ini, $new_h_fim);
+                $work_res = checkDocenteWorkSchedule($conn, $did, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_periodo, $new_h_ini, $new_h_fim, $t_data['tipo_agenda'], $t_data['agenda_flexivel']);
                 if ($work_res !== true) { $error_turma = $work_res; break; }
 
                 // 3. Limites de Carga Horária
-                $limit_res = checkDocenteLimits($conn, $did, $t_id, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_h_ini, $new_h_fim, $new_periodo);
+                $limit_res = checkDocenteLimits($conn, $did, $t_id, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_h_ini, $new_h_fim, $new_periodo, $t_data['tipo_agenda'], $t_data['agenda_flexivel']);
                 if ($limit_res !== true) { $error_turma = $limit_res; break; }
             }
 
             // 4. Conflito de Ambiente
             if (!$error_turma && !empty($t_data['ambiente_id']) && $t_data['ambiente_id'] > 0) {
-                $amb_res = checkAmbienteConflict($conn, $t_data['ambiente_id'], $t_id, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_h_ini, $new_h_fim);
+                $amb_res = checkAmbienteConflict($conn, $t_data['ambiente_id'], $t_id, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_h_ini, $new_h_fim, $t_data['tipo_agenda'], $t_data['agenda_flexivel']);
                 if ($amb_res !== true) { $error_turma = $amb_res; }
             }
 
@@ -137,7 +137,7 @@ if ($action == 'bulk_update' && $_SERVER['REQUEST_METHOD'] == 'POST') {
                 if (mysqli_query($conn, $sql)) {
                     // Regenera Agenda
                     mysqli_query($conn, "DELETE FROM agenda WHERE turma_id = '$t_id'");
-                    generateAgendaRecords($conn, $t_id, $dias_arr, $new_periodo, $new_h_ini, $new_h_fim, $t_data['data_inicio'], $t_data['data_fim'], $t_data['ambiente_id'], $docentes);
+                    generateAgendaRecords($conn, $t_id, $dias_arr, $new_periodo, $new_h_ini, $new_h_fim, $t_data['data_inicio'], $t_data['data_fim'], $t_data['ambiente_id'], $docentes, $t_data['tipo_agenda'], $t_data['agenda_flexivel']);
                     $success_count++;
                 }
             }
@@ -226,6 +226,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $dias_semana_str = mysqli_real_escape_string($conn, implode(',', $dias_semana_arr));
     $horario_inicio = mysqli_real_escape_string($conn, $_POST['horario_inicio'] ?? '07:30');
     $horario_fim = mysqli_real_escape_string($conn, $_POST['horario_fim'] ?? '11:30');
+
+    // Normalização: Garante que tenha minutos (ex: "08" -> "08:00")
+    if (!empty($horario_inicio) && strpos($horario_inicio, ':') === false) $horario_inicio .= ':00';
+    if (!empty($horario_fim) && strpos($horario_fim, ':') === false) $horario_fim .= ':00';
+
     $tipo_custeio = mysqli_real_escape_string($conn, $_POST['tipo_custeio'] ?? 'Gratuidade');
     $previsao_despesa = (float) ($_POST['previsao_despesa'] ?? 0);
     $valor_turma = $tipo_custeio === 'Ressarcido' ? (float) ($_POST['valor_turma'] ?? 0) : 0;
@@ -233,6 +238,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $tipo_atendimento = mysqli_real_escape_string($conn, $_POST['tipo_atendimento'] ?? 'Balcão');
     $parceiro = mysqli_real_escape_string($conn, $_POST['parceiro'] ?? '');
     $contato_parceiro = mysqli_real_escape_string($conn, $_POST['contato_parceiro'] ?? '');
+    $tipo_agenda = mysqli_real_escape_string($conn, $_POST['tipo_agenda'] ?? 'recorrente');
+    $agenda_flexivel = mysqli_real_escape_string($conn, $_POST['agenda_flexivel'] ?? '');
     
     // TRAVA: Aulas Noturnas não podem passar das 23:00
     if ($periodo === 'Noite' && !empty($horario_fim) && $horario_fim > '23:00') {
@@ -264,17 +271,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     foreach ($docentes_to_check as $did) {
         // Reservas também devem respeitar os limites de carga horária? Sim, por segurança.
-        $val_res = checkDocenteLimits($conn, $did, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim, $periodo);
+        $val_res = checkDocenteLimits($conn, $did, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim, $periodo, $tipo_agenda, $agenda_flexivel);
         if ($val_res !== true) {
             handle_response($conn, false, $val_res, "", $is_ajax);
         }
 
-        $conf_res = checkDocenteConflicts($conn, $did, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim);
+        $conf_res = checkDocenteConflicts($conn, $did, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim, $tipo_agenda, $agenda_flexivel);
         if ($conf_res !== true) {
             handle_response($conn, false, $conf_res, "", $is_ajax);
         }
 
-        $work_res = checkDocenteWorkSchedule($conn, $did, $data_inicio, $data_fim, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim);
+        $work_res = checkDocenteWorkSchedule($conn, $did, $data_inicio, $data_fim, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $tipo_agenda, $agenda_flexivel);
         if ($work_res !== true) {
             handle_response($conn, false, $work_res, "", $is_ajax);
         }
@@ -282,7 +289,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // --- VALIDATION: Environment (Ambiente) Conflict ---
     if ($ambiente_id !== "NULL" && $ambiente_id > 0) {
-        $amb_res = checkAmbienteConflict($conn, $ambiente_id, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim);
+        $amb_res = checkAmbienteConflict($conn, $ambiente_id, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim, $tipo_agenda, $agenda_flexivel);
         if ($amb_res !== true) {
             handle_response($conn, false, $amb_res, "", $is_ajax);
         }
@@ -336,20 +343,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                       numero_proposta = '$numero_proposta',
                       tipo_atendimento = '$tipo_atendimento',
                       parceiro = '$parceiro',
-                      contato_parceiro = '$contato_parceiro'
+                      contato_parceiro = '$contato_parceiro',
+                      tipo_agenda = '$tipo_agenda',
+                      agenda_flexivel = '$agenda_flexivel'
                       WHERE id = '$id'";
         } else {
             // Alterado para sempre iniciar como PENDENTE, mesmo para Admin/Gestor,
             // permitindo que o fluxo de aprovação (Aceitar/Recusar) ocorra no painel.
             $status_inicial = 'PENDENTE';
 
-            $query = "INSERT INTO reservas (docente_id, curso_id, ambiente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, sigla, periodo, status, vagas, local, tipo, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro) 
-                      VALUES ($principal_docente, $curso_id, $ambiente_id, $usuario_id_sql, '$data_inicio', '$data_fim', '$dias_semana_str', '$horario_inicio', '$horario_fim', '$sigla', '$periodo', '$status_inicial', $vagas, '$local', '$tipo', '$tipo_custeio', $previsao_despesa, $valor_turma, '$numero_proposta', '$tipo_atendimento', '$parceiro', '$contato_parceiro')";
+            $query = "INSERT INTO reservas (docente_id, curso_id, ambiente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, sigla, periodo, status, vagas, local, tipo, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_agenda, agenda_flexivel) 
+                      VALUES ($principal_docente, $curso_id, $ambiente_id, $usuario_id_sql, '$data_inicio', '$data_fim', '$dias_semana_str', '$horario_inicio', '$horario_fim', '$sigla', '$periodo', '$status_inicial', $vagas, '$local', '$tipo', '$tipo_custeio', $previsao_despesa, $valor_turma, '$numero_proposta', '$tipo_atendimento', '$parceiro', '$contato_parceiro', '$tipo_agenda', '$agenda_flexivel')";
         }
 
         if (mysqli_query($conn, $query)) {
             $res_id = $id ?: mysqli_insert_id($conn);
             $msg = $id ? "Reserva atualizada" : "Reserva criada com sucesso";
+
+            // NOTIFICAÇÃO DE RESERVA (Novo Alerta)
+            $executor = $_SESSION['user_nome'] ?? 'Usuário';
+            $notif_tipo = $id ? 'edicao_turma' : 'reserva_realizada';
+            $notif_titulo = $id ? 'Reserva Atualizada' : 'Nova Reserva Solicitada';
+            $notif_msg = "A reserva ($sigla) foi " . ($id ? "atualizada" : "solicitada") . " por $executor.";
+            dispararNotificacaoGlobal($conn, $notif_tipo, $notif_titulo, $notif_msg, BASE_URL . "/php/views/gerenciar_reservas.php?status=PENDENTE&reserva_id=$res_id", ['admin', 'gestor']);
+
             $next_url = !empty($_POST['return_url']) ? $_POST['return_url'] : "../views/agenda_professores.php?docente_id=" . $docentes_to_check[0] . "&msg=created";
             handle_response($conn, true, $msg, $next_url, $is_ajax);
         } else {
@@ -383,28 +400,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                       numero_proposta = '$numero_proposta',
                       tipo_atendimento = '$tipo_atendimento',
                       parceiro = '$parceiro',
-                      contato_parceiro = '$contato_parceiro'
+                      contato_parceiro = '$contato_parceiro',
+                      tipo_agenda = '$tipo_agenda',
+                      agenda_flexivel = '$agenda_flexivel'
                       WHERE id = '$id'";
             mysqli_query($conn, $query);
 
             dispararNotificacaoGlobal($conn, 'edicao_turma', 'Turma Atualizada', "A turma $display_nome ($periodo) teve seus dados atualizados.", BASE_URL . "/php/views/turmas.php?id=$id", ['admin', 'gestor', 'professor', 'cri']);
 
             mysqli_query($conn, "DELETE FROM agenda WHERE turma_id = '$id'");
-            generateAgendaRecords($conn, $id, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_to_check);
+            generateAgendaRecords($conn, $id, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_to_check, $tipo_agenda, $agenda_flexivel);
 
             $next_url = !empty($_POST['return_url']) ? $_POST['return_url'] : "../views/agenda_professores.php?docente_id=" . (!empty($docentes_to_check) ? $docentes_to_check[0] : '') . "&msg=updated";
             handle_response($conn, true, "Turma atualizada com sucesso", $next_url, $is_ajax);
         } else {
             // INSERT new turma
-            $query = "INSERT INTO turma (curso_id, tipo, periodo, data_inicio, data_fim, ambiente_id, sigla, vagas, local, dias_semana, horario_inicio, horario_fim, docente_id1, docente_id2, docente_id3, docente_id4, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro) 
-                      VALUES ($curso_id, '$tipo', '$periodo', '$data_inicio', '$data_fim', $ambiente_id, '$sigla', $vagas, '$local', '$dias_semana_str', '$horario_inicio', '$horario_fim', $docente_id1, $docente_id2, $docente_id3, $docente_id4, '$tipo_custeio', $previsao_despesa, $valor_turma, '$numero_proposta', '$tipo_atendimento', '$parceiro', '$contato_parceiro')";
+            $query = "INSERT INTO turma (curso_id, tipo, periodo, data_inicio, data_fim, ambiente_id, sigla, vagas, local, dias_semana, horario_inicio, horario_fim, docente_id1, docente_id2, docente_id3, docente_id4, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_agenda, agenda_flexivel) 
+                      VALUES ($curso_id, '$tipo', '$periodo', '$data_inicio', '$data_fim', $ambiente_id, '$sigla', $vagas, '$local', '$dias_semana_str', '$horario_inicio', '$horario_fim', $docente_id1, $docente_id2, $docente_id3, $docente_id4, '$tipo_custeio', $previsao_despesa, $valor_turma, '$numero_proposta', '$tipo_atendimento', '$parceiro', '$contato_parceiro', '$tipo_agenda', '$agenda_flexivel')";
 
             mysqli_query($conn, $query);
             $turma_id = mysqli_insert_id($conn);
 
             dispararNotificacaoGlobal($conn, 'registro_turma', 'Nova Turma Registrada', "A turma $display_nome ($periodo) foi cadastrada no sistema.", BASE_URL . "/php/views/turmas.php?id=$turma_id", ['admin', 'gestor', 'professor', 'cri']);
 
-            generateAgendaRecords($conn, $turma_id, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_to_check);
+            generateAgendaRecords($conn, $turma_id, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_to_check, $tipo_agenda, $agenda_flexivel);
 
             $next_url = !empty($_POST['return_url']) ? $_POST['return_url'] : "../views/agenda_professores.php?docente_id=" . (!empty($docentes_to_check) ? $docentes_to_check[0] : '') . "&msg=created";
             handle_response($conn, true, "Turma criada com sucesso", $next_url, $is_ajax);

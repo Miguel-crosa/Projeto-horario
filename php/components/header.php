@@ -475,7 +475,7 @@ if (isCRI()) {
                             style="background:none; border:none; color: var(--primary-red); cursor: pointer;"><i
                                 class="fas fa-check-double"></i></button>
                         <button class="modal-close"
-                            onclick="document.getElementById('notification-modal').style.display='none'"
+                            onclick="NotifSystem.toggle()"
                             style="background:none; border:none; color: var(--text-color); font-size: 1.2rem; cursor: pointer;"><i
                                 class="fas fa-times"></i></button>
                     </div>
@@ -517,16 +517,31 @@ if (isCRI()) {
                 tipoVal: 'todos',
                 urlBase: '<?= $prefix ?>php/controllers/notificacao_api.php',
                 userRole: '<?= $_SESSION['user_role'] ?? 'guest' ?>',
+                baseUrl: '<?= BASE_URL ?>',
 
                 init: function () {
-                    document.getElementById('notification-bell').addEventListener('click', () => {
+                    document.getElementById('notification-bell').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.toggle();
+                    });
+
+                    // Clique fora para fechar
+                    window.addEventListener('click', (e) => {
                         const modal = document.getElementById('notification-modal');
-                        modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
-                        if (modal.style.display === 'flex') this.load();
+                        const modalContent = modal.querySelector('.modal-content');
+                        if (modal.style.display === 'flex' && !modalContent.contains(e.target)) {
+                            this.toggle();
+                        }
                     });
                     this.updateTabUI();
                     this.load();
                     setInterval(() => this.load(), 600000); // 10-minute auto refresh unread
+                },
+
+                toggle: function() {
+                    const modal = document.getElementById('notification-modal');
+                    modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
+                    if (modal.style.display === 'flex') this.load();
 
                     // Create permission denied modal logic
                     if (!document.getElementById('permission-denied-modal')) {
@@ -651,6 +666,13 @@ if (isCRI()) {
                 limparLidas: function () { this.postAction('limpar_lidas'); },
 
                 marcarLidaEIr: function (id, link) {
+                    // Sanitiza links legados relativos (../views/...) convertendo para absoluto
+                    if (link && !link.startsWith('/') && !link.startsWith('http')) {
+                        // Remove o prefixo relativo (ex: "../views/" ou "./views/")
+                        link = link.replace(/^\.\.\//, '').replace(/^\.\//, '');
+                        link = this.baseUrl + '/php/' + link;
+                    }
+
                     // Check permission FIRST
                     const r = this.userRole;
                     const l = link.toLowerCase();

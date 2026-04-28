@@ -140,7 +140,6 @@ function can_reserve()
     return isAdmin() || isGestor() || isCRI();
 }
 
-// Variáveis globais de compatibilidade com código Parafal
 $auth_user_id = $_SESSION['user_id'] ?? 0;
 $auth_user_nome = $_SESSION['user_nome'] ?? 'Usuário';
 $auth_user_role = $_SESSION['user_role'] ?? '';

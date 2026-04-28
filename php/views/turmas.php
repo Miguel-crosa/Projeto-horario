@@ -27,10 +27,10 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
 <div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
     <div class="search-box" style="flex: 1; max-width: 300px;">
         <input type="text" id="filter-sigla" placeholder="Filtrar por Sigla ou Curso..." class="form-input"
-            style="width: 100%;" onkeyup="filterTurmas()">
+            style="width: 100%;" onkeyup="filterTurmas()" onkeydown="if(event.key==='Enter') event.preventDefault();">
     </div>
     <input type="text" id="filter-docente" placeholder="Filtrar por Docente..." class="form-input" style="width: 180px;"
-        onkeyup="filterTurmas()">
+        onkeyup="filterTurmas()" onkeydown="if(event.key==='Enter') event.preventDefault();">
     <select id="filter-periodo" class="form-input" style="width: 140px;" onchange="filterTurmas()">
         <option value="">Todos Períodos</option>
         <option value="Manhã">Manhã</option>
@@ -99,7 +99,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             const docentesCell = row.dataset.docentes || '';
             const diasTurma = row.dataset.dias || '';
 
-            const matchesSigla = text.includes(sigla);
+            const matchesSigla = !sigla || text.includes(sigla);
             const matchesPeriodo = !periodo || pCell === periodo;
             const matchesDocente = !docenteFilter || docentesCell.toLowerCase().includes(docenteFilter);
             const matchesDia = !dia || diasTurma.includes(dia);

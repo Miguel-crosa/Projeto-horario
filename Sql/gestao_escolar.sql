@@ -134,6 +134,8 @@ CREATE TABLE IF NOT EXISTS turma (
     contato_parceiro VARCHAR(255) DEFAULT NULL,
     horario_inicio TIME DEFAULT '07:30',
     horario_fim TIME DEFAULT '11:30',
+    tipo_agenda ENUM('recorrente', 'flexivel') DEFAULT 'recorrente',
+    agenda_flexivel TEXT DEFAULT NULL,
     ativo TINYINT(1) DEFAULT 1,
     PRIMARY KEY (id),
     FOREIGN KEY (curso_id) REFERENCES curso(id),
@@ -187,6 +189,8 @@ CREATE TABLE IF NOT EXISTS reservas (
     parceiro VARCHAR(255) DEFAULT NULL,
     contato_parceiro VARCHAR(255) DEFAULT NULL,
     status ENUM('ativo', 'concluido', 'PENDENTE', 'APROVADA', 'REJEITADA', 'CONCLUIDA') NOT NULL DEFAULT 'PENDENTE',
+    tipo_agenda ENUM('recorrente', 'flexivel') DEFAULT 'recorrente',
+    agenda_flexivel TEXT DEFAULT NULL,
     notas TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -313,4 +317,10 @@ ALTER TABLE reservas ADD COLUMN IF NOT EXISTS numero_proposta VARCHAR(100) DEFAU
 ALTER TABLE reservas ADD COLUMN IF NOT EXISTS tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão';
 ALTER TABLE reservas ADD COLUMN IF NOT EXISTS parceiro VARCHAR(255) DEFAULT NULL;
 ALTER TABLE reservas ADD COLUMN IF NOT EXISTS contato_parceiro VARCHAR(255) DEFAULT NULL;
+
+-- 3. Suporte a Agenda Flexível (Datas Manuais)
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS tipo_agenda ENUM('recorrente', 'flexivel') DEFAULT 'recorrente';
+ALTER TABLE turma ADD COLUMN IF NOT EXISTS agenda_flexivel TEXT DEFAULT NULL;
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS tipo_agenda ENUM('recorrente', 'flexivel') DEFAULT 'recorrente';
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS agenda_flexivel TEXT DEFAULT NULL;
 */

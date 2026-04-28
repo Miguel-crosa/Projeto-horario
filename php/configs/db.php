@@ -5,11 +5,11 @@ date_default_timezone_set('America/Sao_Paulo');
 if (!isset($_SERVER['DOCUMENT_ROOT'])) {
      define('BASE_URL', '');
 } else {
-     $doc_root = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']);
+     $doc_root = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']), '/');
      $current_dir = str_replace('\\', '/', __DIR__);
      $dir_path = str_ireplace($doc_root, '', $current_dir);
      $base_url = str_ireplace('/php/configs', '', $dir_path);
-     $base_url = rtrim($base_url, '/');
+     $base_url = '/' . ltrim(rtrim($base_url, '/'), '/');
      define('BASE_URL', $base_url);
 }
 $host = 'localhost'; // Geralmente 'localhost' na Hostinger
@@ -17,7 +17,7 @@ $user = 'root';
 $pass = '';
 
 $db = 'gestao_escolar';
-$port = 3306;
+$port = 3308;
 
 // Ativar exibição de erros apenas para log, ocultar do usuário final
 mysqli_report(MYSQLI_REPORT_OFF);

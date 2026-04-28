@@ -33,9 +33,15 @@ if ($reserva_id_target) {
     }
 }
 
-$where = "WHERE r.status = ?";
-$params = [$status_filter];
-$types = 's';
+if ($status_filter === 'APROVADA') {
+    $where = "WHERE r.status IN ('APROVADA', 'CONCLUIDA')";
+    $params = [];
+    $types = '';
+} else {
+    $where = "WHERE r.status = ?";
+    $params = [$status_filter];
+    $types = 's';
+}
 
 if ($owner_filter === 'mine' || isCRI()) {
     $where .= " AND r.usuario_id = ?";
@@ -54,7 +60,9 @@ $st = $mysqli->prepare("
     $where
     ORDER BY r.created_at DESC
 ");
-$st->bind_param($types, ...$params);
+if (!empty($types)) {
+    $st->bind_param($types, ...$params);
+}
 $st->execute();
 $reservas = $st->get_result()->fetch_all(MYSQLI_ASSOC);
 
@@ -315,20 +323,59 @@ include __DIR__ . '/../components/header.php';
         padding: 8px 18px;
         border-radius: 20px;
         background: var(--bg-color);
-        color: var(--text-muted);
+        color: var(--text-color);
         font-weight: 700;
         font-size: 0.85rem;
         text-decoration: none;
         border: 1px solid var(--border-color);
-        transition: all 0.2s;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-chip i {
+        color: inherit;
+        opacity: 0.8;
+    }
+
+    .filter-chip:hover {
+        background: var(--border-color);
+        transform: translateY(-1px);
+    }
+
+    /* Cores específicas por Status (Ativo) */
+    .filter-chip.active.chip-pendente {
+        background: #ff9800;
+        color: white;
+        border-color: #ff9800;
+        box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+    }
+
+    .filter-chip.active.chip-aprovada {
+        background: #4caf50;
+        color: white;
+        border-color: #4caf50;
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+
+    .filter-chip.active.chip-concluida {
+        background: #2196f3;
+        color: white;
+        border-color: #2196f3;
+        box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+    }
+
+    .filter-chip.active.chip-recusada {
+        background: #ef5350;
+        color: white;
+        border-color: #ef5350;
+        box-shadow: 0 4px 12px rgba(239, 83, 80, 0.3);
     }
 
     .filter-chip.active {
-        background: var(--primary-red);
-        color: white;
-        border-color: var(--primary-red);
         transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(225, 29, 37, 0.3);
     }
 
     .badge-count {
@@ -382,19 +429,15 @@ include __DIR__ . '/../components/header.php';
 <div class="filter-bar">
     <div class="status-filters">
         <a href="?status=PENDENTE&owner=<?= $owner_filter ?>"
-            class="filter-chip <?= $status_filter === 'PENDENTE' ? 'active' : '' ?>">
+            class="filter-chip chip-pendente <?= $status_filter === 'PENDENTE' ? 'active' : '' ?>">
             <i class="fas fa-hourglass-half"></i> Pendentes <span class="badge-count"><?= $count_pendente ?></span>
         </a>
         <a href="?status=APROVADA&owner=<?= $owner_filter ?>"
-            class="filter-chip <?= $status_filter === 'APROVADA' ? 'active' : '' ?>">
+            class="filter-chip chip-aprovada <?= ($status_filter === 'APROVADA' || $status_filter === 'CONCLUIDA') ? 'active' : '' ?>">
             <i class="fas fa-check-circle"></i> Aprovadas
         </a>
-        <a href="?status=CONCLUIDA&owner=<?= $owner_filter ?>"
-            class="filter-chip <?= $status_filter === 'CONCLUIDA' ? 'active' : '' ?>">
-            <i class="fas fa-flag-checkered"></i> Concluídas
-        </a>
         <a href="?status=RECUSADA&owner=<?= $owner_filter ?>"
-            class="filter-chip <?= $status_filter === 'RECUSADA' ? 'active' : '' ?>">
+            class="filter-chip chip-recusada <?= $status_filter === 'RECUSADA' ? 'active' : '' ?>">
             <i class="fas fa-times-circle"></i> Recusadas
         </a>
     </div>
@@ -497,7 +540,7 @@ include __DIR__ . '/../components/header.php';
                                 <i class="fas fa-hourglass-half"></i> Aguardando Aprovação
                             </div>
                         <?php endif; ?>
-                    <?php elseif ($r['status'] === 'APROVADA'): ?>
+                    <?php elseif ($r['status'] === 'APROVADA' || $r['status'] === 'CONCLUIDA'): ?>
                         <div class="btn-action"
                             style="background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; cursor: default;">
                             <i class="fas fa-check-double"></i> Reserva Aprovada

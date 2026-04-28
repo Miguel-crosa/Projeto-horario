@@ -12,9 +12,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Abrir Modal de Seleção
     window.openReportSelectProfModal = function () {
         const modal = document.getElementById('modal-relatorio-select-prof');
+        const modalReport = document.getElementById('modal-relatorio-mensal-detalhado');
+
         if (modal) {
+            // Resetar estilos de animação que podem ter ficado travados
+            modal.style.transform = 'translateX(0)';
+            modal.style.opacity = '1';
             modal.classList.add('active');
             loadReportProfList();
+        }
+
+        if (modalReport) {
+            modalReport.classList.remove('active');
+            modalReport.style.transform = 'translateX(100%)';
+            modalReport.style.opacity = '0';
         }
     };
 
@@ -346,6 +357,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Navegação
     document.getElementById('report-next-month')?.addEventListener('click', () => {
         reportCurrentDate.setMonth(reportCurrentDate.getMonth() + 1);
+        loadReportData();
+    });
+
+    document.getElementById('report-prev-month')?.addEventListener('click', () => {
+        reportCurrentDate.setMonth(reportCurrentDate.getMonth() - 1);
         loadReportData();
     });
 

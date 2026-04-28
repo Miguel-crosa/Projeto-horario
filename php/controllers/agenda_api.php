@@ -571,15 +571,19 @@ switch ($action) {
             exit;
         }
 
-        // --- NEW: Save as RESERVA PENDENTE if requested OR if user is CRI ---
         $is_reserva = ($_POST['is_reserva'] ?? '0') == '1';
         if (isCRI())
             $is_reserva = true; // CRI users can ONLY create reservations
 
+        $tipo_agenda = $_POST['tipo_agenda'] ?? 'recorrente';
+        $agenda_flexivel = $_POST['agenda_flexivel'] ?? '';
+
         if ($is_reserva) {
             $dias_str = mysqli_real_escape_string($conn, implode(',', $dias_semana));
-            $sql_res = "INSERT INTO reservas (docente_id, curso_id, ambiente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, periodo, sigla, vagas, local, tipo, status)
-                        VALUES ($docente_id, $curso_id, $ambiente_id, $auth_user_id, '$data_inicio', '$data_fim', '$dias_str', '$h_inicio', '$h_fim', '$periodo', '$sigla', $vagas, '$local', '$tipo', 'PENDENTE')";
+            $agenda_flex_esc = mysqli_real_escape_string($conn, $agenda_flexivel);
+
+            $sql_res = "INSERT INTO reservas (docente_id, curso_id, ambiente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, periodo, sigla, vagas, local, tipo, status, tipo_agenda, agenda_flexivel)
+                        VALUES ($docente_id, $curso_id, $ambiente_id, $auth_user_id, '$data_inicio', '$data_fim', '$dias_str', '$h_inicio', '$h_fim', '$periodo', '$sigla', $vagas, '$local', '$tipo', 'PENDENTE', '$tipo_agenda', '$agenda_flex_esc')";
 
             if (mysqli_query($conn, $sql_res)) {
                 $reserva_id = mysqli_insert_id($conn);
@@ -604,36 +608,55 @@ switch ($action) {
         $d2_val = $docente_id2 ? $docente_id2 : 'NULL';
         $d3_val = $docente_id3 ? $docente_id3 : 'NULL';
         $d4_val = $docente_id4 ? $docente_id4 : 'NULL';
+        $agenda_flex_esc = mysqli_real_escape_string($conn, $agenda_flexivel);
 
-        $insert_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, docente_id2, docente_id3, docente_id4, local) 
-                         VALUES ($curso_id, '$tipo', '$sigla', $vagas, '$periodo', '$data_inicio', '$data_fim', '$dias_str', $amb_id_val, $docente_id, $d2_val, $d3_val, $d4_val, '$local')";
+        $insert_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, docente_id2, docente_id3, docente_id4, local, tipo_agenda, agenda_flexivel) 
+                         VALUES ($curso_id, '$tipo', '$sigla', $vagas, '$periodo', '$data_inicio', '$data_fim', '$dias_str', $amb_id_val, $docente_id, $d2_val, $d3_val, $d4_val, '$local', '$tipo_agenda', '$agenda_flex_esc')";
         if (!mysqli_query($conn, $insert_turma)) {
             echo json_encode(['success' => false, 'message' => 'Erro ao criar turma: ' . mysqli_error($conn)]);
             exit;
         }
         $turma_id = mysqli_insert_id($conn);
 
-        // Create explicit detailed Agenda Entries per day (SKIPPING HOLIDAYS/VACATIONS)
-        $it = new DateTime($data_inicio);
-        $end = new DateTime($data_fim);
+        // Create explicit detailed Agenda Entries per day
         $amb_val = $ambiente_id ?: 'NULL';
 
-        while ($it <= $end) {
-            $currStr = $it->format('Y-m-d');
-            $w = (int) $it->format('w');
-            $dayName = $daysMap[$w] ?? '';
-
-            if (in_array($dayName, $dias_semana)) {
+        if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
+            $dates = array_unique(explode(',', $agenda_flexivel));
+            foreach ($dates as $dateStr) {
+                $dateStr = trim($dateStr);
+                if (empty($dateStr)) continue;
+                $w = (int) date('w', strtotime($dateStr));
+                $dayName = $daysMap[$w] ?? '';
                 $dia_esc = mysqli_real_escape_string($conn, $dayName);
                 foreach ($all_docente_ids as $did) {
-                    // Skip holiday/vacation
-                    if (!isHoliday($conn, $currStr) && !isVacation($conn, $did, $currStr)) {
+                    // Even in manual mode, respect holidays/vacations? (Business choice, here we keep consistent)
+                    if (!isHoliday($conn, $dateStr) && !isVacation($conn, $did, $dateStr)) {
                         mysqli_query($conn, "INSERT INTO agenda (docente_id, ambiente_id, turma_id, dia_semana, periodo, horario_inicio, horario_fim, data, status)
-                                             VALUES ($did, $amb_val, $turma_id, '$dia_esc', '$periodo', '$h_inicio', '$h_fim', '$currStr', 'CONFIRMADO')");
+                                             VALUES ($did, $amb_val, $turma_id, '$dia_esc', '$periodo', '$h_inicio', '$h_fim', '$dateStr', 'CONFIRMADO')");
                     }
                 }
             }
-            $it->modify('+1 day');
+        } else {
+            // MODO RECORRENTE
+            $it = new DateTime($data_inicio);
+            $end = new DateTime($data_fim);
+            while ($it <= $end) {
+                $currStr = $it->format('Y-m-d');
+                $w = (int) $it->format('w');
+                $dayName = $daysMap[$w] ?? '';
+
+                if (in_array($dayName, $dias_semana)) {
+                    $dia_esc = mysqli_real_escape_string($conn, $dayName);
+                    foreach ($all_docente_ids as $did) {
+                        if (!isHoliday($conn, $currStr) && !isVacation($conn, $did, $currStr)) {
+                            mysqli_query($conn, "INSERT INTO agenda (docente_id, ambiente_id, turma_id, dia_semana, periodo, horario_inicio, horario_fim, data, status)
+                                                 VALUES ($did, $amb_val, $turma_id, '$dia_esc', '$periodo', '$h_inicio', '$h_fim', '$currStr', 'CONFIRMADO')");
+                        }
+                    }
+                }
+                $it->modify('+1 day');
+            }
         }
 
         // Clean up any RESERVADO entries for the involved docentes in the date range that overlap with the new period
@@ -746,7 +769,7 @@ switch ($action) {
             mysqli_query($conn, "UPDATE reservas SET status = 'CONCLUIDA' WHERE id = $reserva_id");
 
             $executor = $_SESSION['user_nome'] ?? 'Gestor';
-            dispararNotificacaoGlobal($conn, 'reserva_realizada', 'Sua reserva foi Aprovada', "A reserva da turma {$r['sigla']} foi aprovada por $executor e confirmada na agenda.", "../views/gerenciar_reservas.php?status=CONCLUIDA&reserva_id=$reserva_id", ['admin', 'gestor', 'professor', 'cri']); // Goes everywhere but ignores selves mostly, users will see if it's theirs
+            dispararNotificacaoGlobal($conn, 'reserva_realizada', 'Sua reserva foi Aprovada', "A reserva da turma {$r['sigla']} foi aprovada por $executor e confirmada na agenda.", BASE_URL . "/php/views/gerenciar_reservas.php?status=CONCLUIDA&reserva_id=$reserva_id", ['admin', 'gestor', 'professor', 'cri']); // Goes everywhere but ignores selves mostly, users will see if it's theirs
 
             mysqli_commit($conn);
             echo json_encode(['success' => true, 'message' => 'Reserva aprovada e aula cadastrada!']);
@@ -803,7 +826,7 @@ switch ($action) {
         $reserva_id = (int) ($_POST['reserva_id'] ?? 0);
         if (mysqli_query($conn, "UPDATE reservas SET status = 'RECUSADA' WHERE id = $reserva_id")) {
             $executor = $_SESSION['user_nome'] ?? 'Gestor';
-            dispararNotificacaoGlobal($conn, 'reserva_realizada', 'Sua reserva foi Recusada', "A solicitação de reserva #$reserva_id foi recusada por $executor.", "../views/gerenciar_reservas.php?status=RECUSADA&reserva_id=$reserva_id", ['admin', 'gestor', 'professor', 'cri']);
+            dispararNotificacaoGlobal($conn, 'reserva_realizada', 'Sua reserva foi Recusada', "A solicitação de reserva #$reserva_id foi recusada por $executor.", BASE_URL . "/php/views/gerenciar_reservas.php?status=RECUSADA&reserva_id=$reserva_id", ['admin', 'gestor', 'professor', 'cri']);
 
             echo json_encode(['success' => true, 'message' => 'Reserva recusada.']);
         } else {

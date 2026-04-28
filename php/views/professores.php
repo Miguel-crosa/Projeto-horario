@@ -19,7 +19,7 @@ $stmt->close();
 <div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
     <div class="search-box" style="flex: 1; max-width: 400px;">
         <input type="text" id="filter-nome" placeholder="Buscar professor ou área..." class="form-input"
-            style="width: 100%;" onkeyup="filterProfessores()">
+            style="width: 100%;" onkeyup="filterProfessores()" onkeydown="if(event.key==='Enter') event.preventDefault();">
     </div>
     <div class="header-actions" style="display: flex; gap: 8px;">
         <?php if (can_edit()): ?>
