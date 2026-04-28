@@ -661,14 +661,14 @@ switch ($action) {
 
         // Clean up any RESERVADO entries for the involved docentes in the date range that overlap with the new period
         $p_list = "('$periodo')";
-        if ($periodo === 'Manhã' || $periodo === 'Integral') {
+        if ($periodo === 'Manhã') {
             $p_list = "('Manhã', 'Integral')";
-        }
-        if ($periodo === 'Tarde') {
+        } elseif ($periodo === 'Tarde') {
             $p_list = "('Tarde', 'Integral')";
-        }
-        if ($periodo === 'Integral') {
-            $p_list = "('Manhã', 'Tarde', 'Integral')";
+        } elseif ($periodo === 'Noite') {
+            $p_list = "('Noite', 'Integral')";
+        } elseif ($periodo === 'Integral') {
+            $p_list = "('Manhã', 'Tarde', 'Noite', 'Integral')";
         }
 
         foreach ($all_docente_ids as $did) {
@@ -727,12 +727,15 @@ switch ($action) {
             // 2. Clear old legacy RESERVADO rows from the agenda table in this range to avoid conflicts
             $del_p = $r['periodo'];
             $p_list = "('$del_p')";
-            if ($del_p === 'Manhã' || $del_p === 'Integral')
+            if ($del_p === 'Manhã') {
                 $p_list = "('Manhã', 'Integral')";
-            if ($del_p === 'Tarde')
+            } elseif ($del_p === 'Tarde') {
                 $p_list = "('Tarde', 'Integral')";
-            if ($del_p === 'Integral')
-                $p_list = "('Manhã', 'Tarde', 'Integral')";
+            } elseif ($del_p === 'Noite') {
+                $p_list = "('Noite', 'Integral')";
+            } elseif ($del_p === 'Integral') {
+                $p_list = "('Manhã', 'Tarde', 'Noite', 'Integral')";
+            }
 
             mysqli_query($conn, "
                 DELETE FROM agenda 
