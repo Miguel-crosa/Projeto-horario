@@ -218,7 +218,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $docente_id3 = !empty($_POST['docente_id3']) ? (int) $_POST['docente_id3'] : "NULL";
     $docente_id4 = !empty($_POST['docente_id4']) ? (int) $_POST['docente_id4'] : "NULL";
     $dias_semana_arr = $_POST['dias_semana'] ?? [];
-    $dias_semana_str = mysqli_real_escape_string($conn, implode(',', $dias_semana_arr));
     $horario_inicio = mysqli_real_escape_string($conn, $_POST['horario_inicio'] ?? '07:30');
     $horario_fim = mysqli_real_escape_string($conn, $_POST['horario_fim'] ?? '11:30');
 
@@ -235,6 +234,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $contato_parceiro = mysqli_real_escape_string($conn, $_POST['contato_parceiro'] ?? '');
     $tipo_agenda = mysqli_real_escape_string($conn, $_POST['tipo_agenda'] ?? 'recorrente');
     $agenda_flexivel = mysqli_real_escape_string($conn, $_POST['agenda_flexivel'] ?? '');
+
+    // FIX: No modo flexível, sempre derivamos dias_semana a partir das datas selecionadas.
+    // Ignoramos os checkboxes pois eles podem conter valores legados ou ocultos.
+    if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
+        $daysMapFlex = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
+        $flex_dates = explode(',', $agenda_flexivel);
+        $derived_days = [];
+        foreach ($flex_dates as $fd) {
+            $fd = trim($fd);
+            if (empty($fd)) continue;
+            $dow = (int) date('w', strtotime($fd));
+            $dayName = $daysMapFlex[$dow] ?? '';
+            if ($dayName && !in_array($dayName, $derived_days)) {
+                $derived_days[] = $dayName;
+            }
+        }
+        $dias_semana_arr = $derived_days;
+        $dias_semana_str = mysqli_real_escape_string($conn, implode(',', $dias_semana_arr));
+    } else {
+        $dias_semana_str = mysqli_real_escape_string($conn, implode(',', $dias_semana_arr));
+    }
     
     // TRAVA: Aulas Noturnas não podem passar das 23:00
     if ($periodo === 'Noite' && !empty($horario_fim) && $horario_fim > '23:00') {

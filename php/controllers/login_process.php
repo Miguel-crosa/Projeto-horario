@@ -59,7 +59,7 @@ switch ($action) {
 
         // Force password change if it's first login or flagged in DB
         $is_default_password = ($senha === 'senaisp');
-        $_SESSION['obrigar_troca_senha'] = (bool) ($user['obrigar_troca_senha'] || $user['firstLogin'] || $is_default_password);
+        $_SESSION['obrigar_troca_senha'] = (bool) ($user['obrigar_troca_senha'] || ($user['firstLogin'] ?? false) || $is_default_password);
 
         // Redirect to main page (header.php will handle forced password change)
         header('Location: ../../index.php');

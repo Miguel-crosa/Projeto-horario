@@ -144,56 +144,50 @@ function _expandDiasRange($dias_str)
     // Normaliza: remove acentos, ordinais (ª, º, ᵃ), converte tudo para minúsculo
     $s = mb_strtolower(trim($dias_str), 'UTF-8');
     // Remove 'de ' no início (ex: "de 3ª, 5ª e 6ª")
+    // Remove 'de ' no início (ex: "de 3ª, 5ª e 6ª")
     $s = preg_replace('/^de\s+/', '', $s);
-    // Remove ª º ᵃ após número
-    $s = preg_replace('/([0-7])[ªºᵃ]/u', '$1', $s);
     // Remove -feira
     $s = str_replace('-feira', '', $s);
 
-    // Mapa de abreviações para números (2=seg ... 7=sáb, 0=dom)
+    // Mapa de termos para números (0=dom ... 6=sáb) - PADRÃO PHP date('w')
     $toNum = [
-        'seg' => 2,
-        'ter' => 3,
-        'qua' => 4,
-        'qui' => 5,
-        'sex' => 6,
-        'sab' => 7,
-        'sáb' => 7,
-        'dom' => 0,
-        '2ª' => 2,
-        '3ª' => 3,
-        '4ª' => 4,
-        '5ª' => 5,
-        '6ª' => 6,
+        'segunda' => '1', 'terça' => '2', 'terca' => '2', 'quarta' => '3', 'quinta' => '4', 'sexta' => '5', 'sábado' => '6', 'sabado' => '6', 'domingo' => '0',
+        'seg' => '1', 'ter' => '2', 'qua' => '3', 'qui' => '4', 'sex' => '5', 'sab' => '6', 'sáb' => '6', 'dom' => '0',
+        '2ª' => '1', '3ª' => '2', '4ª' => '3', '5ª' => '4', '6ª' => '5',
+        // Números puros (se vierem da planilha em algum formato padrão)
+        '2' => '1', '3' => '2', '4' => '3', '5' => '4', '6' => '5', '7' => '6', '1' => '0'
     ];
 
-    // Substitui abreviações por números
-    // Ordena pelo comprimento para substituir as mais longas primeiro
-    $keys = array_keys($toNum);
-    usort($keys, function ($a, $b) {
+    // Ordena as chaves pelo comprimento (descendente) para o strtr processar os termos mais longos primeiro
+    uksort($toNum, function ($a, $b) {
         return mb_strlen($b) - mb_strlen($a);
     });
-    foreach ($keys as $k) {
-        $s = str_replace($k, (string) $toNum[$k], $s);
-    }
 
-    // Detectar range: "2 a 6", "2-6", "2 a 5", "2-5"
-    if (preg_match('/([0-7])\s*([a\-]|ate)\s*([0-7])/', $s, $rm)) {
+    $s = strtr($s, $toNum);
+
+    // Agora remove qualquer ordinal remanescente (ª, º, ᵃ)
+    $s = preg_replace('/[ªºᵃ]/u', '', $s);
+
+    // Agora remove qualquer ordinal remanescente (ª, º, ᵃ)
+    $s = preg_replace('/[ªºᵃ]/u', '', $s);
+
+    // Detectar range: "1 a 5", "1-5" (Seg a Sex)
+    if (preg_match('/([0-6])\s*([a\-]|ate)\s*([0-6])/', $s, $rm)) {
         $from = (int) $rm[1];
         $to = (int) $rm[3];
         $nums = [];
         for ($n = $from; $n <= $to; $n++)
             $nums[] = $n;
-        // Também incluir números extras fora do range (ex: "2, 3 a 5" => 2,3,4,5)
+        // Também incluir números extras fora do range (ex: "1, 2 a 4" => 1,2,3,4)
         $rest = str_replace($rm[0], '', $s);
-        preg_match_all('/[0-7]/', $rest, $extra);
+        preg_match_all('/[0-6]/', $rest, $extra);
         foreach ($extra[0] as $e)
             $nums[] = (int) $e;
         return array_values(array_unique($nums));
     }
 
-    // Sem range, apenas lista: "2, 3 e 6" ou "3, 5 e 6"
-    preg_match_all('/[0-7]/', $s, $matches);
+    // Sem range, apenas lista: "1, 2 e 5"
+    preg_match_all('/[0-6]/', $s, $matches);
     return array_values(array_unique(array_map('intval', $matches[0])));
 }
 
@@ -201,16 +195,7 @@ function parseDiasSemana($dias_str)
 {
     if (!$dias_str)
         return [];
-    // Mapa: número do excel (2=seg) para N do PHP DateTime (1=seg)
-    $excelToPhpN = [2 => 1, 3 => 2, 4 => 3, 5 => 4, 6 => 5, 7 => 6, 0 => 7];
-    $nums = _expandDiasRange($dias_str);
-    $result = [];
-    foreach ($nums as $n) {
-        if (isset($excelToPhpN[$n])) {
-            $result[] = $excelToPhpN[$n];
-        }
-    }
-    return array_values(array_unique($result));
+    return _expandDiasRange($dias_str);
 }
 
 function parseDiasSemanaNomes($dias_str)
@@ -218,12 +203,12 @@ function parseDiasSemanaNomes($dias_str)
     if (!$dias_str || $dias_str === '-')
         return '';
     $numToName = [
-        2 => 'Segunda-feira',
-        3 => 'Terça-feira',
-        4 => 'Quarta-feira',
-        5 => 'Quinta-feira',
-        6 => 'Sexta-feira',
-        7 => 'Sábado',
+        1 => 'Segunda-feira',
+        2 => 'Terça-feira',
+        3 => 'Quarta-feira',
+        4 => 'Quinta-feira',
+        5 => 'Sexta-feira',
+        6 => 'Sábado',
         0 => 'Domingo'
     ];
     $nums = _expandDiasRange($dias_str);
@@ -479,6 +464,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                             
                             $previsao_despesa = (float)($r['previsaodespesa'] ?? $r['despesa'] ?? 0);
                             $valor_turma = (float)($r['valorturma'] ?? $r['preco'] ?? $r['valor'] ?? 0);
+                            $tipo_agenda = trim($r['tipoagenda'] ?? $r['tipo_agenda'] ?? 'recorrente');
+                            $agenda_flexivel = trim($r['agendaflexivel'] ?? $r['agenda_flexivel'] ?? '');
 
                             if (!$periodo) {
                                 $periodo = deriveTurno($horario);
@@ -704,6 +691,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                                     $update_params[] = $valor_turma;
                                     $update_types .= 'd';
                                 }
+                                if ($tipo_agenda) {
+                                    $update_parts[] = "tipo_agenda = ?";
+                                    $update_params[] = $tipo_agenda;
+                                    $update_types .= 's';
+                                }
+                                if ($agenda_flexivel) {
+                                    $update_parts[] = "agenda_flexivel = ?";
+                                    $update_params[] = $agenda_flexivel;
+                                    $update_types .= 's';
+                                }
 
                                 $update_params[] = $sigla;
                                 $update_types .= 's';
@@ -713,11 +710,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                                 $stmt_upd->bind_param($update_types, ...$update_params);
                                 $stmt_upd->execute();
                             } else {
-                                // SQL com exatamente 23 interrogações
-                                $sql_turma = "INSERT INTO turma (sigla, curso_id, vagas, data_inicio, data_fim, periodo, dias_semana, docente_id1, docente_id2, docente_id3, docente_id4, ambiente_id, local, tipo, horario_inicio, horario_fim, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_custeio, previsao_despesa, valor_turma) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                                // SQL com exatamente 25 interrogações
+                                $sql_turma = "INSERT INTO turma (sigla, curso_id, vagas, data_inicio, data_fim, periodo, dias_semana, docente_id1, docente_id2, docente_id3, docente_id4, ambiente_id, local, tipo, horario_inicio, horario_fim, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_custeio, previsao_despesa, valor_turma, tipo_agenda, agenda_flexivel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                                 $stmt_ins = $mysqli->prepare($sql_turma);
-                                // Tipos (23): s, i, i, s, s, s, s, i, i, i, i, i, s, s, s, s, s, s, s, s, s, d, d
-                                $stmt_ins->bind_param('siissssiiiiisssssssisdd', $sigla, $curso_id, $vagas, $di, $df, $periodo, $dias_semana, $did1, $did2, $did3, $did4, $amb_id, $local, $tipo_t, $horario_inicio_excel, $horario_fim_excel, $n_proposta, $t_atendimento, $parceiro, $contato_parceiro, $tipo_custeio, $previsao_despesa, $valor_turma);
+                                // Tipos (25): s, i, i, s, s, s, s, i, i, i, i, i, s, s, s, s, s, s, s, s, s, d, d, s, s
+                                $stmt_ins->bind_param('siissssiiiiisssssssisddss', $sigla, $curso_id, $vagas, $di, $df, $periodo, $dias_semana, $did1, $did2, $did3, $did4, $amb_id, $local, $tipo_t, $horario_inicio_excel, $horario_fim_excel, $n_proposta, $t_atendimento, $parceiro, $contato_parceiro, $tipo_custeio, $previsao_despesa, $valor_turma, $tipo_agenda, $agenda_flexivel);
                                 $stmt_ins->execute();
                                 $tid_for_agenda = $mysqli->insert_id;
                             }
@@ -749,25 +746,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                                     $end_d = new DateTime($df);
                                     $end_d->modify('+1 day');
                                     $agenda_gen_count = 0;
-                                    $daysMap = [1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado', 7 => 'Domingo'];
+                                    $daysMap = [
+                                        0 => 'Domingo',
+                                        1 => 'Segunda-feira',
+                                        2 => 'Terça-feira',
+                                        3 => 'Quarta-feira',
+                                        4 => 'Quinta-feira',
+                                        5 => 'Sexta-feira',
+                                        6 => 'Sábado'
+                                    ];
 
-                                    while ($cur_d < $end_d) {
-                                        $dow_n = (int) $cur_d->format('N');
-                                        if (in_array($dow_n, $weekdays_auto)) {
-                                            $ag_data = $cur_d->format('Y-m-d');
-                                            $ag_dia_semana = $daysMap[$dow_n] ?? '';
+                                    // ── FLEXIBLE AGENDA HANDLING ──
+                                    if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
+                                        $flex_dates = array_filter(array_map('trim', explode(',', $agenda_flexivel)));
+                                        foreach ($flex_dates as $dateStr) {
+                                            if (isHoliday($conn, $dateStr)) continue;
+                                            $w = (int) date('w', strtotime($dateStr));
+                                            $ag_dia_semana = $daysMap[$w] ?? '';
                                             $ag_periodo = $periodo ?: 'Manhã';
-                                            // Usa os docentes mesclados (banco + CSV)
                                             $ids_for_agenda = array_filter($current_docs);
-
                                             foreach ($ids_for_agenda as $doc_id) {
                                                 $stmt_ag = $mysqli->prepare("INSERT IGNORE INTO agenda (turma_id, docente_id, ambiente_id, dia_semana, periodo, horario_inicio, horario_fim, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                                                $stmt_ag->bind_param('iiisssss', $tid_for_agenda, $doc_id, $amb_id, $ag_dia_semana, $ag_periodo, $hi_auto, $hf_auto, $ag_data);
+                                                $stmt_ag->bind_param('iiisssss', $tid_for_agenda, $doc_id, $amb_id, $ag_dia_semana, $ag_periodo, $hi_auto, $hf_auto, $dateStr);
                                                 $stmt_ag->execute();
                                                 $agenda_gen_count++;
                                             }
                                         }
-                                        $cur_d->modify('+1 day');
+                                    } else {
+                                        // ── RECURRING AGENDA HANDLING ──
+                                        while ($cur_d < $end_d) {
+                                            $dow_n = (int) $cur_d->format('w');
+                                            if (in_array($dow_n, $weekdays_auto)) {
+                                                $ag_data = $cur_d->format('Y-m-d');
+                                                if (isHoliday($conn, $ag_data)) {
+                                                    $cur_d->modify('+1 day');
+                                                    continue;
+                                                }
+                                                $ag_dia_semana = $daysMap[$dow_n] ?? '';
+                                                $ag_periodo = $periodo ?: 'Manhã';
+                                                $ids_for_agenda = array_filter($current_docs);
+                                                foreach ($ids_for_agenda as $doc_id) {
+                                                    $stmt_ag = $mysqli->prepare("INSERT IGNORE INTO agenda (turma_id, docente_id, ambiente_id, dia_semana, periodo, horario_inicio, horario_fim, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                                                    $stmt_ag->bind_param('iiisssss', $tid_for_agenda, $doc_id, $amb_id, $ag_dia_semana, $ag_periodo, $hi_auto, $hf_auto, $ag_data);
+                                                    $stmt_ag->execute();
+                                                    $agenda_gen_count++;
+                                                }
+                                            }
+                                            $cur_d->modify('+1 day');
+                                        }
                                     }
                                     if ($agenda_gen_count > 0) {
                                         if (!isset($results['AGENDA_AUTO'])) {

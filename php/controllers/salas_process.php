@@ -1,5 +1,11 @@
 <?php
 require_once __DIR__ . '/../configs/db.php';
+require_once __DIR__ . '/../configs/auth.php';
+
+if (!isAdmin() && !isGestor()) {
+    header("Location: ../../index.php");
+    exit;
+}
 
 $action = isset($_GET['action']) ? $_GET['action'] : 'save';
 

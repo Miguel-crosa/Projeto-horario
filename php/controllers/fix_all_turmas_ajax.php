@@ -99,7 +99,30 @@ if ($horas_por_dia <= 0) {
 }
 
 // 3. Prepara dados para o cálculo
-$dias_semana_arr = !empty($turma['dias_semana']) ? explode(',', $turma['dias_semana']) : [];
+$tipo_agenda = $turma['tipo_agenda'] ?? 'recorrente';
+$agenda_flexivel = $turma['agenda_flexivel'] ?? '';
+
+// FIX: Se for flexível, reconstrói dias_semana_arr a partir das datas selecionadas
+if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
+    $daysMapFlex = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
+    $flex_dates = explode(',', $agenda_flexivel);
+    $derived_days = [];
+    foreach ($flex_dates as $fd) {
+        $fd = trim($fd);
+        if (empty($fd)) continue;
+        $dow = (int) date('w', strtotime($fd));
+        $dayName = $daysMapFlex[$dow] ?? '';
+        if ($dayName && !in_array($dayName, $derived_days)) {
+            $derived_days[] = $dayName;
+        }
+    }
+    $dias_semana_arr = $derived_days;
+    // Atualiza no banco para corrigir a visualização na tabela
+    $dias_semana_str = implode(',', $dias_semana_arr);
+    mysqli_query($conn, "UPDATE turma SET dias_semana = '$dias_semana_str' WHERE id = '$id'");
+} else {
+    $dias_semana_arr = !empty($turma['dias_semana']) ? explode(',', $turma['dias_semana']) : [];
+}
 $docentes_ids = array_filter([
     $turma['docente_id1'],
     $turma['docente_id2'],
@@ -137,7 +160,9 @@ generateAgendaRecords(
     $turma['data_inicio'],
     $nova_data_fim,
     $turma['ambiente_id'],
-    $docentes_ids
+    $docentes_ids,
+    $turma['tipo_agenda'] ?? 'recorrente',
+    $turma['agenda_flexivel'] ?? null
 );
 
 echo json_encode([

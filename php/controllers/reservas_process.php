@@ -213,9 +213,10 @@ if ($action === 'check_professor') {
     foreach ($reservas as $r) {
         $dias_arr = explode(',', $r['dias_semana']);
         $cur = new DateTime(max($r['data_inicio'], $f_day));
+        $cur->setTime(0, 0, 0); // FIX
         $end = new DateTime(min($r['data_fim'], $l_day));
-        $end->modify('+1 day');
-        while ($cur < $end) {
+        $end->setTime(0, 0, 0); // FIX
+        while ($cur->format('Y-m-d') <= $end->format('Y-m-d')) { // FIX: comparação por string
             $dow = $cur->format('N'); // 1=Mon...7=Sun
             if (in_array($dow, $dias_arr)) {
                 $d = $cur->format('Y-m-d');

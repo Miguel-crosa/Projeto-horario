@@ -19,8 +19,8 @@ if (isCRI() || isProfessor() || isSecretaria()) {
         'turmas_form.php'
     ];
     
-    // CRI e Professores também não veem a lista de turmas
-    if (isProfessor() || isCRI()) {
+    // CRI também não vê a lista de turmas (Professores agora podem ver para acompanhar suas aulas)
+    if (isCRI()) {
         $restricted[] = 'turmas.php';
     }
 

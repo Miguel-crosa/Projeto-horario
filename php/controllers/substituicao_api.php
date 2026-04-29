@@ -18,7 +18,7 @@ switch ($action) {
 
         $titular_id = (int)($_GET['titular_id'] ?? 0);
 
-        $where = "WHERE id != $titular_id";
+        $where = "WHERE id != $titular_id AND ativo = 1";
         if (!empty($area)) {
             $where .= " AND area_conhecimento = '$area'";
         }
@@ -106,6 +106,7 @@ switch ($action) {
             SELECT t.id, t.sigla, c.nome as curso_nome, t.periodo, t.data_inicio, t.data_fim
             FROM turma t 
             JOIN curso c ON t.curso_id = c.id 
+            WHERE t.ativo = 1
             ORDER BY t.data_inicio DESC, t.sigla ASC
         ");
         $turmas = mysqli_fetch_all($res, MYSQLI_ASSOC);

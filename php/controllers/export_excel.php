@@ -311,10 +311,8 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
         t.tipo_custeio AS `Tipo Custeio`,
         t.previsao_despesa AS `Previsão Despesa`,
         t.valor_turma AS `Valor Turma`,
-        t.numero_proposta AS `Nº Proposta`,
-        t.tipo_atendimento AS `Tipo Atendimento`,
-        t.parceiro AS `Parceiro`,
-        t.contato_parceiro AS `Contato Parceiro`
+        t.tipo_agenda AS `Tipo Agenda`,
+        t.agenda_flexivel AS `Agenda Flexível`
     FROM turma t 
     LEFT JOIN curso c ON t.curso_id = c.id 
     LEFT JOIN ambiente amb ON t.ambiente_id = amb.id 

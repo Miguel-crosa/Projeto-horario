@@ -57,6 +57,7 @@ function isBusy($agendas, $target_start, $target_end, $target_day = null)
 
 $periods = [
     'Manhã' => ['start' => '07:30', 'end' => '11:30'],
+    'Tarde' => ['start' => '13:30', 'end' => '17:30'],
     'Noite' => ['start' => '19:30', 'end' => '23:30']
 ];
 
@@ -83,8 +84,10 @@ $results['current_monthly_hours'] = calculateConsumedHours($conn, $docente_id, $
 foreach ($periods as $name => $times) {
     $is_busy_any_day = false;
     $itTemp = new DateTime($data_inicio);
+    $itTemp->setTime(0, 0, 0); // FIX
     $itEndTemp = new DateTime($data_fim);
-    while ($itTemp <= $itEndTemp) {
+    $itEndTemp->setTime(0, 0, 0); // FIX
+    while ($itTemp->format('Y-m-d') <= $itEndTemp->format('Y-m-d')) { // FIX: comparação por string
         if (isBusy($agendas, $times['start'], $times['end'], $daysMap[(int) $itTemp->format('w')])) {
             $is_busy_any_day = true;
             break;
@@ -99,8 +102,10 @@ $h_end = isset($_GET['h_end']) ? $_GET['h_end'] : $periods['Manhã']['end'];
 
 $busy_days = [];
 $it = new DateTime($data_inicio);
+$it->setTime(0, 0, 0); // FIX
 $itEnd = new DateTime($data_fim);
-while ($it <= $itEnd) {
+$itEnd->setTime(0, 0, 0); // FIX
+while ($it->format('Y-m-d') <= $itEnd->format('Y-m-d')) { // FIX: comparação por string
     $w = (int) $it->format('w');
     if (isBusy($agendas, $h_start, $h_end, $daysMap[$w])) {
         $busy_days[$daysMap[$w]] = true;

@@ -1,14 +1,16 @@
 <?php
 require_once __DIR__ . '/../configs/db.php';
+require_once __DIR__ . '/../configs/auth.php';
+requireAuth();
 
 $action = $_GET['action'] ?? '';
 
 if ($action === 'simulate_resources') {
-    $data_inicio = $_GET['data_inicio'] ?? '';
-    $data_fim = $_GET['data_fim'] ?? '';
+    $data_inicio = mysqli_real_escape_string($conn, $_GET['data_inicio'] ?? '');
+    $data_fim = mysqli_real_escape_string($conn, $_GET['data_fim'] ?? '');
     $dias_semana = $_GET['dias_semana'] ?? []; // Array
-    $h_start = $_GET['h_start'] ?? '';
-    $h_end = $_GET['h_end'] ?? '';
+    $h_start = mysqli_real_escape_string($conn, $_GET['h_start'] ?? '');
+    $h_end = mysqli_real_escape_string($conn, $_GET['h_end'] ?? '');
     $area = $_GET['sim_area'] ?? '';
     $curso_id = (int) ($_GET['curso_id'] ?? 0);
 

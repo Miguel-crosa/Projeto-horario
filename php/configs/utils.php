@@ -632,6 +632,7 @@ function checkDocenteWorkSchedule($conn, $did, $data_start, $data_end, $days_arr
     $dates_to_check = [];
     if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
         $flex_data = is_string($agenda_flexivel) ? json_decode($agenda_flexivel, true) : $agenda_flexivel;
+        if (!is_array($flex_data)) $flex_data = [];
         foreach ($flex_data as $item) {
             $dates_to_check[] = [
                 'data' => $item['data'],
@@ -706,6 +707,7 @@ function checkAmbienteConflict($conn, $ambiente_id, $turma_id_to_ignore, $data_s
 
     if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
         $flex_data = is_string($agenda_flexivel) ? json_decode($agenda_flexivel, true) : $agenda_flexivel;
+        if (!is_array($flex_data)) $flex_data = [];
         foreach ($flex_data as $item) {
             $dt = $item['data'];
             $hi = $item['h_inicio'] ?? $h_start;
@@ -808,7 +810,7 @@ function calculateEndDate($conn, $data_inicio, $ch_total, $horas_por_dia, $dias_
  * Gera registros na tabela agenda para uma turma entre data_inicio e data_fim.
  * Pula feriados e férias de docentes.
  */
-function generateAgendaRecords($conn, $turma_id, $dias_arr, $periodo, $h_inicio, $h_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_ids)
+function generateAgendaRecords($conn, $turma_id, $dias_arr, $periodo, $h_inicio, $h_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_ids, $tipo_agenda = 'recorrente', $agenda_flexivel = null)
 {
     $daysMap = [
         0 => 'Domingo',
@@ -822,6 +824,35 @@ function generateAgendaRecords($conn, $turma_id, $dias_arr, $periodo, $h_inicio,
 
     $amb_sql = (!empty($ambiente_id) && intval($ambiente_id) > 0) ? intval($ambiente_id) : 'NULL';
 
+    // Modo flexível: gera registros apenas nas datas específicas
+    if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
+        $flex_str = is_string($agenda_flexivel) ? $agenda_flexivel : implode(',', $agenda_flexivel);
+        $flex_dates = array_filter(array_map('trim', explode(',', $flex_str)));
+
+        foreach ($flex_dates as $dateStr) {
+            if (isHoliday($conn, $dateStr)) continue;
+
+            $w = (int) date('w', strtotime($dateStr));
+            $dayName = $daysMap[$w] ?? '';
+            $dia_esc = mysqli_real_escape_string($conn, $dayName);
+            $periodo_esc = mysqli_real_escape_string($conn, $periodo);
+
+            if (!empty($docentes_ids)) {
+                foreach ($docentes_ids as $doc_id) {
+                    $doc_val = (int) $doc_id;
+                    if (isVacation($conn, $doc_val, $dateStr)) continue;
+                    mysqli_query($conn, "INSERT IGNORE INTO agenda (turma_id, docente_id, ambiente_id, dia_semana, periodo, horario_inicio, horario_fim, data, status)
+                                         VALUES ('$turma_id', $doc_val, $amb_sql, '$dia_esc', '$periodo_esc', '$h_inicio', '$h_fim', '$dateStr', 'CONFIRMADO')");
+                }
+            } else {
+                mysqli_query($conn, "INSERT IGNORE INTO agenda (turma_id, docente_id, ambiente_id, dia_semana, periodo, horario_inicio, horario_fim, data, status)
+                                     VALUES ('$turma_id', NULL, $amb_sql, '$dia_esc', '$periodo_esc', '$h_inicio', '$h_fim', '$dateStr', 'CONFIRMADO')");
+            }
+        }
+        return;
+    }
+
+    // Modo recorrente: itera dia-a-dia no intervalo
     $it = new DateTime($data_inicio);
     $end = new DateTime($data_fim);
     $it->setTime(0, 0, 0);
@@ -1056,6 +1087,7 @@ function checkDocenteConflicts($conn, $docente_id, $turma_id_to_ignore, $data_st
     // Para agenda flexível, verificamos cada data individualmente
     if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
         $flex_data = is_string($agenda_flexivel) ? json_decode($agenda_flexivel, true) : $agenda_flexivel;
+        if (!is_array($flex_data)) $flex_data = [];
         foreach ($flex_data as $item) {
             $dt = $item['data'];
             $hi = $item['h_inicio'] ?? $h_start;
@@ -1242,7 +1274,7 @@ function calculateTeacherYearlyWorkload($conn, $docente_id, $data_inicio, $data_
         $it->setTime(0, 0, 0);
         $itFim->setTime(0, 0, 0);
 
-        while ($it <= $itFim) {
+        while ($it->format('Y-m-d') <= $itFim->format('Y-m-d')) { // FIX: comparação por string
             $curr_date = $it->format('Y-m-d');
             $w = (int) $it->format('w');
             $nome_dia = mb_strtolower($daysMap[$w], 'UTF-8');

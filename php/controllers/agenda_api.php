@@ -802,7 +802,8 @@ switch ($action) {
             if (isset($_POST['send_email']) && $_POST['send_email'] == '1') {
                 require_once __DIR__ . '/../configs/mailer.php';
                 $did = $r['docente_id'];
-                $d_res = mysqli_query($conn, "SELECT nome, email FROM docente WHERE id = $did");
+                // FIX: tabela docente não possui coluna email; buscar via usuario vinculado
+                $d_res = mysqli_query($conn, "SELECT d.nome, u.email FROM docente d LEFT JOIN usuario u ON u.docente_id = d.id WHERE d.id = $did LIMIT 1");
                 if ($d_row = mysqli_fetch_assoc($d_res)) {
                     $d_email = $d_row['email'];
                     $d_nome = $d_row['nome'];
@@ -885,10 +886,10 @@ switch ($action) {
 
     case 'get_recent_reservations':
         $res = mysqli_query($conn, "
-            SELECT r.*, d.nome as docente_nome, c.nome as curso_nome, u.nome as solicitante_nome 
+            SELECT r.*, d.nome as docente_nome, COALESCE(c.nome, 'Sem Curso') as curso_nome, u.nome as solicitante_nome 
             FROM reservas r
             JOIN docente d ON r.docente_id = d.id
-            JOIN curso c ON r.curso_id = c.id
+            LEFT JOIN curso c ON r.curso_id = c.id
             JOIN usuario u ON r.usuario_id = u.id
             ORDER BY r.created_at DESC LIMIT 10
         ");
