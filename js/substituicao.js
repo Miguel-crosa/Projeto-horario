@@ -72,7 +72,7 @@ function renderizarListaTurmas(lista) {
     }
 
     container.innerHTML = lista.map(t => `
-        <div class="subst-item-lista-turma" onclick="selecionarTurmaNaPesquisa(${t.id}, '${t.sigla}')">
+        <div class="subst-item-lista-turma" onclick="selecionarTurmaNaPesquisa(${t.id}, '${t.sigla}', '${t.periodo}')">
             <strong>${t.sigla}</strong>
             <span>${t.curso_nome} (${t.periodo})</span>
             <small style="display: block; opacity: 0.6; font-size: 0.7rem;">Início: ${t.data_inicio} | Fim: ${t.data_fim || 'N/A'}</small>
@@ -80,9 +80,17 @@ function renderizarListaTurmas(lista) {
     `).join('');
 }
 
-function selecionarTurmaNaPesquisa(id, sigla) {
+function selecionarTurmaNaPesquisa(id, sigla, periodo) {
     document.getElementById('subst-turma-id').value = id;
     document.getElementById('subst-turma-display').value = sigla;
+    
+    // Sincroniza período
+    const periodSelect = document.getElementById('subst-periodo');
+    if (periodSelect && periodo) {
+        // Tenta encontrar o valor exato (Manhã, Tarde, Noite, Integral)
+        periodSelect.value = periodo;
+    }
+
     fecharPesquisaTurma();
     onTurmaChange(id);
 }

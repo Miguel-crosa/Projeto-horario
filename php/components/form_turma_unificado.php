@@ -57,6 +57,7 @@ if (!isset($feriados_data) && isset($conn)) {
     <input type="hidden" name="ajax" value="1">
     <input type="hidden" name="is_reserva" id="unified-is-reserva" value="<?= isCRI() ? '1' : '0' ?>">
     <input type="hidden" name="return_url" value="<?= htmlspecialchars($return_url ?? '') ?>">
+    <input type="hidden" name="send_email" id="send_email_unified" value="0">
 
     <div class="form-grid">
         <div class="form-group" id="grp-unified-curso">
@@ -1187,6 +1188,16 @@ if (!isset($feriados_data) && isset($conn)) {
 
         const form = document.getElementById('turma-form-unified');
         if (form) {
+            // Adicionar campo hidden para send_email se não existir
+            if (!document.getElementById('send_email_unified')) {
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'send_email';
+                hidden.id = 'send_email_unified';
+                hidden.value = '0';
+                form.appendChild(hidden);
+            }
+
             form.onsubmit = async function(e) {
                 e.preventDefault();
                 const isSimulation = document.getElementById('simulacao-toggle-unified')?.checked;
@@ -1219,6 +1230,30 @@ if (!isset($feriados_data) && isset($conn)) {
                         alertBox.style.display = 'block';
                     }
                     return;
+                }
+
+                // --- MODAL DE E-MAIL (Somente se NÃO for simulação e NÃO for edição) ---
+                const isEdit = document.getElementById('unified-id')?.value !== '';
+                if (!isSimulation && !isEdit) {
+                    const swalResult = await Swal.fire({
+                        title: 'Confirmar Cadastro',
+                        text: "Deseja cadastrar e enviar uma notificação por e-mail para os docentes selecionados?",
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#2e7d32',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: '<i class="fas fa-envelope"></i> Cadastrar e Enviar E-mail',
+                        denyButtonText: '<i class="fas fa-save"></i> Cadastrar sem E-mail',
+                        showDenyButton: true,
+                        cancelButtonText: 'Cancelar'
+                    });
+
+                    if (swalResult.isDismissed) return; // Cancelado
+                    
+                    document.getElementById('send_email_unified').value = swalResult.isConfirmed ? '1' : '0';
+                } else {
+                    const emailInput = document.getElementById('send_email_unified');
+                    if (emailInput) emailInput.value = '0';
                 }
 
                 try {
@@ -1266,10 +1301,10 @@ if (!isset($feriados_data) && isset($conn)) {
                                 if (modalParente) {
                                     modalParente.classList.remove('active');
                                     location.reload();
-                                } else if (result.redirect) {
-                                    window.location.href = result.redirect;
                                 } else {
-                                    location.reload();
+                                    // Se não estiver em modal, redireciona para a URL de retorno ou turmas.php
+                                    const returnUrl = document.getElementsByName('return_url')[0]?.value;
+                                    window.location.href = result.redirect || returnUrl || 'turmas.php';
                                 }
                             }, 1500);
                         }

@@ -22,14 +22,21 @@ $show_inactive = isset($_GET['show_inactive']) && $_GET['show_inactive'] == '1';
 $where_clause = $show_inactive ? "" : "WHERE u.ativo = 1";
 
 $usuarios = mysqli_fetch_all(mysqli_query($conn, "
-    SELECT u.id, u.nome, u.email, u.role, u.obrigar_troca_senha, u.ativo, u.created_at, u.docente_id, d.nome as docente_nome 
+    SELECT u.id, u.nome, u.email, u.role, u.obrigar_troca_senha, u.ativo, u.created_at, u.docente_id, 
+           d.nome as docente_nome, d.area_conhecimento as docente_area
     FROM usuario u 
     LEFT JOIN docente d ON u.docente_id = d.id 
     $where_clause
     ORDER BY u.created_at DESC
 "), MYSQLI_ASSOC);
 
-$docentes = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome FROM docente ORDER BY nome ASC"), MYSQLI_ASSOC);
+// Fetch docentes with their areas and check if they are already linked to a user
+$docentes = mysqli_fetch_all(mysqli_query($conn, "
+    SELECT d.id, d.nome, d.area_conhecimento, u.nome as vinculado_a, u.id as vinculado_id
+    FROM docente d 
+    LEFT JOIN usuario u ON d.id = u.docente_id 
+    ORDER BY d.nome ASC
+"), MYSQLI_ASSOC);
 
 $error = $_SESSION['usuarios_error'] ?? '';
 $success = $_SESSION['usuarios_success'] ?? '';
@@ -91,7 +98,7 @@ include __DIR__ . '/../components/header.php';
                         <td>
                             <span class="role-badge role-<?= $u['role'] ?>">
                                 <i
-                                    class="fas <?= $u['role'] === 'admin' ? 'fa-shield-alt' : ($u['role'] === 'gestor' ? 'fa-user-tie' : ($u['role'] === 'professor' ? 'fa-chalkboard-teacher' : 'fa-user')) ?>"></i>
+                                    class="fas <?= $u['role'] === 'admin' ? 'fa-shield-alt' : ($u['role'] === 'gestor' ? 'fa-user-tie' : ($u['role'] === 'professor' ? 'fa-chalkboard-teacher' : ($u['role'] === 'secretaria' ? 'fa-user-tag' : 'fa-user'))) ?>"></i>
                                 <?= ucfirst($u['role']) ?>
                             </span>
                         </td>
@@ -168,6 +175,7 @@ include __DIR__ . '/../components/header.php';
                     <select name="role" class="login-input" id="create-role-select" onchange="toggleDocenteField('create')">
                         <option value="professor">Professor</option>
                         <option value="cri">CRI</option>
+                        <option value="secretaria">Secretaria</option>
                         <?php if (isAdmin()): ?>
                             <option value="gestor">Gestor</option>
                             <option value="admin">Administrador</option>
@@ -176,12 +184,13 @@ include __DIR__ . '/../components/header.php';
                 </div>
                 <div class="login-field" id="create-docente-field">
                     <label>Vínculo Docente</label>
-                    <select name="docente_id" class="login-input">
-                        <option value="">Nenhum</option>
-                        <?php foreach ($docentes as $d): ?>
-                            <option value="<?= $d['id'] ?>"><?= htmlspecialchars($d['nome']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div id="create-docente-display" class="selection-display">
+                        <span class="selection-text">Nenhum docente selecionado</span>
+                        <input type="hidden" name="docente_id" id="create-user-docente">
+                        <button type="button" class="btn-selection" onclick="openDocenteSelector('create')">
+                            <i class="fas fa-search"></i> Selecionar
+                        </button>
+                    </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 15px;">
                     <button type="submit" class="login-btn" style="flex: 1;"><i class="fas fa-save"></i> Criar</button>
@@ -217,18 +226,20 @@ include __DIR__ . '/../components/header.php';
                     <select name="role" id="edit-user-role" class="login-input" onchange="toggleDocenteField('edit')">
                         <option value="professor">Professor</option>
                         <option value="cri">CRI</option>
+                        <option value="secretaria">Secretaria</option>
                         <option value="gestor">Gestor</option>
                         <option value="admin">Administrador</option>
                     </select>
                 </div>
                 <div class="login-field" id="edit-docente-field">
                     <label>Vínculo Docente</label>
-                    <select name="docente_id" id="edit-user-docente" class="login-input">
-                        <option value="">Nenhum</option>
-                        <?php foreach ($docentes as $d): ?>
-                            <option value="<?= $d['id'] ?>"><?= htmlspecialchars($d['nome']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div id="edit-docente-display" class="selection-display">
+                        <span class="selection-text">Nenhum docente selecionado</span>
+                        <input type="hidden" name="docente_id" id="edit-user-docente">
+                        <button type="button" class="btn-selection" onclick="openDocenteSelector('edit')">
+                            <i class="fas fa-sync"></i> Trocar
+                        </button>
+                    </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 15px;">
                     <button type="submit" class="login-btn" style="flex: 1;"><i class="fas fa-save"></i> Salvar</button>
@@ -241,7 +252,54 @@ include __DIR__ . '/../components/header.php';
             </form>
         </div>
     </div>
+    <!-- Modal Seletor de Docente -->
+    <div id="modal-docente-selector" class="cpw-overlay" style="display: none; z-index: 2000;">
+        <div class="cpw-card" style="max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3><i class="fas fa-chalkboard-teacher"></i> Selecionar Docente</h3>
+                <button type="button" class="btn-close-minimal" onclick="closeDocenteSelector()">&times;</button>
+            </div>
+            
+            <div class="login-field" style="margin-bottom: 10px;">
+                <input type="text" id="docente-search" class="login-input" placeholder="🔍 Buscar por nome ou área..." onkeyup="filterDocenteCards()">
+            </div>
+
+            <div id="docente-cards-list" class="docente-cards-container">
+                <div class="docente-card-item" onclick="confirmDocenteSelection('', 'Nenhum', '')" style="border-left: 4px solid #94a3b8;">
+                    <div class="docente-card-info">
+                        <strong>Nenhum</strong>
+                        <small>Remover vínculo atual</small>
+                    </div>
+                    <i class="fas fa-times-circle" style="color: #94a3b8;"></i>
+                </div>
+                <?php foreach ($docentes as $d): ?>
+                    <?php 
+                        $js_nome = str_replace("'", "\\'", $d['nome']);
+                        $js_area = str_replace("'", "\\'", $d['area_conhecimento'] ?: 'Geral');
+                        $is_linked = !empty($d['vinculado_a']);
+                    ?>
+                    <div class="docente-card-item <?= $is_linked ? 'is-linked-card' : '' ?>" 
+                         data-linked-id="<?= $d['vinculado_id'] ?: '' ?>"
+                         onclick="confirmDocenteSelection('<?= $d['id'] ?>', '<?= $js_nome ?>', '<?= $js_area ?>', this)"
+                         data-search="<?= mb_strtolower($d['nome'] . ' ' . $d['area_conhecimento']) ?>">
+                        <div class="docente-card-info">
+                            <strong><?= htmlspecialchars($d['nome']) ?></strong>
+                            <small><?= htmlspecialchars($d['area_conhecimento'] ?: 'Geral') ?></small>
+                            <?php if ($d['vinculado_a']): ?>
+                                <span class="already-linked"><i class="fas fa-link"></i> Vinculado a <?= htmlspecialchars($d['vinculado_a']) ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <i class="fas <?= $is_linked ? 'fa-lock' : 'fa-chevron-right' ?>"></i>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let docenteSelectionTarget = 'create'; // 'create' or 'edit'
+        let currentUserIdBeingEdited = null;
+
         function toggleDocenteField(mode) {
             const roleSelect = document.getElementById(mode + '-role-select') || document.getElementById(mode + '-user-role');
             const docenteField = document.getElementById(mode + '-docente-field');
@@ -250,21 +308,179 @@ include __DIR__ . '/../components/header.php';
             }
         }
 
+        function openDocenteSelector(mode) {
+            docenteSelectionTarget = mode;
+            document.getElementById('docente-search').value = '';
+            filterDocenteCards();
+            document.getElementById('modal-docente-selector').style.display = 'flex';
+        }
+
+        function closeDocenteSelector() {
+            document.getElementById('modal-docente-selector').style.display = 'none';
+        }
+
+        function filterDocenteCards() {
+            const query = document.getElementById('docente-search').value.toLowerCase();
+            const cards = document.querySelectorAll('.docente-card-item');
+            cards.forEach(card => {
+                const searchData = card.getAttribute('data-search');
+                if (!searchData || searchData.includes(query)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // Esta função atualiza apenas a UI e os campos ocultos
+        function updateDocenteUI(mode, id, nome, area) {
+            const input = document.getElementById(mode + '-user-docente');
+            const display = document.querySelector('#' + mode + '-docente-display .selection-text');
+            
+            if (input) input.value = id;
+            if (display) {
+                if (id === '' || id === null) {
+                    display.innerHTML = 'Nenhum docente selecionado';
+                    display.style.color = 'var(--text-muted)';
+                } else {
+                    display.innerHTML = `<strong>${nome}</strong> <br><small>${area}</small>`;
+                    display.style.color = 'var(--text-color)';
+                }
+            }
+        }
+
+        // Esta função é chamada pelo clique no card do modal
+        function confirmDocenteSelection(id, nome, area, cardElement) {
+            // Se o card estiver vinculado a OUTRO usuário, bloqueia
+            if (cardElement && cardElement.classList.contains('is-linked-card')) {
+                const linkedToId = cardElement.getAttribute('data-linked-id');
+                if (linkedToId != currentUserIdBeingEdited) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Docente já vinculado',
+                        text: 'Este docente já está associado a outra conta de usuário.',
+                        confirmButtonColor: '#ed1c24'
+                    });
+                    return;
+                }
+            }
+
+            updateDocenteUI(docenteSelectionTarget, id, nome, area);
+            closeDocenteSelector();
+        }
+
         function openEditModal(user) {
+            currentUserIdBeingEdited = user.id;
             document.getElementById('edit-user-id').value = user.id;
             document.getElementById('edit-user-nome').value = user.nome;
             document.getElementById('edit-user-email').value = user.email;
             document.getElementById('edit-user-role').value = user.role;
-            document.getElementById('edit-user-docente').value = user.docente_id || '';
+            
+            // Forçamos o modo 'edit' antes de atualizar a UI
+            updateDocenteUI('edit', user.docente_id || '', user.docente_nome || 'Nenhum', user.docente_area || '');
+
             toggleDocenteField('edit');
             document.getElementById('modal-user-edit').style.display = 'flex';
         }
 
-        // Initialize on load
         window.addEventListener('load', () => {
             toggleDocenteField('create');
+            currentUserIdBeingEdited = null;
         });
     </script>
+
+    <style>
+        /* Garantir empilhamento correto de modais */
+        #modal-user-create, #modal-user-edit { z-index: 1100; }
+        #modal-docente-selector { z-index: 1200; background: rgba(0,0,0,0.85); }
+        
+        .is-linked-card {
+            opacity: 0.6;
+            background: rgba(255,255,255,0.02) !important;
+            cursor: not-allowed !important;
+        }
+        .is-linked-card:hover {
+            transform: none !important;
+            border-color: rgba(255,255,255,0.1) !important;
+        }
+
+        .selection-display {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            margin-top: 8px;
+            transition: border-color 0.2s;
+        }
+        .selection-display:hover {
+            border-color: rgba(255,255,255,0.2);
+        }
+        .selection-text {
+            font-size: 0.9rem;
+            color: var(--text-color);
+            line-height: 1.2;
+        }
+        .btn-selection {
+            background: var(--primary-red);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+        .btn-selection:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .docente-cards-container {
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .docente-card-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .docente-card-item:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: var(--primary-red);
+            transform: translateX(5px);
+        }
+        .docente-card-info { display: flex; flex-direction: column; gap: 2px; }
+        .docente-card-info strong { font-size: 1rem; color: var(--text-color); }
+        .docente-card-info small { font-size: 0.8rem; color: var(--text-muted); }
+        .already-linked {
+            font-size: 0.75rem;
+            color: #fbbf24;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .btn-close-minimal {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+    </style>
 <?php endif; ?>
 
 <?php include __DIR__ . '/../components/footer.php'; ?>

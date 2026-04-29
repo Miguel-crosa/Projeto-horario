@@ -559,25 +559,60 @@ include __DIR__ . '/../components/header.php';
 
 <script>
     async function manageReserva(id, action) {
-        const verb = action === 'aprovar' ? 'APROVAR' : 'RECUSAR';
-        if (!confirm(`Deseja realmente ${verb} esta reserva?`)) return;
+        if (action === 'aprovar') {
+            const result = await Swal.fire({
+                title: 'Confirmar Aprovação',
+                text: "Deseja aprovar esta reserva? Você pode escolher enviar um e-mail de confirmação para o docente.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#2e7d32',
+                cancelButtonColor: '#d33',
+                confirmButtonText: '<i class="fas fa-envelope"></i> Aprovar e Enviar E-mail',
+                denyButtonText: '<i class="fas fa-check"></i> Aprovar sem E-mail',
+                showDenyButton: true,
+                cancelButtonText: 'Cancelar'
+            });
 
-        const apiAction = action === 'aprovar' ? 'aprovar_reserva' : 'recusar_reserva';
-        const fd = new FormData();
-        fd.append('action', apiAction);
-        fd.append('reserva_id', id);
+            if (result.isDismissed) return; // Cancelado
 
-        try {
-            const r = await fetch('../controllers/agenda_api.php', { method: 'POST', body: fd });
-            const data = await r.json();
-            if (data.success) {
-                showNotification(data.message, 'success');
-                setTimeout(() => location.reload(), 500);
-            } else {
-                showNotification(data.message, 'error');
+            const shouldSendEmail = result.isConfirmed;
+            const apiAction = 'aprovar_reserva';
+            const fd = new FormData();
+            fd.append('action', apiAction);
+            fd.append('reserva_id', id);
+            fd.append('send_email', shouldSendEmail ? '1' : '0');
+
+            try {
+                const r = await fetch('../controllers/agenda_api.php', { method: 'POST', body: fd });
+                const data = await r.json();
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            } catch (e) {
+                showNotification('Erro na comunicação com o servidor.', 'error');
             }
-        } catch (e) {
-            showNotification('Erro na comunicação com o servidor.', 'error');
+        } else {
+            // Caso Recusar
+            if (!confirm('Deseja realmente RECUSAR esta reserva?')) return;
+            const fd = new FormData();
+            fd.append('action', 'recusar_reserva');
+            fd.append('reserva_id', id);
+
+            try {
+                const r = await fetch('../controllers/agenda_api.php', { method: 'POST', body: fd });
+                const data = await r.json();
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            } catch (e) {
+                showNotification('Erro na comunicação com o servidor.', 'error');
+            }
         }
     }
 

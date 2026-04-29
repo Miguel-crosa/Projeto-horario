@@ -10,13 +10,20 @@ $path_parts = explode('/', trim($_SERVER['PHP_SELF'], '/'));
 $is_in_subdir = !empty(array_intersect(['views', 'controllers', 'components', 'configs'], $path_parts));
 $prefix = $is_in_subdir ? '../../' : '';
 
-// Bloqueio de acesso direto via URL para CRI em páginas administrativas
-if (isCRI()) {
+// Bloqueio de acesso direto via URL para perfis não autorizados
+if (isCRI() || isProfessor() || isSecretaria()) {
     $restricted = [
-        'turmas.php', 'professores.php', 'cursos.php', 'salas.php', 'usuarios.php',
-        'turmas_form.php', 'professores_form.php', 'cursos_form.php', 'salas_form.php',
-        'form_turma_unificado.php'
+        'professores.php', 'cursos.php', 'salas.php', 'usuarios.php',
+        'professores_form.php', 'cursos_form.php', 'salas_form.php',
+        'form_turma_unificado.php', 'preparacao.php', 'preparacao_form.php', 'feriados.php', 'ferias.php',
+        'turmas_form.php'
     ];
+    
+    // CRI e Professores também não veem a lista de turmas
+    if (isProfessor() || isCRI()) {
+        $restricted[] = 'turmas.php';
+    }
+
     if (in_array($current_page, $restricted)) {
         header('Location: ' . $prefix . 'index.php');
         exit;
@@ -268,7 +275,7 @@ if (isCRI()) {
             $dashboard_pages = ['index.php', 'dashboard_vendas.php'];
             $is_dashboard_active = in_array($current_page, $dashboard_pages);
 
-            $can_see_full_dashboard = isAdmin() || isGestor() || isCRI();
+            $can_see_full_dashboard = isAdmin() || isGestor() || isCRI() || isSecretaria();
             if ($can_see_full_dashboard): 
                 $dashboard_open_cookie = $_COOKIE['menu_open_dashboard'] ?? null;
                 $is_dashboard_open = $dashboard_open_cookie === 'open' || ($dashboard_open_cookie === null && $is_dashboard_active);
@@ -286,10 +293,12 @@ if (isCRI()) {
                                 <i class="bi bi-speedometer2" style="margin-right: 8px;"></i> Gestão
                             </a>
                         <?php endif; ?>
-                        <a href="<?= $prefix ?>php/views/dashboard_vendas.php"
-                            class="links-sub <?= $current_page == 'dashboard_vendas.php' ? 'active-sub' : '' ?>">
-                            <i class="bi bi-bar-chart-line" style="margin-right: 8px;"></i> Vendas
-                        </a>
+                        <?php if (!isSecretaria()): ?>
+                            <a href="<?= $prefix ?>php/views/dashboard_vendas.php"
+                                class="links-sub <?= $current_page == 'dashboard_vendas.php' ? 'active-sub' : '' ?>">
+                                <i class="bi bi-bar-chart-line" style="margin-right: 8px;"></i> Vendas
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endif; ?>
@@ -306,6 +315,13 @@ if (isCRI()) {
                 </a>
             <?php endif; ?>
 
+            <?php if (isAdmin() || isGestor() || isProfessor() || isSecretaria()): ?>
+                <a href="<?= $prefix ?>php/views/turmas.php"
+                    class="links <?= in_array($current_page, ['turmas.php', 'turmas_form.php']) ? 'ativo' : '' ?>">
+                    <i class="bi bi-people-fill" style="margin-right: 10px;"></i> Turmas
+                </a>
+            <?php endif; ?>
+
             <?php if (isAdmin() || isGestor()): ?>
 
                 <a href="<?= $prefix ?>php/views/professores.php"
@@ -319,10 +335,6 @@ if (isCRI()) {
                 <a href="<?= $prefix ?>php/views/cursos.php"
                     class="links <?= in_array($current_page, ['cursos.php', 'cursos_form.php']) ? 'ativo' : '' ?>">
                     <i class="bi bi-journal-bookmark-fill" style="margin-right: 10px;"></i> Cursos
-                </a>
-                <a href="<?= $prefix ?>php/views/turmas.php"
-                    class="links <?= in_array($current_page, ['turmas.php', 'turmas_form.php']) ? 'ativo' : '' ?>">
-                    <i class="bi bi-people-fill" style="margin-right: 10px;"></i> Turmas
                 </a>
                 <a href="<?= $prefix ?>php/views/feriados.php"
                     class="links <?= $current_page == 'feriados.php' ? 'ativo' : '' ?>">
@@ -680,9 +692,15 @@ if (isCRI()) {
 
                     // Typical restricted paths:
                     // /turmas, /professores, /cursos, /salas, /usuarios => Admin/Gestor only
-                    const adminOnlyPaths = ['turmas.php', 'professores.php', 'cursos.php', 'salas.php', 'usuarios.php'];
-                    if (r === 'cri' || r === 'professor') {
-                        if (adminOnlyPaths.some(p => l.includes(p))) {
+                    const adminOnlyPaths = ['professores.php', 'cursos.php', 'salas.php', 'usuarios.php'];
+                    const restrictedForProf = ['usuarios.php', 'professores.php'];
+                    
+                    if (r === 'cri') {
+                        if (['turmas.php', ...adminOnlyPaths].some(p => l.includes(p))) {
+                            allowed = false;
+                        }
+                    } else if (r === 'professor') {
+                        if (restrictedForProf.some(p => l.includes(p))) {
                             allowed = false;
                         }
                     }
@@ -740,7 +758,7 @@ if (isCRI()) {
             <a href="<?= $prefix ?>php/views/agenda_professores.php" class="cp-item">
                 <i class="fas fa-calendar-alt"></i> Agenda de Professores <span class="cp-shortcut">A</span>
             </a>
-            <?php if (!isCRI()): ?>
+            <?php if (can_edit()): ?>
                 <a href="<?= $prefix ?>php/views/professores.php" class="cp-item">
                     <i class="fas fa-chalkboard-teacher"></i> Cadastro de Docentes <span class="cp-shortcut">P</span>
                 </a>
@@ -751,7 +769,7 @@ if (isCRI()) {
             
             <!-- Ações Rápidas -->
             <div class="cp-section-title">Ações Rápidas</div>
-            <?php if (!isCRI()): ?>
+            <?php if (can_edit()): ?>
                 <a href="<?= $prefix ?>php/views/turmas_form.php" class="cp-item">
                     <i class="fas fa-plus-circle"></i> Criar Nova Turma <span class="cp-shortcut">N</span>
                 </a>

@@ -295,16 +295,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                         if ($sheet_key === 'USUARIOS') {
                             $nome = $r['nome'] ?? '';
                             $email = $r['email'] ?? '';
-                            // Ajuste para bater com ENUM do banco: admin, gestor, professor, cri
-                            $role = $r['cargopermissao'] ?? $r['cargo'] ?? $r['permissao'] ?? 'professor';
+                            $role = $r['cargopermissao'] ?? $r['cargo'] ?? $r['permissao'] ?? $r['papel'] ?? 'professor';
+                            $vinculo_nome = trim($r['vinculodocente'] ?? $r['docente'] ?? '');
+
                             if (!$nome || !$email)
                                 continue;
 
-                            // Correção Bug: Definir senha padrão (senaisp) para novos usuários
-                            $default_hash = password_hash('senaisp', PASSWORD_BCRYPT);
+                            $docente_id_vinc = null;
+                            if (!empty($vinculo_nome)) {
+                                $sd = $mysqli->prepare("SELECT id FROM docente WHERE nome = ?");
+                                $sd->bind_param('s', $vinculo_nome);
+                                $sd->execute();
+                                $res_sd = $sd->get_result()->fetch_row();
+                                if ($res_sd) $docente_id_vinc = $res_sd[0];
+                            }
 
-                            $stmt = $mysqli->prepare("INSERT INTO usuario (nome, email, role, senha, obrigar_troca_senha) VALUES (?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE role = VALUES(role)");
-                            $stmt->bind_param('ssss', $nome, $email, $role, $default_hash);
+                            $default_hash = password_hash('senaisp', PASSWORD_BCRYPT);
+                            $stmt = $mysqli->prepare("INSERT INTO usuario (nome, email, role, senha, docente_id, obrigar_troca_senha) VALUES (?, ?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE role = VALUES(role), docente_id = VALUES(docente_id)");
+                            $stmt->bind_param('ssssi', $nome, $email, $role, $default_hash, $docente_id_vinc);
                             $stmt->execute();
                         } elseif ($sheet_key === 'DOCENTES') {
                             $nome = $r['nome'] ?? '';

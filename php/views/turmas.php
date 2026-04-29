@@ -1,11 +1,24 @@
 <?php
 require_once __DIR__ . '/../configs/db.php';
+require_once __DIR__ . '/../configs/utils.php';
 include __DIR__ . '/../components/header.php';
 
 $view = isset($_GET['view']) ? $_GET['view'] : 'active';
 $is_archived_view = ($view === 'archived');
 
 // Migrated to lowercase table names for Linux compatibility
+// Filtro para Professor: ver apenas suas próprias turmas
+$where_professor = "";
+if (isProfessor()) {
+    $logged_docente_id = getUserDocenteId();
+    if ($logged_docente_id) {
+        $where_professor = " AND (t.docente_id1 = $logged_docente_id OR t.docente_id2 = $logged_docente_id OR t.docente_id3 = $logged_docente_id OR t.docente_id4 = $logged_docente_id)";
+    } else {
+        // Se é professor mas não tem vínculo, não vê nenhuma turma
+        $where_professor = " AND 1=0";
+    }
+}
+
 $query = "SELECT t.*, c.nome as curso_nome, c.carga_horaria_total,
           d1.nome as docente1_nome, d2.nome as docente2_nome, 
           d3.nome as docente3_nome, d4.nome as docente4_nome
@@ -15,16 +28,154 @@ $query = "SELECT t.*, c.nome as curso_nome, c.carga_horaria_total,
           LEFT JOIN docente d2 ON t.docente_id2 = d2.id
           LEFT JOIN docente d3 ON t.docente_id3 = d3.id
           LEFT JOIN docente d4 ON t.docente_id4 = d4.id
-          WHERE t.ativo = " . ($is_archived_view ? '0' : '1') . "
+          WHERE t.ativo = " . ($is_archived_view ? '0' : '1') . " $where_professor
           ORDER BY t." . ($is_archived_view ? 'id' : 'data_inicio') . " DESC";
 $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
+
+// --- CÁLCULO DE ALERTAS (LIMITE E AUTORIZAÇÃO) ---
+$alertas_info = [
+    'limite_semanal' => ['label' => 'Limite Semanal', 'icon' => 'fa-exclamation-circle', 'color' => '#d32f2f', 'ids' => []],
+    'sem_bloco' => ['label' => 'Sem Bloco/HT', 'icon' => 'fa-calendar-times', 'color' => '#f57c00', 'ids' => []]
+];
+
+// Cache de limites e resultados para performance (Request-level cache)
+$docentes_meta = [];
+$cache_consumo = []; // [docente_id][week_key] => hours
+$cache_bloco = [];   // [docente_id][periodo][dias][datas_key] => bool
+
+// 1. Buscar limites e IDs de docentes únicos na lista
+$res_meta = mysqli_query($conn, "SELECT id, weekly_hours_limit FROM docente");
+while($dm = mysqli_fetch_assoc($res_meta)) {
+    $docentes_meta[$dm['id']] = (float)$dm['weekly_hours_limit'];
+}
+
+$all_doc_ids = [];
+foreach($turmas as $t) {
+    foreach([$t['docente_id1'], $t['docente_id2'], $t['docente_id3'], $t['docente_id4']] as $did) {
+        if ($did) $all_doc_ids[$did] = true;
+    }
+}
+$doc_ids_list = array_keys($all_doc_ids);
+
+// 2. PRE-FETCH de Consumo Semanal (Otimização "Mega Query")
+if (!$is_archived_view && !empty($doc_ids_list)) {
+    $ids_str = implode(',', $doc_ids_list);
+    // Buscamos o consumo de todas as turmas/agendas para esses docentes no período atual
+    // Para simplificar e ser rápido, pegamos as semanas das turmas na lista
+    $semanas_alvo = [];
+    foreach($turmas as $t) {
+        if ($t['data_inicio']) {
+            $sem = date('YW', strtotime('monday this week', strtotime($t['data_inicio'])));
+            $semanas_alvo[$sem] = true;
+        }
+    }
+    
+    // Se houver muitas semanas, pegamos o intervalo min/max
+    $min_date = date('Y-m-d', strtotime('-1 month'));
+    $max_date = date('Y-m-d', strtotime('+3 months'));
+    
+    // Query otimizada para pegar totais semanais de uma vez
+    $q_consumo = "SELECT docente_id, YEARWEEK(data, 1) as sem_key, 
+                         SUM(CASE WHEN periodo = 'Integral' THEN LEAST(8, GREATEST(0, TIMESTAMPDIFF(MINUTE, horario_inicio, horario_fim)/60 - 2))
+                                  ELSE LEAST(4, TIMESTAMPDIFF(MINUTE, horario_inicio, horario_fim)/60) END) as total_horas
+                  FROM agenda 
+                  WHERE docente_id IN ($ids_str) 
+                  AND data BETWEEN '$min_date' AND '$max_date'
+                  GROUP BY docente_id, sem_key";
+    $res_c = mysqli_query($conn, $q_consumo);
+    if ($res_c) {
+        while($rc = mysqli_fetch_assoc($res_c)) {
+            $cache_consumo[$rc['docente_id']][$rc['sem_key']] = (float)$rc['total_horas'];
+        }
+    }
+}
+
+foreach ($turmas as &$t) {
+    $t['alertas'] = [];
+    if ($is_archived_view) continue;
+    
+    $docentes_ids = array_filter([$t['docente_id1'], $t['docente_id2'], $t['docente_id3'], $t['docente_id4']]);
+    foreach ($docentes_ids as $did) {
+        // 1. Verificação de Bloco de Horário (Autorização)
+        $bloco_key = "{$did}_{$t['periodo']}_{$t['dias_semana']}_" . substr($t['data_inicio'], 0, 7);
+        if (!isset($cache_bloco[$bloco_key])) {
+            $work_res = checkDocenteWorkSchedule($conn, $did, $t['data_inicio'], $t['data_fim'], explode(',', $t['dias_semana']), $t['periodo'], $t['horario_inicio'], $t['horario_fim'], $t['tipo_agenda'], $t['agenda_flexivel']);
+            $cache_bloco[$bloco_key] = ($work_res === true);
+        }
+
+        if ($cache_bloco[$bloco_key] === false) {
+            $alertas_info['sem_bloco']['ids'][] = $t['id'];
+            $t['alertas'][] = 'sem_bloco';
+        }
+        
+        // 2. Verificação de Limite Semanal
+        $limite_w = $docentes_meta[$did] ?? 0;
+        if ($limite_w > 0 && $t['data_inicio']) {
+            $sem_key = date('YW', strtotime('monday this week', strtotime($t['data_inicio'])));
+            
+            // Se não estiver no cache da "Mega Query" (ex: fora do intervalo), calcula individualmente (fallback raro)
+            if (!isset($cache_consumo[$did][$sem_key])) {
+                $monday = date('Y-m-d', strtotime('monday this week', strtotime($t['data_inicio'])));
+                $sunday = date('Y-m-d', strtotime('sunday this week', strtotime($t['data_inicio'])));
+                $cache_consumo[$did][$sem_key] = calculateConsumedHours($conn, $did, $monday, $sunday);
+            }
+            
+            if ($cache_consumo[$did][$sem_key] > $limite_w) {
+                $alertas_info['limite_semanal']['ids'][] = $t['id'];
+                $t['alertas'][] = 'limite_semanal';
+            }
+        }
+    }
+    $t['alertas'] = array_unique($t['alertas']);
+}
+unset($t);
+
+// Filtra apenas alertas que possuem turmas
+$alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['ids']); });
 ?>
 
-<div class="page-header">
-    <h2>Gestão de Turmas</h2>
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+    <div style="display: flex; align-items: center; gap: 20px;">
+        <h2 style="margin: 0;">Gestão de Turmas</h2>
+        <?php if (!isSecretaria()): ?>
+            <a href="?view=<?= $is_archived_view ? 'active' : 'archived' ?>" 
+               style="display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; text-decoration: none; transition: all 0.2s; background: <?= $is_archived_view ? 'rgba(0, 121, 107, 0.1)' : 'rgba(0,0,0,0.05)' ?>; color: <?= $is_archived_view ? '#00796b' : 'var(--text-muted)' ?>; border: 1px solid <?= $is_archived_view ? 'rgba(0, 121, 107, 0.2)' : 'rgba(0,0,0,0.1)' ?>;">
+                <i class="fas <?= $is_archived_view ? 'fa-list-ul' : 'fa-box-archive' ?>"></i>
+                <?= $is_archived_view ? 'Ver Turmas Ativas' : 'Ver Turmas Inativas' ?>
+            </a>
+        <?php endif; ?>
+    </div>
+    <?php if (!empty($alertas_ativos) && !isSecretaria() && !isProfessor()): ?>
+        <div class="alerts-summary" style="display: flex; gap: 12px; align-items: center;">
+            <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Alertas do Sistema:</span>
+            <?php foreach ($alertas_ativos as $key => $a): ?>
+                <div class="alert-card-mini" 
+                     onclick="toggleAlertFilter('<?= $key ?>', '<?= implode(',', $a['ids']) ?>', this)"
+                     title="Ver <?= count($a['ids']) ?> turmas <?= strtolower($a['label']) ?>"
+                     style="background: <?= $a['color'] ?>15; border: 1px solid <?= $a['color'] ?>30; color: <?= $a['color'] ?>; padding: 6px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);">
+                    <i class="fas <?= $a['icon'] ?>" style="font-size: 0.85rem;"></i>
+                    <span style="font-weight: 700; font-size: 0.8rem;"><?= count($a['ids']) ?></span>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
 </div>
 
-<div class="filter-bar" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
+<style>
+    .alert-card-mini:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        filter: brightness(0.95);
+    }
+    .alert-card-mini.active {
+        filter: brightness(0.85);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        border-color: currentColor !important;
+    }
+</style>
+
+<div class="filter-bar"
+    style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
     <div class="search-box" style="flex: 1; max-width: 300px;">
         <input type="text" id="filter-sigla" placeholder="Filtrar por Sigla ou Curso..." class="form-input"
             style="width: 100%;" onkeyup="filterTurmas()" onkeydown="if(event.key==='Enter') event.preventDefault();">
@@ -62,12 +213,14 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             </button>
         <?php endif; ?>
         <?php if (isAdmin()): ?>
-            <a href="fix_turmas_loading.php" class="btn" style="font-weight: 700; background: #00796b; color: #ffffff; border: none; height: 38px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.3s ease;">
+            <a href="fix_turmas_loading.php" class="btn"
+                style="font-weight: 700; background: #00796b; color: #ffffff; border: none; height: 38px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.3s ease;">
                 <i class="fas fa-magic"></i> AJUSTAR HORÁRIOS
             </a>
         <?php endif; ?>
         <?php if (can_edit()): ?>
-            <a href="javascript:void(0)" onclick="goToNewTurma()" class="btn btn-primary" style="font-weight: 700;"><i class="fas fa-plus"></i> NOVA TURMA</a>
+            <a href="javascript:void(0)" onclick="goToNewTurma()" class="btn btn-primary" style="font-weight: 700;"><i
+                    class="fas fa-plus"></i> NOVA TURMA</a>
         <?php endif; ?>
     </div>
 </div>
@@ -80,6 +233,29 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
     let currentPage = 1;
     const itemsPerPage = 20;
     let currentSort = { column: null, direction: 'asc' };
+    let activeAlertFilter = null;
+    let activeAlertIds = [];
+
+    function toggleAlertFilter(type, idsStr, element) {
+        const ids = idsStr.split(',').map(id => id.trim());
+        const cards = document.querySelectorAll('.alert-card-mini');
+        
+        if (activeAlertFilter === type) {
+            // Desativa filtro
+            activeAlertFilter = null;
+            activeAlertIds = [];
+            element.classList.remove('active');
+        } else {
+            // Ativa filtro
+            activeAlertFilter = type;
+            activeAlertIds = ids;
+            cards.forEach(c => c.classList.remove('active'));
+            element.classList.add('active');
+        }
+        
+        currentPage = 1;
+        filterTurmas();
+    }
 
     function filterTurmas() {
         const siglaInput = document.getElementById('filter-sigla');
@@ -103,8 +279,9 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             const matchesPeriodo = !periodo || pCell === periodo;
             const matchesDocente = !docenteFilter || docentesCell.toLowerCase().includes(docenteFilter);
             const matchesDia = !dia || diasTurma.includes(dia);
+            const matchesAlert = activeAlertFilter === null || activeAlertIds.includes(row.dataset.id);
 
-            if (matchesSigla && matchesPeriodo && matchesDocente && matchesDia) {
+            if (matchesSigla && matchesPeriodo && matchesDocente && matchesDia && matchesAlert) {
                 row.classList.add('matches-filter');
             } else {
                 row.classList.remove('matches-filter');
@@ -135,7 +312,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 if (el.tagName === 'SELECT') {
                     valText = el.options[el.selectedIndex].text;
                 }
-                
+
                 const chip = document.createElement('div');
                 chip.className = 'filter-chip animate-fade-in';
                 chip.innerHTML = `
@@ -147,6 +324,18 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             }
         });
 
+        if (activeAlertFilter) {
+            const chip = document.createElement('div');
+            chip.className = 'filter-chip animate-fade-in active-alert-chip';
+            chip.style.borderColor = 'var(--primary-color)';
+            chip.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i>
+                <span><strong>Alerta:</strong> ${activeAlertFilter.replace('_', ' ').toUpperCase()}</span>
+                <i class="fas fa-times-circle remove-chip" onclick="toggleAlertFilter('${activeAlertFilter}', '', document.querySelector('.alert-card-mini.active'))"></i>
+            `;
+            container.appendChild(chip);
+        }
+
         if (container.children.length > 0) {
             const clearAll = document.createElement('div');
             clearAll.className = 'filter-chip';
@@ -157,6 +346,9 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             clearAll.innerHTML = `<span>Limpar Tudo</span>`;
             clearAll.onclick = () => {
                 filters.forEach(f => document.getElementById(f.id).value = '');
+                activeAlertFilter = null;
+                activeAlertIds = [];
+                document.querySelectorAll('.alert-card-mini').forEach(c => c.classList.remove('active'));
                 filterTurmas();
             };
             container.appendChild(clearAll);
@@ -184,7 +376,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         } else if (sortVal === 'data_asc') {
             currentSort = { column: 8, direction: 'asc' };
         }
-        
+
         updateSortUI();
         applySortAndPaginate();
     }
@@ -298,7 +490,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         const listEl = document.getElementById('pagination-list');
         if (listEl) {
             listEl.innerHTML = '';
-            
+
             // Botão Anterior
             const prevLi = document.createElement('li');
             prevLi.className = `page-item nav-btn ${currentPage === 1 ? 'disabled' : ''}`;
@@ -310,7 +502,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             const maxVisible = 5;
             let startPage = Math.max(1, currentPage - 2);
             let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-            
+
             if (endPage - startPage < maxVisible - 1) {
                 startPage = Math.max(1, endPage - maxVisible + 1);
             }
@@ -355,7 +547,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
     function updateBulkButton() {
         const selected = document.querySelectorAll('.turma-checkbox:checked');
         const count = selected.length;
-        
+
         // Botão clássico (topo)
         const btnBulk = document.getElementById('btn-bulk-edit');
         if (btnBulk) {
@@ -426,7 +618,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = '../controllers/turmas_process.php';
-                
+
                 const actInput = document.createElement('input');
                 actInput.type = 'hidden';
                 actInput.name = 'action';
@@ -482,7 +674,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
     window.addEventListener('load', () => {
         // Inicializa filtros da URL
         const urlParams = new URLSearchParams(window.location.search);
-        
+
         const siglaParam = urlParams.get('sigla');
         if (siglaParam) document.getElementById('filter-sigla').value = siglaParam;
 
@@ -539,7 +731,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 targetRow.style.backgroundColor = 'rgba(237, 28, 36, 0.1)';
                 targetRow.style.transition = 'background-color 2s';
                 targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                
+
                 setTimeout(() => {
                     targetRow.style.backgroundColor = '';
                 }, 3000);
@@ -552,7 +744,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         if (msg && msgText) {
             const isError = msg === 'error';
             const isBulk = msg === 'bulk_success';
-            
+
             Swal.fire({
                 title: isError ? 'Erro na Operação' : (isBulk ? 'Edição Concluída' : 'Sucesso!'),
                 html: decodeURIComponent(msgText),
@@ -586,13 +778,13 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         if (periodo) params.set('periodo', periodo);
         if (dia) params.set('dia', dia);
         if (sort) params.set('sort', sort);
-        
+
         // Persiste a ordenação atual da tabela (clique na coluna)
         if (currentSort.column !== null) {
             params.set('sort_col', currentSort.column);
             params.set('sort_dir', currentSort.direction);
         }
-        
+
         return params.toString();
     }
 
@@ -618,11 +810,15 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
     <table>
         <thead>
             <tr>
-                <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
+                <?php if (can_edit()): ?>
+                    <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll"
+                            onclick="toggleSelectAll(this)"></th>
+                <?php endif; ?>
                 <th style="width: 40px;">#</th>
                 <th onclick="sortTable(2)" style="cursor:pointer;">SIGLA <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
                 <th>STATUS</th>
+                <th style="width: 100px; text-align: center;">ALERTAS</th>
                 <th onclick="sortTable(4)" style="cursor:pointer;">CURSO <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
                 <th onclick="sortTable(5)" style="cursor:pointer;">C/H <span class="sort-icon"><i class="fas fa-sort"
@@ -633,8 +829,8 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                 <th>DIAS</th>
                 <th onclick="sortTable(9)" style="cursor:pointer;">DOCENTE(S) <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(10)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i class="fas fa-sort"
-                            style="opacity: 0.3;"></i></span></th>
+                <th onclick="sortTable(10)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i
+                            class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
                 <th onclick="sortTable(11)" style="cursor:pointer;">FIM <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
                 <th onclick="sortTable(12)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
@@ -652,6 +848,9 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
             <?php else: ?>
                 <?php $idx = 1;
                 foreach ($turmas as $t):
+                    $alertas_turma = !empty($t['alertas']) ? $t['alertas'] : [];
+                    $alert_classes = !empty($alertas_turma) ? ' has-alert' : '';
+                    
                     // Monta lista de docentes para busca
                     $docentes_list = array_filter([
                         $t['docente1_nome'] ?? '',
@@ -663,11 +862,24 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                     $docentes_search = implode(' ', $docentes_list);
                     $dias_semana_raw = $t['dias_semana'] ?? '';
                     ?>
-                    <tr class="matches-filter" data-id="<?= $t['id'] ?>" data-docentes="<?= xe($docentes_search) ?>" data-dias="<?= xe($dias_semana_raw) ?>">
-                        <td style="text-align: center;"><input type="checkbox" class="row-checkbox turma-checkbox" value="<?= $t['id'] ?>" onchange="handleRowSelect(this)"></td>
+                    <tr class="turma-row matches-filter<?= $alert_classes ?>" 
+                        data-id="<?= $t['id'] ?>" 
+                        data-sigla="<?= mb_strtolower($t['sigla'], 'UTF-8') ?>"
+                        data-curso="<?= mb_strtolower($t['curso_nome'], 'UTF-8') ?>"
+                        data-docentes="<?= mb_strtolower($docentes_str, 'UTF-8') ?>"
+                        data-dias="<?= $t['dias_semana'] ?>"
+                        data-alertas="<?= implode(',', $alertas_turma) ?>">
+                        <?php if (can_edit()): ?>
+                            <td style="text-align: center;"><input type="checkbox" class="row-checkbox turma-checkbox"
+                                    value="<?= $t['id'] ?>" onchange="handleRowSelect(this)"></td>
+                        <?php endif; ?>
                         <td style="color: var(--text-muted); font-size: 0.8rem;"><?= $idx++ ?></td>
                         <td>
-                            <strong><?= xe($t['sigla']) ?></strong>
+                            <strong style="<?= !empty($alertas_turma) ? 'color: #d32f2f;' : '' ?>"><?= xe($t['sigla']) ?></strong>
+                            <?php if(!empty($alertas_turma)): ?>
+                                <i class="fas fa-exclamation-triangle" style="color: #ef5350; font-size: 0.75rem; margin-left: 4px;" 
+                                   title="Alertas: <?= implode(', ', array_map(function($a) use ($alertas_info) { return $alertas_info[$a]['label']; }, $alertas_turma)) ?>"></i>
+                            <?php endif; ?>
                         </td>
                         <td>
                             <?php
@@ -690,11 +902,29 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                                 $status_icon = 'fa-play-circle';
                             }
                             ?>
-                            <span class="status-badge <?= $status_class ?>" title="De <?= date('d/m/Y', strtotime($t['data_inicio'])) ?> até <?= date('d/m/Y', strtotime($t['data_fim'])) ?>">
+                            <span class="status-badge <?= $status_class ?>"
+                                title="De <?= date('d/m/Y', strtotime($t['data_inicio'])) ?> até <?= date('d/m/Y', strtotime($t['data_fim'])) ?>">
                                 <i class="fas <?= $status_icon ?>"></i> <?= $status_label ?>
                             </span>
                         </td>
-                        <td><?= xe($t['curso_nome']) ?> <span style="font-size: 0.8rem; color: var(--text-muted); opacity: 0.8;">(<?= $t['carga_horaria_total'] ?>h)</span></td>
+                        <td style="text-align: center;">
+                            <?php if (!empty($t['alertas'])): ?>
+                                <div style="display: flex; gap: 6px; justify-content: center;">
+                                    <?php foreach ($t['alertas'] as $a_key): 
+                                        $a = $alertas_info[$a_key];
+                                    ?>
+                                        <i class="fas <?= $a['icon'] ?>" 
+                                           style="color: <?= $a['color'] ?>; font-size: 1rem;" 
+                                           title="<?= $a['label'] ?>"></i>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php else: ?>
+                                <i class="fas fa-check-circle" style="color: #2e7d32; opacity: 0.3; font-size: 0.9rem;" title="Sem alertas"></i>
+                            <?php endif; ?>
+                        </td>
+                        <td><?= xe($t['curso_nome']) ?> <span
+                                style="font-size: 0.8rem; color: var(--text-muted); opacity: 0.8;">(<?= $t['carga_horaria_total'] ?>h)</span>
+                        </td>
                         <td style="font-weight: 700; color: var(--primary-color);"><?= $t['carga_horaria_total'] ?>h</td>
                         <td><?= xe($t['periodo']) ?></td>
                         <td>
@@ -727,11 +957,12 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                             <div class="docente-list" style="display: flex; flex-wrap: wrap; gap: 4px;">
                                 <?php if (!empty($docentes_list)): ?>
                                     <?php foreach ($docentes_list as $dn): ?>
-                                        <span class="docente-badge docente-cell" 
-                                              style="background: rgba(229,57,53,0.08); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; border: 1px solid rgba(229,57,53,0.15); cursor: pointer; transition: all 0.2s;"
-                                              title="Filtrar por: <?= xe($dn) ?>"
-                                              onclick="document.getElementById('filter-docente').value='<?= xe($dn) ?>'; filterTurmas();">
-                                            <i class="fas fa-user-tie" style="font-size: 0.7rem; opacity: 0.6; margin-right: 4px;"></i><?= xe($dn) ?>
+                                        <span class="docente-badge docente-cell"
+                                            style="background: rgba(229,57,53,0.08); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; border: 1px solid rgba(229,57,53,0.15); cursor: pointer; transition: all 0.2s;"
+                                            title="Filtrar por: <?= xe($dn) ?>"
+                                            onclick="document.getElementById('filter-docente').value='<?= xe($dn) ?>'; filterTurmas();">
+                                            <i class="fas fa-user-tie"
+                                                style="font-size: 0.7rem; opacity: 0.6; margin-right: 4px;"></i><?= xe($dn) ?>
                                         </span>
                                     <?php endforeach; ?>
                                 <?php else: ?>
@@ -741,7 +972,9 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                         </td>
                         <td><?= !empty($t['data_inicio']) ? date('d/m/Y', strtotime($t['data_inicio'])) : '-' ?></td>
                         <td><?= !empty($t['data_fim']) ? date('d/m/Y', strtotime($t['data_fim'])) : '-' ?></td>
-                        <td style="text-align: center; font-weight: 700;"><?= $t['vagas'] ?></td>
+                        <td style="text-align: center; font-weight: 600; color: var(--text-muted);">
+                            <?= $t['vagas'] ?>
+                        </td>
                         <?php if (can_edit()): ?>
                             <td>
                                 <div style="display: flex; gap: 5px; justify-content: center; align-items: center;">
@@ -758,8 +991,8 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     <?php else: ?>
-                                        <a href="javascript:void(0)" onclick="goToEditTurma(<?= $t['id'] ?>)" class="btn btn-edit" title="Editar"><i
-                                                class="fas fa-edit"></i></a>
+                                        <a href="javascript:void(0)" onclick="goToEditTurma(<?= $t['id'] ?>)" class="btn btn-edit"
+                                            title="Editar"><i class="fas fa-edit"></i></a>
                                         <button type="button" class="btn btn-delete" title="Excluir" data-id="<?= $t['id'] ?>"
                                             data-sigla="<?= xe($t['sigla']) ?>" data-fim="<?= $t['data_fim'] ?>"
                                             onclick="handleDeleteTurma(this)">
@@ -807,12 +1040,29 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         letter-spacing: 0.5px;
         white-space: nowrap;
     }
-    .status-andamento { background: rgba(76, 175, 80, 0.15); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.3); }
-    .status-futura { background: rgba(33, 150, 243, 0.15); color: #2196f3; border: 1px solid rgba(33, 150, 243, 0.3); }
-    .status-encerrada { background: rgba(158, 158, 158, 0.15); color: #9e9e9e; border: 1px solid rgba(158, 158, 158, 0.3); }
+
+    .status-andamento {
+        background: rgba(76, 175, 80, 0.15);
+        color: #4caf50;
+        border: 1px solid rgba(76, 175, 80, 0.3);
+    }
+
+    .status-futura {
+        background: rgba(33, 150, 243, 0.15);
+        color: #2196f3;
+        border: 1px solid rgba(33, 150, 243, 0.3);
+    }
+
+    .status-encerrada {
+        background: rgba(158, 158, 158, 0.15);
+        color: #9e9e9e;
+        border: 1px solid rgba(158, 158, 158, 0.3);
+    }
 
     /* Seleção de Linhas */
-    .row-selected { background-color: rgba(106, 27, 154, 0.1) !important; }
+    .row-selected {
+        background-color: rgba(106, 27, 154, 0.1) !important;
+    }
 
     /* Barra Flutuante de Seleção */
     .floating-selection-bar {
@@ -824,8 +1074,8 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         backdrop-filter: blur(15px);
         padding: 12px 30px;
         border-radius: 50px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        border: 1px solid rgba(255,255,255,0.1);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         display: flex;
         align-items: center;
         gap: 20px;
@@ -835,20 +1085,27 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         pointer-events: none;
         transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-    .floating-selection-bar.active { 
+
+    .floating-selection-bar.active {
         bottom: 30px;
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
     }
+
     .selection-count {
         color: #fff;
         font-weight: 800;
         padding-right: 20px;
-        border-right: 1px solid rgba(255,255,255,0.1);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
         font-size: 0.9rem;
     }
-    .bar-actions { display: flex; gap: 10px; }
+
+    .bar-actions {
+        display: flex;
+        gap: 10px;
+    }
+
     .bar-btn {
         background: transparent;
         border: none;
@@ -863,19 +1120,29 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         gap: 8px;
         transition: all 0.2s;
     }
-    .bar-btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
-    .bar-btn.btn-delete:hover { color: #ff5252; background: rgba(255, 82, 82, 0.1); }
+
+    .bar-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .bar-btn.btn-delete:hover {
+        color: #ff5252;
+        background: rgba(255, 82, 82, 0.1);
+    }
 
     /* Estilo do Modal de Edição em Lote */
     #modal-bulk-edit .modal-content {
         background: #1e293b;
         color: #fff;
-        border: 1px solid rgba(255,255,255,0.1);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
+
     #modal-bulk-edit .modal-header {
-        border-bottom: 1px solid rgba(255,255,255,0.1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         padding: 20px 25px;
     }
+
     #modal-bulk-edit .close-modal {
         background: transparent !important;
         border: none !important;
@@ -887,15 +1154,20 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         line-height: 1;
         opacity: 0.7;
     }
-    #modal-bulk-edit .close-modal:hover { opacity: 1; }
+
+    #modal-bulk-edit .close-modal:hover {
+        opacity: 1;
+    }
+
     #modal-bulk-edit .modal-footer {
         display: flex;
         justify-content: flex-end;
         gap: 12px;
         padding: 20px 25px;
-        background: rgba(0,0,0,0.2);
-        border-top: 1px solid rgba(255,255,255,0.1);
+        background: rgba(0, 0, 0, 0.2);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
+
     #modal-bulk-edit .btn-primary {
         background: #ed1c16;
         border: none;
@@ -904,37 +1176,40 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         padding: 10px 25px;
         border-radius: 8px;
     }
+
     #modal-bulk-edit .btn-secondary {
-        background: rgba(255,255,255,0.1);
+        background: rgba(255, 255, 255, 0.1);
         color: #fff;
-        border: 1px solid rgba(255,255,255,0.2);
+        border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     /* Hover Inteligente Docente */
     .docente-cell:hover {
-        background: rgba(229,57,53,0.15) !important;
-        border-color: rgba(229,57,53,0.3) !important;
+        background: rgba(229, 57, 53, 0.15) !important;
+        border-color: rgba(229, 57, 53, 0.3) !important;
         transform: translateY(-2px);
     }
 </style>
 
-<!-- Barra Flutuante de Seleção Única -->
-<div id="floating-bar" class="floating-selection-bar">
-    <div class="selection-count"><span id="floating-count">0</span> selecionadas</div>
-    <div class="bar-actions">
-        <button class="bar-btn" style="background: #6a1b9a;" onclick="openBulkEditModal()">
-            <i class="fas fa-edit"></i> Editar Horários
-        </button>
-        <?php if (isAdmin()): ?>
-            <button class="bar-btn btn-delete" onclick="deleteSelectedTurmas()">
-                <i class="fas fa-trash"></i> Excluir
+<?php if (can_edit()): ?>
+    <!-- Barra Flutuante de Seleção Única -->
+    <div id="floating-bar" class="floating-selection-bar">
+        <div class="selection-count"><span id="floating-count">0</span> selecionadas</div>
+        <div class="bar-actions">
+            <button class="bar-btn" style="background: #6a1b9a;" onclick="openBulkEditModal()">
+                <i class="fas fa-edit"></i> Editar Horários
             </button>
-        <?php endif; ?>
-        <button class="bar-btn" onclick="clearSelection()" style="opacity: 0.8;">
-            <i class="fas fa-times"></i> Cancelar
-        </button>
+            <?php if (isAdmin()): ?>
+                <button class="bar-btn btn-delete" onclick="deleteSelectedTurmas()">
+                    <i class="fas fa-trash"></i> Excluir
+                </button>
+            <?php endif; ?>
+            <button class="bar-btn" onclick="clearSelection()" style="opacity: 0.8;">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+        </div>
     </div>
-</div>
+<?php endif; ?>
 
 <script>
     // Dependências para o calendar.js / formulário unificado funcionar independentemente
@@ -953,115 +1228,95 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         }
     }
 
-    // Lógica de exclusão condicional
+    // Lógica de exclusão (Sempre Permanente GitHub Style)
     function handleDeleteTurma(btn) {
         const id = btn.dataset.id;
         const sigla = btn.dataset.sigla;
-        const dataFim = btn.dataset.fim;
 
-        if (!dataFim) {
-            // Fallback se não tiver data (não deve acontecer)
-            if (confirm(`Tem certeza que deseja excluir a turma ${sigla}?`)) {
-                window.location.href = `../controllers/turmas_process.php?action=delete&id=${id}`;
-            }
-            return;
+        currentDeleteId = id;
+        expectedSigla = sigla;
+
+        const expectedEl = document.getElementById('delete-expected-sigla');
+        const inputEl = document.getElementById('delete-confirm-input');
+        const confirmBtn = document.getElementById('btn-confirm-delete-permanent');
+
+        if (expectedEl) expectedEl.innerText = sigla;
+        if (inputEl) inputEl.value = '';
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.style.opacity = "0.5";
         }
 
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-
-        // Ajuste para considerar o timezone local ao criar objeto Date da string ISO
-        const [ano, mes, dia] = dataFim.split('-').map(Number);
-        const fimDate = new Date(ano, mes - 1, dia);
-
-        if (fimDate < hoje) {
-            // Soft Delete: Turma encerrada
-            if (confirm(`Esta turma (${sigla}) já foi encerrada. Ela será DESATIVADA/ARQUIVADA, mantendo o histórico de agenda. Deseja continuar?`)) {
-                window.location.href = `../controllers/turmas_process.php?action=delete&id=${id}&mode=soft`;
-            }
-        } else {
-            // Hard Delete: Turma vigente ou futura (GitHub Style)
-            currentDeleteId = id;
-            expectedSigla = sigla;
-
-            const expectedEl = document.getElementById('delete-expected-sigla');
-            const inputEl = document.getElementById('delete-confirm-input');
-            const confirmBtn = document.getElementById('btn-confirm-delete-permanent');
-
-            if (expectedEl) expectedEl.innerText = sigla;
-            if (inputEl) inputEl.value = '';
-            if (confirmBtn) {
-                confirmBtn.disabled = true;
-                confirmBtn.style.opacity = "0.5";
-            }
-
-            openModal('modal-confirm-hard-delete');
-        }
+        openModal('modal-confirm-hard-delete');
     }
 </script>
 
 <?php include __DIR__ . '/../components/footer.php'; ?>
 
-<!-- Modal: Edição em Lote -->
-<div id="modal-bulk-edit" class="modal-overlay">
-    <div class="modal-content animate-pop-in" style="max-width: 500px;">
-        <div class="modal-header">
-            <h3><i class="fas fa-edit"></i> Edição em Lote</h3>
-            <button type="button" class="close-modal" onclick="closeModal('modal-bulk-edit')">&times;</button>
+<?php if (can_edit()): ?>
+    <!-- Modal: Edição em Lote -->
+    <div id="modal-bulk-edit" class="modal-overlay">
+        <div class="modal-content animate-pop-in" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> Edição em Lote</h3>
+                <button type="button" class="close-modal" onclick="closeModal('modal-bulk-edit')">&times;</button>
+            </div>
+            <form action="../controllers/turmas_process.php?action=bulk_update" method="POST">
+                <input type="hidden" name="ids" id="bulk-ids">
+                <input type="hidden" name="return_url" value="turmas.php">
+
+                <div class="modal-body">
+                    <p style="margin-bottom: 20px; color: var(--text-muted); font-size: 0.9rem;">
+                        Os campos preenchidos abaixo serão aplicados a todas as turmas selecionadas. Campos em branco não
+                        serão alterados.
+                    </p>
+
+                    <div class="form-group">
+                        <label class="form-label">Período</label>
+                        <select name="periodo" id="bulk-periodo" class="form-input">
+                            <option value="">Manter atual...</option>
+                            <option value="Manhã">Manhã (07:30 - 11:30)</option>
+                            <option value="Tarde">Tarde (13:30 - 17:30)</option>
+                            <option value="Noite">Noite (18:00 - 23:00)</option>
+                            <option value="Integral">Integral (07:30 - 17:30)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Horário Início</label>
+                            <input type="time" name="horario_inicio" id="bulk-horario-inicio" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Horário Até</label>
+                            <input type="time" name="horario_fim" id="bulk-horario-fim" class="form-input">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('modal-bulk-edit')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" style="font-weight: 700;">SALVAR ALTERAÇÕES</button>
+                </div>
+            </form>
         </div>
-        <form action="../controllers/turmas_process.php?action=bulk_update" method="POST">
-            <input type="hidden" name="ids" id="bulk-ids">
-            <input type="hidden" name="return_url" value="turmas.php">
-            
-            <div class="modal-body">
-                <p style="margin-bottom: 20px; color: var(--text-muted); font-size: 0.9rem;">
-                    Os campos preenchidos abaixo serão aplicados a todas as turmas selecionadas. Campos em branco não serão alterados.
-                </p>
-                
-                <div class="form-group">
-                    <label class="form-label">Período</label>
-                    <select name="periodo" id="bulk-periodo" class="form-input">
-                        <option value="">Manter atual...</option>
-                        <option value="Manhã">Manhã (07:30 - 11:30)</option>
-                        <option value="Tarde">Tarde (13:30 - 17:30)</option>
-                        <option value="Noite">Noite (18:00 - 23:00)</option>
-                        <option value="Integral">Integral (07:30 - 17:30)</option>
-                    </select>
-                </div>
-                
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label">Horário Início</label>
-                        <input type="time" name="horario_inicio" id="bulk-horario-inicio" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Horário Até</label>
-                        <input type="time" name="horario_fim" id="bulk-horario-fim" class="form-input">
-                    </div>
-                </div>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-bulk-edit')">Cancelar</button>
-                <button type="submit" class="btn btn-primary" style="font-weight: 700;">SALVAR ALTERAÇÕES</button>
-            </div>
-        </form>
     </div>
-</div>
+<?php endif; ?>
 
 <script>
     // Atualiza o return_url do modal de bulk edit com os filtros atuais
-    document.querySelector('#modal-bulk-edit form').addEventListener('submit', function() {
+    document.querySelector('#modal-bulk-edit form').addEventListener('submit', function () {
         const filters = getCurrentFilterParams();
         this.querySelector('input[name="return_url"]').value = '../views/turmas.php?' + filters;
     });
 
     // Preenchimento automático de horários baseado no período (Bulk Edit)
-    document.getElementById('bulk-periodo').addEventListener('change', function() {
+    document.getElementById('bulk-periodo').addEventListener('change', function () {
         const val = this.value;
         const hi = document.getElementById('bulk-horario-inicio');
         const hf = document.getElementById('bulk-horario-fim');
-        
+
         if (val === 'Manhã') {
             hi.value = '07:30';
             hf.value = '11:30';
@@ -1077,3 +1332,4 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
         }
     });
 </script>
+

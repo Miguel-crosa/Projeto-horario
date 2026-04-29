@@ -33,7 +33,7 @@ $where_vendas = "WHERE ativo = 1";
 if (isProfessor()) {
     $logged_did = getUserDocenteId();
     if ($logged_did) {
-        $where_vendas = "WHERE id = " . (int)$logged_did;
+        $where_vendas = "WHERE id = " . (int) $logged_did;
     } else {
         // Se for professor sem vínculo, não mostra nada ou mostra erro? por enquanto, mostra vazio.
         $where_vendas = "WHERE 1=0";
@@ -115,8 +115,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
     <div class="vendas-search-wrapper">
         <div class="vendas-search-box">
             <i class="fas fa-search"></i>
-            <input type="text" id="gantt-search-docente" placeholder="Pesquisar..."
-                oninput="filterGanttDocentes()">
+            <input type="text" id="gantt-search-docente" placeholder="Pesquisar..." oninput="filterGanttDocentes()">
         </div>
     </div>
 </div>

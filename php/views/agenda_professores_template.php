@@ -9,7 +9,7 @@
 <?php endif; ?>
 
 <?php
-$selected_prof_id = isset($_GET['docente_id']) ? $_GET['docente_id'] : '';
+$selected_prof_id = (isset($filter_docente) && $filter_docente > 0) ? $filter_docente : (isset($_GET['docente_id']) ? $_GET['docente_id'] : '');
 $selected_prof_nome = '';
 
 /* Fallback: If no docente_id is provided but we only have 1 professor (e.g. from a name search)
@@ -114,7 +114,7 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                 <!-- Seletor de Mês -->
                 <div class="sub-nav-group" style="display: flex; align-items: center; gap: 8px;">
                     <button onclick="navigateMonth(-1)" class="month-btn-nav" title="Mês Anterior" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-chevron-left" style="font-size:0.75rem;"></i></button>
-                    <span id="global-month-label" style="font-weight: 800; font-size: 0.95rem; min-width: 110px; text-align: center; text-transform: capitalize; color: var(--text-color);"><?php echo $months_pt[$m_num]; ?></span>
+                    <span id="global-month-label" style="font-weight: 800; font-size: 0.95rem; min-width: 110px; text-align: center; text-transform: capitalize; color: var(--text-color);"><?php echo $month_label; ?></span>
                     <button onclick="navigateMonth(1)" class="month-btn-nav" title="Próximo Mês" style="width:32px;height:32px;text-decoration:none;color:var(--corTxt3); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i class="fas fa-chevron-right" style="font-size:0.75rem;"></i></button>
                 </div>
 
@@ -155,10 +155,10 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
             </div>
         </div>
         <div class="avail-legend period-legend-group" style="flex-wrap: wrap; justify-content: flex-start;">
-            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></span> Disp.</span>
-            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #f44336;"></span> Ocup.</span>
-            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #ffb300;"></span> Res.</span>
-            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #1565c0;"></span> Feriado</span>
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; box-shadow: 0 0 5px rgba(16,185,129,0.4);"></span> Disp.</span>
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #f43f5e; box-shadow: 0 0 5px rgba(244,63,94,0.4);"></span> Ocup.</span>
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 5px rgba(245,158,11,0.4);"></span> Res.</span>
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem;"><span class="avail-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #6366f1; box-shadow: 0 0 5px rgba(99,102,241,0.4);"></span> Feriado</span>
         </div>
     </div>
 
@@ -293,7 +293,9 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                            if (window.__viewMode === 'semestral') {
                                const mNum = date.getMonth() + 1;
                                const semNum = (mNum <= 6) ? 1 : 2;
-                               labelEl.textContent = semNum + 'º Semestre';
+                               const year = date.getFullYear();
+                               const periodText = (semNum === 1) ? ' (Jan–Jun)' : ' (Jul–Dez)';
+                               labelEl.textContent = semNum + 'º Semestre ' + year + periodText;
                            } else {
                                labelEl.textContent = monthsPtFull[date.getMonth()];
                            }
@@ -505,19 +507,25 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                 }
                 $perc_free = ($total_sem_free + $total_sem_busy > 0) ? round(($total_sem_free / ($total_sem_free + $total_sem_busy)) * 100) : 0;
                 ?>
-                <div class="prof-row" data-prof-id="<?php echo $p['id']; ?>">
+                <div class="prof-row semestral-view-row" data-prof-id="<?php echo $p['id']; ?>" style="border: none; background: var(--bg-color); padding: 25px; border-radius: 20px; margin-bottom: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.04);">
                     <div class="prof-info-row">
-                        <div onclick="<?= !isProfessor() ? "openTimelineModal({$p['id']}, '" . addslashes($p['nome']) . "')" : "" ?>" style="<?= !isProfessor() ? "cursor:pointer;" : "" ?> display:flex; align-items:center; gap:10px; flex: 1;">
-                            <div style="width:32px; height:32px; background: linear-gradient(135deg, #e53935, #c62828); color:#fff; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.8rem;"><?php echo mb_substr($p['nome'], 0, 1); ?></div>
+                        <div onclick="<?= !isProfessor() ? "openTimelineModal({$p['id']}, '" . addslashes($p['nome']) . "')" : "" ?>" style="<?= !isProfessor() ? "cursor:pointer;" : "" ?> display:flex; align-items:center; gap:15px; flex: 1;">
+                            <div style="width:45px; height:45px; background: linear-gradient(135deg, var(--primary-red), #b71c1c); color:#fff; border-radius:12px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:1.2rem; box-shadow: 0 4px 12px rgba(237, 28, 36, 0.3);"><?php echo mb_substr($p['nome'], 0, 1); ?></div>
                             <div>
-                                <div style="font-weight:800; font-size:0.95rem;"><?php echo htmlspecialchars($p['nome']); ?></div>
-                                <div style="font-size:0.75rem; color: #9ba1b0;"><?php echo htmlspecialchars($p_esp); ?></div>
+                                <div style="font-weight:900; font-size:1.1rem; letter-spacing: -0.5px;"><?php echo htmlspecialchars($p['nome']); ?></div>
+                                <div style="font-size:0.8rem; color: var(--text-muted); font-weight: 600;"><?php echo htmlspecialchars($p_esp); ?></div>
                             </div>
                         </div>
                         <div class="semestral-stats-group">
-                            <span style="color:#2e7d32;"><i class="fas fa-check-circle"></i> <?php echo $total_sem_free; ?></span>
-                            <span style="color:#d32f2f;"><i class="fas fa-times-circle"></i> <?php echo $total_sem_busy; ?></span>
-                            <span style="color:var(--text-muted);"><?php echo $perc_free; ?>%</span>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                                <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 2px;">Disponibilidade</span>
+                                <div style="display: flex; gap: 15px; align-items: center;">
+                                    <span style="color:#059669; display: flex; align-items: center; gap: 6px;"><i class="fas fa-calendar-check"></i> <strong style="font-size: 1.1rem;"><?php echo $total_sem_free; ?></strong> <small style="font-weight: 600; opacity: 0.7;">dias</small></span>
+                                    <div style="width: 1px; height: 20px; background: var(--border-color);"></div>
+                                    <span style="color:#e11d48; display: flex; align-items: center; gap: 6px;"><i class="fas fa-calendar-times"></i> <strong style="font-size: 1.1rem;"><?php echo $total_sem_busy; ?></strong> <small style="font-weight: 600; opacity: 0.7;">dias</small></span>
+                                    <div style="margin-left: 10px; background: <?= $perc_free > 50 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)' ?>; color: <?= $perc_free > 50 ? '#059669' : '#d97706' ?>; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 900; border: 1px solid currentColor;"><?php echo $perc_free; ?>% Livre</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="semestral-grid">
@@ -532,9 +540,16 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                 if ($ddow < 7 && !isset($sem_busy[$ddt])) $m_free++;
                                 if (isset($sem_busy[$ddt])) $m_busy++;
                             }
+                            $is_current_m = (date('Y-m') === $month_str);
                         ?>
-                        <div class="sem-month-box">
-                            <div class="sem-month-header"><span><?php echo $months_pt_sem[$m]; ?></span><span class="sem-month-stats"><span style="color:#2e7d32;"><?php echo $m_free; ?></span>/<span style="color:#d32f2f;"><?php echo $m_busy; ?></span></span></div>
+                        <div class="sem-month-box <?= $is_current_m ? 'current-month-highlight' : '' ?>" style="<?= $is_current_m ? 'border: 2px solid #6366f1; background: rgba(99, 102, 241, 0.02);' : '' ?>">
+                            <div class="sem-month-header">
+                                <span><?php echo $months_pt_sem[$m]; ?></span>
+                                <div class="sem-month-stats">
+                                    <span style="background: rgba(16, 185, 129, 0.1); color: #059669; padding: 2px 8px; border-radius: 4px;"><?php echo $m_free; ?> <i class="fas fa-check"></i></span>
+                                    <span style="background: rgba(244, 63, 94, 0.1); color: #e11d48; padding: 2px 8px; border-radius: 4px; margin-left: 4px;"><?php echo $m_busy; ?> <i class="fas fa-times"></i></span>
+                                </div>
+                            </div>
                             <div class="sem-day-headers"><span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span></div>
                             <div class="sem-calendar-grid">
                                 <?php for ($e = 0; $e < $first_dow; $e++): ?><div class="sem-day sem-day-empty"></div><?php endfor; ?>
@@ -556,7 +571,9 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                     elseif ($is_reserved_s && !$is_reserved_s['own']) $cell_class = 'sem-day-reserved';
                                     elseif ($is_reserved_s && $is_reserved_s['own']) $cell_class = 'sem-day-reserved-own';
                                     elseif ($is_all_off_sem) $cell_class = 'sem-day-sunday slot-disabled';
-                                    elseif ($is_saturday) $cell_class = 'sem-day-weekend';
+                                    elseif ($is_saturday && !isset($sem_turno[$ddt])) $cell_class = 'sem-day-weekend';
+                                    elseif ($is_saturday && isset($sem_turno[$ddt]) && $sem_turno[$ddt]['M'] === 'OFF_SCHEDULE' && $sem_turno[$ddt]['T'] === 'OFF_SCHEDULE' && $sem_turno[$ddt]['N'] === 'OFF_SCHEDULE') $cell_class = 'sem-day-weekend';
+
                                     $clickable = (!$is_sunday && !$is_busy && !$is_all_off_sem && !($is_reserved_s && !$is_reserved_s['own']) && !isProfessor());
                                     
                                     $base_c = null;
@@ -571,24 +588,20 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                          $p_m_c = $p_t_c = $p_n_c = $p_i_c = '#fff';
                                     }
                                     if ($is_busy) {
-                                         if ($sem_turno[$ddt]['M'] === 'OFF_SCHEDULE') $p_m_c = '#555';
+                                         if ($sem_turno[$ddt]['M'] === 'OFF_SCHEDULE') $p_m_c = 'rgba(0,0,0,0.2)';
                                          elseif (!empty($sem_turno[$ddt]['M'])) $p_m_c = '#fff';
 
-                                         if ($sem_turno[$ddt]['T'] === 'OFF_SCHEDULE') $p_t_c = '#555';
+                                         if ($sem_turno[$ddt]['T'] === 'OFF_SCHEDULE') $p_t_c = 'rgba(0,0,0,0.2)';
                                          elseif (!empty($sem_turno[$ddt]['T'])) $p_t_c = '#fff';
 
-                                         if ($sem_turno[$ddt]['N'] === 'OFF_SCHEDULE') $p_n_c = '#555';
+                                         if ($sem_turno[$ddt]['N'] === 'OFF_SCHEDULE') $p_n_c = 'rgba(0,0,0,0.2)';
                                          elseif (!empty($sem_turno[$ddt]['N'])) $p_n_c = '#fff';
                                     } else {
                                          if (isset($sem_turno[$ddt])) {
-                                             if ($sem_turno[$ddt]['M'] === 'OFF_SCHEDULE') $p_m_c = '#555';
-                                             if ($sem_turno[$ddt]['T'] === 'OFF_SCHEDULE') $p_t_c = '#555';
-                                             if ($sem_turno[$ddt]['N'] === 'OFF_SCHEDULE') $p_n_c = '#555';
+                                             if ($sem_turno[$ddt]['M'] === 'OFF_SCHEDULE') $p_m_c = 'rgba(0,0,0,0.1)';
+                                             if ($sem_turno[$ddt]['T'] === 'OFF_SCHEDULE') $p_t_c = 'rgba(0,0,0,0.1)';
+                                             if ($sem_turno[$ddt]['N'] === 'OFF_SCHEDULE') $p_n_c = 'rgba(0,0,0,0.1)';
                                          }
-                                    }
-                                    if ($is_saturday) {
-                                        $p_n_c = 'rgba(0,0,0,0.2)';
-                                        if ($cell_class === 'sem-day-busy' || $cell_class === 'sem-day-reserved') $p_n_c = 'rgba(255,255,255,0.2)';
                                     }
                                     $title_extra = '';
                                     if ($is_busy) $title_extra = ' — ' . $sem_busy[$ddt];
@@ -598,9 +611,9 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
                                          <?php if ($clickable): ?>onclick="handleBarClick(<?php echo $p['id']; ?>, '<?php echo addslashes($p['nome']); ?>', '<?php echo $ddt; ?>', this, event)"<?php endif; ?>>
                                         <div class="sem-day-num-label"><?php echo $dd; ?></div>
                                         <div class="sem-day-bars-container">
-                                            <div style="height:2px; background:<?=$p_m_c?>; border-radius:1px;"></div>
-                                            <div style="height:2px; background:<?=$p_t_c?>; border-radius:1px;"></div>
-                                            <div style="height:2px; background:<?=$p_n_c?>; border-radius:1px;"></div>
+                                            <?php if ($p_m_c): ?><div style="background:<?=$p_m_c?>;"></div><?php endif; ?>
+                                            <?php if ($p_t_c): ?><div style="background:<?=$p_t_c?>;"></div><?php endif; ?>
+                                            <?php if ($p_n_c): ?><div style="background:<?=$p_n_c?>;"></div><?php endif; ?>
                                         </div>
                                     </div>
                                 <?php endfor; ?>
@@ -820,14 +833,23 @@ if (empty($selected_prof_id) && !empty($_GET['search'])) {
 (function() {
     const initCalendar = () => {
         const viewMode = "<?php echo $view_mode; ?>";
-        if (viewMode === 'calendar') {
-            const profId = "<?php echo $selected_prof_id; ?>";
-            const month = "<?php echo $current_month; ?>";
-            if (profId && typeof loadDocenteAgenda === 'function') {
+        const profId = "<?php echo $selected_prof_id; ?>";
+        const month = "<?php echo $current_month; ?>";
+
+        if (viewMode === 'calendar' && profId) {
+            if (typeof loadDocenteAgenda === 'function') {
                 loadDocenteAgenda(profId, month);
-            } else if (profId) {
-                // Tenta de novo se ainda não carregou
+            } else {
                 setTimeout(initCalendar, 100);
+            }
+        }
+
+        // NOVO: Força a atualização da barra de disponibilidade para professores logados
+        if (profId && window.userIsProfessor) {
+            if (typeof updateAvailabilityBar === 'function') {
+                updateAvailabilityBar(profId, month);
+            } else {
+                setTimeout(initCalendar, 200);
             }
         }
     };

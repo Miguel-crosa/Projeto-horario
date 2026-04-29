@@ -82,6 +82,7 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
     while ($row = mysqli_fetch_assoc($res)) {
       $rows[] = $row;
     }
+    
     $columns = array_keys($rows[0]);
     if ($addCounter) {
       array_unshift($columns, 'Nº');
@@ -89,7 +90,10 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
     $colCount = count($columns);
     $rowCount = count($rows);
 
-    $sheetName = substr($name, 0, 31);
+    // Clean sheet name: Excel doesn't allow \ / ? * [ ] : and max 31 chars
+    $sheetName = str_replace([':', '\\', '/', '?', '*', '[', ']'], '', $name);
+    $sheetName = mb_substr($sheetName, 0, 31, 'UTF-8');
+    
     $range = 'R1C1:R' . ($rowCount + 1) . 'C' . $colCount;
 
     echo '  <Worksheet ss:Name="' . xe($sheetName) . '">' . "\n";
@@ -98,10 +102,10 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
     echo '    </Names>' . "\n";
     echo '    <Table x:FullColumns="1" x:FullRows="1" ss:DefaultRowHeight="15">' . "\n";
 
-    // Attempt somewhat smart column widths
+    // Column widths
     foreach ($columns as $c) {
       $width = 120;
-      $c_low = mb_strtolower($c, 'UTF-8');
+      $c_low = mb_strtolower((string)$c, 'UTF-8');
 
       if (in_array($c_low, ['id', 'vagas', 'capacidade', 'nº', 'status', 'semestral'])) {
         $width = 60;
@@ -135,29 +139,27 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
         $style = 's64';
         $type = 'String';
 
-        if (in_array($key, $dateColumns)) {
-          $style = 's70';
-          if ($val) {
-            $val = date('Y-m-d\T00:00:00.000', strtotime($val));
-            $type = 'DateTime';
-          }
-        } else if (in_array($key, $timeColumns)) {
-          $style = 's72';
-          if ($val) {
+        if (in_array($key, $dateColumns) && !empty($val) && $val !== '0000-00-00') {
+            $ts = strtotime($val);
+            if ($ts !== false) {
+                $val = date('Y-m-d\T00:00:00.000', $ts);
+                $style = 's70';
+                $type = 'DateTime';
+            }
+        } else if (in_array($key, $timeColumns) && !empty($val)) {
+            $style = 's72';
             $val = '1899-12-31T' . substr($val, 0, 5) . ':00.000';
             $type = 'DateTime';
-          }
-        } else if (is_numeric($val) && !preg_match('/^0[0-9]/', $val)) {
-          $style = 's63';
-          $type = 'Number';
+        } else if (is_numeric($val) && !preg_match('/^0[0-9]/', $val) && $val !== '') {
+            $style = 's63';
+            $type = 'Number';
         }
 
-        if ($val === null)
-          $val = '';
+        if ($val === null) $val = '';
 
-        // Abbreviate days if column looks like it contains days, BUT NOT if it is numeric
-        $key_low = mb_strtolower($key, 'UTF-8');
-        if (!is_numeric($val) && (strpos($key_low, 'dias') !== false || strpos($key_low, 'semana') !== false || strpos($key_low, 'trabalho') !== false || strpos($key_low, 'disponibilidade') !== false)) {
+        // Abbreviate days if column looks like it contains days
+        $key_low = mb_strtolower((string)$key, 'UTF-8');
+        if ($type === 'String' && !empty($val) && (strpos($key_low, 'dias') !== false || strpos($key_low, 'semana') !== false || strpos($key_low, 'trabalho') !== false)) {
           $val = abbreviateDays($val);
         }
 
@@ -225,7 +227,20 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
     return implode(', ', $newParts);
   }
 
-  // 1. Usuários
+  // 0. Usuários
+  $q_usuarios = "
+    SELECT 
+        u.nome AS Nome, 
+        u.email AS Email, 
+        u.role AS Papel, 
+        d.nome AS `Vínculo Docente`,
+        IF(u.ativo = 1, 'Ativo', 'Inativo') AS Status
+    FROM usuario u
+    LEFT JOIN docente d ON u.docente_id = d.id
+    ORDER BY u.nome ASC
+  ";
+  renderWorksheet("USUARIOS", $q_usuarios, $conn);
+
   // 1. Cursos
   $q_cursos = "
     SELECT 
@@ -268,16 +283,6 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
 ";
   renderWorksheet("AMBIENTES", $q_ambientes, $conn);
 
-  // 4. Usuários
-  $q_usuarios = "
-    SELECT 
-        u.nome AS Nome, 
-        u.email AS Email, 
-        u.role AS `Cargo Permissão`
-    FROM usuario u 
-    ORDER BY u.nome ASC
-";
-  renderWorksheet("USUARIOS", $q_usuarios, $conn);
 
   // 5. Turmas
   $q_turmas = "

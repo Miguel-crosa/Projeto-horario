@@ -9,29 +9,21 @@ if ($action == 'delete') {
     $id = mysqli_real_escape_string($conn, $_GET['id']);
 
     // Buscar dados da turma antes de deletar
-    $res = mysqli_query($conn, "SELECT sigla, data_fim FROM turma WHERE id = '$id'");
+    $res = mysqli_query($conn, "SELECT sigla FROM turma WHERE id = '$id'");
     if ($row = mysqli_fetch_assoc($res)) {
         $sigla_deleted = $row['sigla'];
-        $data_fim = $row['data_fim'];
-        $hoje = date('Y-m-d');
-
-        if ($data_fim < $hoje) {
-            // Soft Delete: Turma encerrada (apenas desativar)
-            mysqli_query($conn, "UPDATE turma SET ativo = 0 WHERE id = '$id'");
-            $msg_notif = "A turma $sigla_deleted foi desativada/arquivada.";
-            $url_msg = "deactivated";
-        } else {
-            // Hard Delete: Turma vigente ou futura (remover permanentemente)
-            // 1. Limpar agenda primeiro
-            mysqli_query($conn, "DELETE FROM agenda WHERE turma_id = '$id'");
-            // 2. Remover turma
-            mysqli_query($conn, "DELETE FROM turma WHERE id = '$id'");
+        
+        // --- HARD DELETE SEMPRE PERMANENTE ---
+        // 1. Limpar agenda primeiro para evitar orfãos (se houver constraints)
+        mysqli_query($conn, "DELETE FROM agenda WHERE turma_id = '$id'");
+        // 2. Remover turma
+        if (mysqli_query($conn, "DELETE FROM turma WHERE id = '$id'")) {
             $msg_notif = "A turma $sigla_deleted foi removida permanentemente do sistema.";
-            $url_msg = "deleted";
+            dispararNotificacaoGlobal($conn, 'exclusao_turma', 'Turma Excluída', $msg_notif, BASE_URL . "/php/views/turmas.php", ['admin', 'gestor', 'professor', 'cri']);
+            header("Location: ../views/turmas.php?msg=deleted");
+        } else {
+            header("Location: ../views/turmas.php?msg=error&error_text=" . urlencode(mysqli_error($conn)));
         }
-
-        dispararNotificacaoGlobal($conn, 'exclusao_turma', 'Turma Excluída', $msg_notif, BASE_URL . "/php/views/turmas.php", ['admin', 'gestor', 'professor', 'cri']);
-        header("Location: ../views/turmas.php?msg=$url_msg");
     } else {
         header("Location: ../views/turmas.php?msg=notfound");
     }
@@ -205,6 +197,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
+    // Início da Transação Atômica
+    mysqli_begin_transaction($conn);
+
     $id = mysqli_real_escape_string($conn, $_POST['id']);
     $is_reserva = isset($_POST['is_reserva']) && $_POST['is_reserva'] == '1';
     $curso_id = !empty($_POST['curso_id']) ? mysqli_real_escape_string($conn, $_POST['curso_id']) : "NULL";
@@ -266,23 +261,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }));
 
     if (empty($docentes_to_check) && !$is_reserva && empty($_POST['validate_only'])) {
+        mysqli_rollback($conn);
         handle_response($conn, false, "Pelo menos um docente deve ser selecionado.", "", $is_ajax);
     }
 
     foreach ($docentes_to_check as $did) {
-        // Reservas também devem respeitar os limites de carga horária? Sim, por segurança.
         $val_res = checkDocenteLimits($conn, $did, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim, $periodo, $tipo_agenda, $agenda_flexivel);
         if ($val_res !== true) {
+            mysqli_rollback($conn);
             handle_response($conn, false, $val_res, "", $is_ajax);
         }
 
         $conf_res = checkDocenteConflicts($conn, $did, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim, $tipo_agenda, $agenda_flexivel);
         if ($conf_res !== true) {
+            mysqli_rollback($conn);
             handle_response($conn, false, $conf_res, "", $is_ajax);
         }
 
         $work_res = checkDocenteWorkSchedule($conn, $did, $data_inicio, $data_fim, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $tipo_agenda, $agenda_flexivel);
         if ($work_res !== true) {
+            mysqli_rollback($conn);
             handle_response($conn, false, $work_res, "", $is_ajax);
         }
     }
@@ -291,145 +289,138 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if ($ambiente_id !== "NULL" && $ambiente_id > 0) {
         $amb_res = checkAmbienteConflict($conn, $ambiente_id, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim, $tipo_agenda, $agenda_flexivel);
         if ($amb_res !== true) {
+            mysqli_rollback($conn);
             handle_response($conn, false, $amb_res, "", $is_ajax);
         }
     }
 
     if (isset($_POST['validate_only']) && $_POST['validate_only'] == '1') {
+        mysqli_commit($conn); // Simulação não precisa de rollback mas liberamos a trava
         handle_response($conn, true, "Horário disponível", "", $is_ajax);
     }
 
     if ($is_reserva) {
         // --- PROCESSAMENTO DE RESERVA ---
         $usuario_id = $_SESSION['user_id'] ?? null;
-
-        // Se o usuário não estiver logado (sessão expirada), tenta buscar o primeiro admin ou retorna erro
         if (!$usuario_id) {
             $admin_res = mysqli_query($conn, "SELECT id FROM usuario WHERE role = 'admin' LIMIT 1");
             if ($row_adm = mysqli_fetch_assoc($admin_res)) {
                 $usuario_id = (int)$row_adm['id'];
             } else {
+                mysqli_rollback($conn);
                 handle_response($conn, false, "Sessão expirada. Por favor, faça login novamente.", "login.php", $is_ajax);
             }
         }
-
-        // Garante que o ID para a query não seja uma string vazia
         $usuario_id_sql = $usuario_id ? (int)$usuario_id : "NULL";
 
         $principal_docente = !empty($docentes_to_check) ? $docentes_to_check[0] : 0;
         if (!$principal_docente && empty($id)) {
+            mysqli_rollback($conn);
             handle_response($conn, false, "É necessário selecionar um docente para a reserva.", "", $is_ajax);
         }
 
         if ($id) {
-            // Update reserva
-            $query = "UPDATE reservas SET 
-                      docente_id = $principal_docente,
-                      curso_id = $curso_id,
-                      ambiente_id = $ambiente_id,
-                      data_inicio = '$data_inicio',
-                      data_fim = '$data_fim',
-                      hora_inicio = '$horario_inicio',
-                      hora_fim = '$horario_fim',
-                      dias_semana = '$dias_semana_str',
-                      sigla = '$sigla',
-                      periodo = '$periodo',
-                      vagas = $vagas,
-                      local = '$local',
-                      tipo = '$tipo',
-                      tipo_custeio = '$tipo_custeio',
-                      previsao_despesa = $previsao_despesa,
-                      valor_turma = $valor_turma,
-                      numero_proposta = '$numero_proposta',
-                      tipo_atendimento = '$tipo_atendimento',
-                      parceiro = '$parceiro',
-                      contato_parceiro = '$contato_parceiro',
-                      tipo_agenda = '$tipo_agenda',
-                      agenda_flexivel = '$agenda_flexivel'
-                      WHERE id = '$id'";
+            $query = "UPDATE reservas SET docente_id = $principal_docente, curso_id = $curso_id, ambiente_id = $ambiente_id, data_inicio = '$data_inicio', data_fim = '$data_fim', hora_inicio = '$horario_inicio', hora_fim = '$horario_fim', dias_semana = '$dias_semana_str', sigla = '$sigla', periodo = '$periodo', vagas = $vagas, local = '$local', tipo = '$tipo', tipo_custeio = '$tipo_custeio', previsao_despesa = $previsao_despesa, valor_turma = $valor_turma, numero_proposta = '$numero_proposta', tipo_atendimento = '$tipo_atendimento', parceiro = '$parceiro', contato_parceiro = '$contato_parceiro', tipo_agenda = '$tipo_agenda', agenda_flexivel = '$agenda_flexivel' WHERE id = '$id'";
         } else {
-            // Alterado para sempre iniciar como PENDENTE, mesmo para Admin/Gestor,
-            // permitindo que o fluxo de aprovação (Aceitar/Recusar) ocorra no painel.
             $status_inicial = 'PENDENTE';
-
-            $query = "INSERT INTO reservas (docente_id, curso_id, ambiente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, sigla, periodo, status, vagas, local, tipo, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_agenda, agenda_flexivel) 
-                      VALUES ($principal_docente, $curso_id, $ambiente_id, $usuario_id_sql, '$data_inicio', '$data_fim', '$dias_semana_str', '$horario_inicio', '$horario_fim', '$sigla', '$periodo', '$status_inicial', $vagas, '$local', '$tipo', '$tipo_custeio', $previsao_despesa, $valor_turma, '$numero_proposta', '$tipo_atendimento', '$parceiro', '$contato_parceiro', '$tipo_agenda', '$agenda_flexivel')";
+            $query = "INSERT INTO reservas (docente_id, curso_id, ambiente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, sigla, periodo, status, vagas, local, tipo, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_agenda, agenda_flexivel) VALUES ($principal_docente, $curso_id, $ambiente_id, $usuario_id_sql, '$data_inicio', '$data_fim', '$dias_semana_str', '$horario_inicio', '$horario_fim', '$sigla', '$periodo', '$status_inicial', $vagas, '$local', '$tipo', '$tipo_custeio', $previsao_despesa, $valor_turma, '$numero_proposta', '$tipo_atendimento', '$parceiro', '$contato_parceiro', '$tipo_agenda', '$agenda_flexivel')";
         }
 
         if (mysqli_query($conn, $query)) {
             $res_id = $id ?: mysqli_insert_id($conn);
             $msg = $id ? "Reserva atualizada" : "Reserva criada com sucesso";
-
-            // NOTIFICAÇÃO DE RESERVA (Novo Alerta)
             $executor = $_SESSION['user_nome'] ?? 'Usuário';
             $notif_tipo = $id ? 'edicao_turma' : 'reserva_realizada';
             $notif_titulo = $id ? 'Reserva Atualizada' : 'Nova Reserva Solicitada';
             $notif_msg = "A reserva ($sigla) foi " . ($id ? "atualizada" : "solicitada") . " por $executor.";
             dispararNotificacaoGlobal($conn, $notif_tipo, $notif_titulo, $notif_msg, BASE_URL . "/php/views/gerenciar_reservas.php?status=PENDENTE&reserva_id=$res_id", ['admin', 'gestor']);
 
+            if (!$id) {
+                require_once __DIR__ . '/../configs/mailer.php';
+                $did = $principal_docente;
+                $d_res = mysqli_query($conn, "SELECT d.nome, u.email FROM docente d LEFT JOIN usuario u ON u.docente_id = d.id WHERE d.id = $did");
+                if ($d_res && $d_row = mysqli_fetch_assoc($d_res)) {
+                    $d_email = trim($d_row['email'] ?? '');
+                    $d_nome = $d_row['nome'];
+                    if (!empty($d_email)) {
+                        $subject = "Solicitação de Reserva: $sigla";
+                        $body = "<h2>Olá, $d_nome!</h2><p>Uma nova solicitação de reserva foi realizada...</p>";
+                        if (!sendEmail($d_email, $subject, $body)) {
+                            mysqli_rollback($conn);
+                            handle_response($conn, false, "Falha ao enviar e-mail de notificação da reserva. A operação foi cancelada.", "", $is_ajax);
+                        }
+                    } else {
+                        mysqli_rollback($conn);
+                        handle_response($conn, false, "O docente selecionado não possui e-mail cadastrado. Não é possível enviar a notificação.", "", $is_ajax);
+                    }
+                }
+            }
+            mysqli_commit($conn);
             $next_url = !empty($_POST['return_url']) ? $_POST['return_url'] : "../views/agenda_professores.php?docente_id=" . $docentes_to_check[0] . "&msg=created";
             handle_response($conn, true, $msg, $next_url, $is_ajax);
         } else {
+            mysqli_rollback($conn);
             handle_response($conn, false, "Erro ao salvar reserva: " . mysqli_error($conn), "", $is_ajax);
         }
 
     } else {
         // --- PROCESSAMENTO DE TURMA ---
         if ($id) {
-            // UPDATE existing turma
-            $query = "UPDATE turma SET 
-                      curso_id = $curso_id, 
-                      tipo = '$tipo', 
-                      periodo = '$periodo', 
-                      data_inicio = '$data_inicio', 
-                      data_fim = '$data_fim', 
-                      ambiente_id = $ambiente_id, 
-                      sigla = '$sigla',
-                      vagas = $vagas,
-                      local = '$local',
-                      dias_semana = '$dias_semana_str',
-                      horario_inicio = '$horario_inicio',
-                      horario_fim = '$horario_fim',
-                      docente_id1 = $docente_id1,
-                      docente_id2 = $docente_id2,
-                      docente_id3 = $docente_id3,
-                      docente_id4 = $docente_id4,
-                      tipo_custeio = '$tipo_custeio',
-                      previsao_despesa = $previsao_despesa,
-                      valor_turma = $valor_turma,
-                      numero_proposta = '$numero_proposta',
-                      tipo_atendimento = '$tipo_atendimento',
-                      parceiro = '$parceiro',
-                      contato_parceiro = '$contato_parceiro',
-                      tipo_agenda = '$tipo_agenda',
-                      agenda_flexivel = '$agenda_flexivel'
-                      WHERE id = '$id'";
-            mysqli_query($conn, $query);
-
+            $query = "UPDATE turma SET curso_id = $curso_id, tipo = '$tipo', periodo = '$periodo', data_inicio = '$data_inicio', data_fim = '$data_fim', ambiente_id = $ambiente_id, sigla = '$sigla', vagas = $vagas, local = '$local', dias_semana = '$dias_semana_str', horario_inicio = '$horario_inicio', horario_fim = '$horario_fim', docente_id1 = $docente_id1, docente_id2 = $docente_id2, docente_id3 = $docente_id3, docente_id4 = $docente_id4, tipo_custeio = '$tipo_custeio', previsao_despesa = $previsao_despesa, valor_turma = $valor_turma, numero_proposta = '$numero_proposta', tipo_atendimento = '$tipo_atendimento', parceiro = '$parceiro', contato_parceiro = '$contato_parceiro', tipo_agenda = '$tipo_agenda', agenda_flexivel = '$agenda_flexivel' WHERE id = '$id'";
+            if (!mysqli_query($conn, $query)) {
+                mysqli_rollback($conn);
+                handle_response($conn, false, "Erro ao atualizar turma: " . mysqli_error($conn), "", $is_ajax);
+            }
             dispararNotificacaoGlobal($conn, 'edicao_turma', 'Turma Atualizada', "A turma $display_nome ($periodo) teve seus dados atualizados.", BASE_URL . "/php/views/turmas.php?id=$id", ['admin', 'gestor', 'professor', 'cri']);
-
             mysqli_query($conn, "DELETE FROM agenda WHERE turma_id = '$id'");
             generateAgendaRecords($conn, $id, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_to_check, $tipo_agenda, $agenda_flexivel);
-
+            mysqli_commit($conn);
             $next_url = !empty($_POST['return_url']) ? $_POST['return_url'] : "../views/agenda_professores.php?docente_id=" . (!empty($docentes_to_check) ? $docentes_to_check[0] : '') . "&msg=updated";
             handle_response($conn, true, "Turma atualizada com sucesso", $next_url, $is_ajax);
         } else {
-            // INSERT new turma
-            $query = "INSERT INTO turma (curso_id, tipo, periodo, data_inicio, data_fim, ambiente_id, sigla, vagas, local, dias_semana, horario_inicio, horario_fim, docente_id1, docente_id2, docente_id3, docente_id4, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_agenda, agenda_flexivel) 
-                      VALUES ($curso_id, '$tipo', '$periodo', '$data_inicio', '$data_fim', $ambiente_id, '$sigla', $vagas, '$local', '$dias_semana_str', '$horario_inicio', '$horario_fim', $docente_id1, $docente_id2, $docente_id3, $docente_id4, '$tipo_custeio', $previsao_despesa, $valor_turma, '$numero_proposta', '$tipo_atendimento', '$parceiro', '$contato_parceiro', '$tipo_agenda', '$agenda_flexivel')";
-
-            mysqli_query($conn, $query);
+            // DEBUG
+            if (isset($_POST['send_email'])) {
+                // die("DEBUG: send_email=" . $_POST['send_email']);
+            }
+            $query = "INSERT INTO turma (curso_id, tipo, periodo, data_inicio, data_fim, ambiente_id, sigla, vagas, local, dias_semana, horario_inicio, horario_fim, docente_id1, docente_id2, docente_id3, docente_id4, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_agenda, agenda_flexivel) VALUES ($curso_id, '$tipo', '$periodo', '$data_inicio', '$data_fim', $ambiente_id, '$sigla', $vagas, '$local', '$dias_semana_str', '$horario_inicio', '$horario_fim', $docente_id1, $docente_id2, $docente_id3, $docente_id4, '$tipo_custeio', $previsao_despesa, $valor_turma, '$numero_proposta', '$tipo_atendimento', '$parceiro', '$contato_parceiro', '$tipo_agenda', '$agenda_flexivel')";
+            if (!mysqli_query($conn, $query)) {
+                mysqli_rollback($conn);
+                handle_response($conn, false, "Erro ao criar turma: " . mysqli_error($conn), "", $is_ajax);
+            }
             $turma_id = mysqli_insert_id($conn);
-
             dispararNotificacaoGlobal($conn, 'registro_turma', 'Nova Turma Registrada', "A turma $display_nome ($periodo) foi cadastrada no sistema.", BASE_URL . "/php/views/turmas.php?id=$turma_id", ['admin', 'gestor', 'professor', 'cri']);
-
             generateAgendaRecords($conn, $turma_id, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_to_check, $tipo_agenda, $agenda_flexivel);
 
+            if (isset($_POST['send_email']) && $_POST['send_email'] == '1') {
+                require_once __DIR__ . '/../configs/mailer.php';
+                $emails_enviados = 0;
+                foreach ($docentes_to_check as $did) {
+                    $d_res = mysqli_query($conn, "SELECT d.nome, u.email FROM docente d LEFT JOIN usuario u ON u.docente_id = d.id WHERE d.id = $did");
+                    if ($d_res && $d_row = mysqli_fetch_assoc($d_res)) {
+                        $d_email = trim($d_row['email'] ?? '');
+                        $d_nome = $d_row['nome'];
+                        if (!empty($d_email)) {
+                            $subject = "Nova Turma Atribuída: $display_nome";
+                            $body = "<h2>Olá, $d_nome!</h2><p>Uma nova turma foi atribuída...</p>";
+                            if (!sendEmail($d_email, $subject, $body)) {
+                                mysqli_rollback($conn);
+                                handle_response($conn, false, "Falha ao enviar e-mail de notificação para $d_nome ($d_email). O cadastro foi revertido.", "", $is_ajax);
+                            }
+                            $emails_enviados++;
+                        }
+                    }
+                }
+                
+                if ($emails_enviados === 0) {
+                    mysqli_rollback($conn);
+                    handle_response($conn, false, "Nenhum dos docentes selecionados possui e-mail cadastrado. Não é possível enviar a notificação solicitada.", "", $is_ajax);
+                }
+            }
+            mysqli_commit($conn);
             $next_url = !empty($_POST['return_url']) ? $_POST['return_url'] : "../views/agenda_professores.php?docente_id=" . (!empty($docentes_to_check) ? $docentes_to_check[0] : '') . "&msg=created";
             handle_response($conn, true, "Turma criada com sucesso", $next_url, $is_ajax);
         }
     }
-
     exit;
 }
 

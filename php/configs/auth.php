@@ -94,6 +94,15 @@ function isCRI()
 }
 
 /**
+ * Check if the current user is a secretaria.
+ * @return bool
+ */
+function isSecretaria()
+{
+    return ($_SESSION['user_role'] ?? '') === 'secretaria';
+}
+
+/**
  * Get the current user's name.
  * @return string
  */
@@ -127,7 +136,7 @@ function getUserDocenteId()
  */
 function can_edit()
 {
-    // CRI cannot edit classes or approve, only reserve
+    // CRI and Secretaria cannot edit classes or approve, only reserve (CRI) or read-only (Secretaria)
     return isAdmin() || isGestor();
 }
 
@@ -137,6 +146,7 @@ function can_edit()
  */
 function can_reserve()
 {
+    // Secretaria cannot reserve, only admin, gestor and CRI
     return isAdmin() || isGestor() || isCRI();
 }
 

@@ -40,18 +40,20 @@ switch ($action) {
             exit;
         }
 
-        // Gestor can ONLY create CRI
+        // Gestor can ONLY create CRI or Secretaria
         if ($user_role === 'gestor') {
-            $role = 'cri';
+            if ($role !== 'cri' && $role !== 'secretaria') {
+                $role = 'cri';
+            }
         }
 
         // Sanitize role
-        if (!in_array($role, ['admin', 'gestor', 'professor', 'cri'])) {
+        if (!in_array($role, ['admin', 'gestor', 'professor', 'cri', 'secretaria'])) {
             $role = 'professor';
         }
 
-        // Gestores can only create CRI
-        if ($user_role === 'gestor' && $role !== 'cri') {
+        // Gestores can only create CRI or Secretaria
+        if ($user_role === 'gestor' && $role !== 'cri' && $role !== 'secretaria') {
             $role = 'cri';
         }
 
@@ -77,6 +79,20 @@ switch ($action) {
 
         // Hash default password
         $hash = password_hash('senaisp', PASSWORD_BCRYPT);
+
+        // Check if docente is already linked
+        if ($docente_id) {
+            $stmt = $conn->prepare("SELECT id FROM usuario WHERE docente_id = ?");
+            $stmt->bind_param('i', $docente_id);
+            $stmt->execute();
+            if ($stmt->get_result()->num_rows > 0) {
+                $_SESSION['usuarios_error'] = 'Este docente já está vinculado a outro usuário.';
+                $stmt->close();
+                header('Location: ../views/usuarios.php');
+                exit;
+            }
+            $stmt->close();
+        }
 
         $stmt = $conn->prepare("INSERT INTO usuario (nome, email, senha, role, docente_id, obrigar_troca_senha) VALUES (?, ?, ?, ?, ?, 1)");
         $stmt->bind_param('ssssi', $nome, $email, $hash, $role, $docente_id);
@@ -109,7 +125,7 @@ switch ($action) {
         }
 
         // Sanitize role
-        if (!in_array($role, ['admin', 'gestor', 'professor', 'cri'])) {
+        if (!in_array($role, ['admin', 'gestor', 'professor', 'cri', 'secretaria'])) {
             $role = 'professor';
         }
 
@@ -124,6 +140,20 @@ switch ($action) {
             exit;
         }
         $stmt->close();
+
+        // Check if docente is already linked (exclude current user)
+        if ($docente_id) {
+            $stmt = $conn->prepare("SELECT id FROM usuario WHERE docente_id = ? AND id != ?");
+            $stmt->bind_param('ii', $docente_id, $id);
+            $stmt->execute();
+            if ($stmt->get_result()->num_rows > 0) {
+                $_SESSION['usuarios_error'] = 'Este docente já está vinculado a outro usuário.';
+                $stmt->close();
+                header('Location: ../views/usuarios.php');
+                exit;
+            }
+            $stmt->close();
+        }
 
         $stmt = $conn->prepare("UPDATE usuario SET nome = ?, email = ?, role = ?, docente_id = ? WHERE id = ?");
         $stmt->bind_param('sssii', $nome, $email, $role, $docente_id, $id);

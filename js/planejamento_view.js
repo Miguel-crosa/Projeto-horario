@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Refresh icons when dates change in modal
     document.addEventListener('change', (e) => {
         if (e.target.name === 'data_inicio' || e.target.name === 'data_fim') {
-            if (docenteSelect.value) updatePeriodStatus(docenteSelect.value);
+            if (docenteSelect && docenteSelect.value) updatePeriodStatus(docenteSelect.value);
         }
     });
 

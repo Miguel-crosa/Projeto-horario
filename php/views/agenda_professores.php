@@ -296,12 +296,12 @@ $params_search = $search_name ? ["%$search_name%"] : [];
 
 $filter_docente = isset($_GET['docente_id']) && (int) $_GET['docente_id'] > 0 ? (int) $_GET['docente_id'] : 0;
 
-// Se for professor, força o filtro para o seu próprio docente_id
+// Se for professor, força o filtro para o seu próprio docente_id e IMPEDE troca via GET
 if (isProfessor()) {
     $logged_did = getUserDocenteId();
     if ($logged_did) {
         $filter_docente = (int)$logged_did;
-        // Força limites para 1 em modos que mostram lista
+        $_GET['docente_id'] = $filter_docente; // Sobrescreve GET para garantir consistência
         if ($view_mode === 'timeline') {
             $limit = 1;
         }
@@ -481,9 +481,11 @@ $all_especialidades_modal = $mysqli->query("SELECT DISTINCT area_conhecimento as
 $can_reserve = can_reserve();
 
 // Verifica o nível de permissão; se for gestor/admin, exibe a lista completa de profissionais.
-$is_prof = false;
+$is_prof_logged = isProfessor();
 $logged_docente_id = getUserDocenteId();
-if ($is_prof && $logged_docente_id) {
+
+if ($is_prof_logged && $logged_docente_id) {
+    // Se for professor, ele SÓ PODE buscar a si mesmo
     $docentes = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome, area_conhecimento FROM docente WHERE id = $logged_docente_id"), MYSQLI_ASSOC);
 } else {
     $docentes = mysqli_fetch_all(mysqli_query($conn, "SELECT id, nome, area_conhecimento FROM docente ORDER BY area_conhecimento ASC, nome ASC"), MYSQLI_ASSOC);

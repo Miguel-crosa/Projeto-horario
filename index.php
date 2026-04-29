@@ -281,169 +281,175 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                 <h2><i class="bi bi-speedometer2"></i> Dashboard — Gestão Escolar SENAI</h2><br>
                 <p>Visão geral do sistema com turmas, professores, ambientes e agenda.</p>
             </div>
-            <div class="header-action-group"
-                style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
-                <button class="btn btn-primary" onclick="initMetasAH()"
-                    style="background: #00897b; border-color: #00796b; box-shadow: 0 4px 10px rgba(0, 137, 123, 0.2); font-weight: 700;">
-                    <i class="fas fa-bullseye"></i> <span class="hide-mobile">META A/H</span><span
-                        class="show-mobile">META</span>
-                </button>
-                <button class="btn btn-primary" onclick="openProducaoModal()"
-                    style="background: #1976d2; border-color: #1565c0; box-shadow: 0 4px 10px rgba(25, 118, 210, 0.2); font-weight: 700;">
-                    <i class="fas fa-chart-line"></i> <span class="hide-mobile">Produção Aluno/Hora</span><span
-                        class="show-mobile">Prod. A/H</span>
-                </button>
-                <button class="btn btn-primary" onclick="openRessarcimentoModal()"
-                    style="background: #388e3c; border-color: #2e7d32; box-shadow: 0 4px 10px rgba(56, 142, 60, 0.2); font-weight: 700;">
-                    <i class="fas fa-hand-holding-usd"></i> <span class="hide-mobile">Métricas de
-                        Ressarcimento</span><span class="show-mobile">Ressarc.</span>
-                </button>
-                <div class="action-divider"
-                    style="width: 1px; height: 30px; background: var(--border-color); margin: 0 5px;"></div>
-                <?php if (!isCRI()): ?>
-                    <button class="btn btn-primary" onclick="openSubstituicaoModal()"
-                        style="background: #1565c0; border-color: #0d47a1; box-shadow: 0 4px 10px rgba(21, 101, 192, 0.2); font-weight: 700;">
-                        <i class="fas fa-user-friends"></i> <span class="hide-mobile">Professores
-                            Disponíveis</span><span class="show-mobile">Subst.</span>
-                    </button>
-                <?php endif; ?>
-                <button class="btn btn-primary" onclick="openDespesasModal()"
-                    style="background: #e65100; border-color: #ef6c00; box-shadow: 0 4px 10px rgba(230, 81, 0, 0.2); font-weight: 700;">
-                    <i class="fas fa-money-bill-wave"></i> <span class="hide-mobile">Previsão de
-                        Despesas</span><span class="show-mobile">Despesas</span>
-                </button>
-                <button class="btn btn-primary" onclick="openReportSelectProfModal()"
-                    style="background: #607d8b; border-color: #455a64; box-shadow: 0 4px 10px rgba(96, 125, 139, 0.2); font-weight: 700;">
-                    <i class="fas fa-file-invoice"></i> <span class="hide-mobile">Relatório Mensal</span><span
-                        class="show-mobile">Relat.</span>
-                </button>
-                <button class="btn btn-primary" onclick="openWorkloadModal()"
-                    style="background: #6a1b9a; border-color: #4a148c; box-shadow: 0 4px 10px rgba(106, 27, 154, 0.2); font-weight: 700;">
-                    <i class="fas fa-business-time"></i> <span class="hide-mobile">Carga Horária
-                        Docentes</span><span class="show-mobile">Carga H.</span>
-                </button>
             </div>
+            <?php if (!isSecretaria()): ?>
+                <div class="header-action-group"
+                    style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                    <button class="btn btn-primary" onclick="initMetasAH()"
+                        style="background: #00897b; border-color: #00796b; box-shadow: 0 4px 10px rgba(0, 137, 123, 0.2); font-weight: 700;">
+                        <i class="fas fa-bullseye"></i> <span class="hide-mobile">META A/H</span><span
+                            class="show-mobile">META</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="openProducaoModal()"
+                        style="background: #1976d2; border-color: #1565c0; box-shadow: 0 4px 10px rgba(25, 118, 210, 0.2); font-weight: 700;">
+                        <i class="fas fa-chart-line"></i> <span class="hide-mobile">Produção Aluno/Hora</span><span
+                            class="show-mobile">Prod. A/H</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="openRessarcimentoModal()"
+                        style="background: #388e3c; border-color: #2e7d32; box-shadow: 0 4px 10px rgba(56, 142, 60, 0.2); font-weight: 700;">
+                        <i class="fas fa-hand-holding-usd"></i> <span class="hide-mobile">Métricas de
+                            Ressarcimento</span><span class="show-mobile">Ressarc.</span>
+                    </button>
+                    <div class="action-divider"
+                        style="width: 1px; height: 30px; background: var(--border-color); margin: 0 5px;"></div>
+                    <?php if (!isCRI()): ?>
+                        <button class="btn btn-primary" onclick="openSubstituicaoModal()"
+                            style="background: #1565c0; border-color: #0d47a1; box-shadow: 0 4px 10px rgba(21, 101, 192, 0.2); font-weight: 700;">
+                            <i class="fas fa-user-friends"></i> <span class="hide-mobile">Professores
+                                Disponíveis</span><span class="show-mobile">Subst.</span>
+                        </button>
+                    <?php endif; ?>
+                    <button class="btn btn-primary" onclick="openDespesasModal()"
+                        style="background: #e65100; border-color: #ef6c00; box-shadow: 0 4px 10px rgba(230, 81, 0, 0.2); font-weight: 700;">
+                        <i class="fas fa-money-bill-wave"></i> <span class="hide-mobile">Previsão de
+                            Despesas</span><span class="show-mobile">Despesas</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="openReportSelectProfModal()"
+                        style="background: #607d8b; border-color: #455a64; box-shadow: 0 4px 10px rgba(96, 125, 139, 0.2); font-weight: 700;">
+                        <i class="fas fa-file-invoice"></i> <span class="hide-mobile">Relatório Mensal</span><span
+                            class="show-mobile">Relat.</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="openWorkloadModal()"
+                        style="background: #6a1b9a; border-color: #4a148c; box-shadow: 0 4px 10px rgba(106, 27, 154, 0.2); font-weight: 700;">
+                        <i class="fas fa-business-time"></i> <span class="hide-mobile">Carga Horária
+                            Docentes</span><span class="show-mobile">Carga H.</span>
+                    </button>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
-    <div class="stats-grid">
-        <?php
-        $stats = [
-            ['Professores', $count_prof, 'fa-chalkboard-teacher', 'var(--primary-red)', 'php/views/professores.php', 'Gerenciar'],
-            ['Ambientes', $count_salas, 'fa-door-open', '#1976d2', 'php/views/salas.php', 'Gerenciar'],
-            ['Turmas', $count_turmas, 'fa-users', '#388e3c', 'php/views/turmas.php', 'Gerenciar'],
-            ['Cursos', $count_cursos, 'fa-graduation-cap', '#ff8f00', 'php/views/cursos.php', 'Gerenciar'],
-            ['Aulas Agendadas', $count_aulas, 'fa-calendar-check', '#9c27b0', 'php/views/agenda_professores.php', 'Visualizar'],
-        ];
-        $i = 1;
-        foreach ($stats as $s):
-            $link_url = $prefix . $s[4];
-            $is_restricted = isCRI() && in_array($s[4], ['php/views/professores.php', 'php/views/salas.php', 'php/views/turmas.php', 'php/views/cursos.php']);
-            $click_handler = $is_restricted ? '' : "onclick=\"location.href='$link_url'\"";
-            $cursor_style = $is_restricted ? 'cursor: default;' : 'cursor: pointer;';
-            ?>
-            <div class="stat-card animate-fade-in delay-<?= $i++ ?> shimmer-hover" <?= $click_handler ?> style="
-            <?= $cursor_style ?>">
-                <div class="stat-icon" style="background: <?= $s[3] ?>1a; color: <?= $s[3] ?>;">
-                    <i class="fas <?= $s[2] ?>"></i>
+    <?php if (!isSecretaria()): ?>
+        <div class="stats-grid">
+            <?php
+            $stats = [
+                ['Professores', $count_prof, 'fa-chalkboard-teacher', 'var(--primary-red)', 'php/views/professores.php', 'Gerenciar'],
+                ['Ambientes', $count_salas, 'fa-door-open', '#1976d2', 'php/views/salas.php', 'Gerenciar'],
+                ['Turmas', $count_turmas, 'fa-users', '#388e3c', 'php/views/turmas.php', 'Gerenciar'],
+                ['Cursos', $count_cursos, 'fa-graduation-cap', '#ff8f00', 'php/views/cursos.php', 'Gerenciar'],
+                ['Aulas Agendadas', $count_aulas, 'fa-calendar-check', '#9c27b0', 'php/views/agenda_professores.php', 'Visualizar'],
+            ];
+            $i = 1;
+            foreach ($stats as $s):
+                $link_url = $prefix . $s[4];
+                $is_restricted = isCRI() && in_array($s[4], ['php/views/professores.php', 'php/views/salas.php', 'php/views/turmas.php', 'php/views/cursos.php']);
+                $click_handler = $is_restricted ? '' : "onclick=\"location.href='$link_url'\"";
+                $cursor_style = $is_restricted ? 'cursor: default;' : 'cursor: pointer;';
+                ?>
+                <div class="stat-card animate-fade-in delay-<?= $i++ ?> shimmer-hover" <?= $click_handler ?> style="
+                <?= $cursor_style ?>">
+                    <div class="stat-icon" style="background: <?= $s[3] ?>1a; color: <?= $s[3] ?>;">
+                        <i class="fas <?= $s[2] ?>"></i>
+                    </div>
+                    <div class="stat-number">
+                        <?= $s[1] ?>
+                    </div>
+                    <div class="stat-label">
+                        <?= $s[0] ?>
+                    </div>
+                    <?php if (!$is_restricted): ?>
+                        <a href="<?= $link_url ?>" class="stat-link" style="color: <?= $s[3] ?>;">
+                            <?= $s[5] ?> <i class="fas fa-arrow-right"></i>
+                        </a>
+                    <?php endif; ?>
                 </div>
-                <div class="stat-number">
-                    <?= $s[1] ?>
-                </div>
-                <div class="stat-label">
-                    <?= $s[0] ?>
-                </div>
-                <?php if (!$is_restricted): ?>
-                    <a href="<?= $link_url ?>" class="stat-link" style="color: <?= $s[3] ?>;">
-                        <?= $s[5] ?> <i class="fas fa-arrow-right"></i>
-                    </a>
-                <?php endif; ?>
-            </div>
-        <?php endforeach; ?>
-    </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
 
-    <div class="card"
-        style="margin-bottom: 20px; background: var(--card-bg); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px;">
-        <form method="GET" action="index.php" id="dashboard-filter-form"
-            style="display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap;">
-            <div style="display: flex; gap: 15px; align-items: flex-end; flex: 1; flex-wrap: wrap;">
-
-
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <label
-                        style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Professor
-                        Selecionado</label>
-                    <button type="button" class="btn btn-primary" id="btn-selecionar-professor"
-                        style="background: <?= !empty($filtro_docente_id) ? '#2e7d32' : '#ed1c16' ?>; border-color: <?= !empty($filtro_docente_id) ? '#1b5e20' : '#ed1c16' ?>; padding: 10px 24px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; gap: 10px; height: 42px;">
-                        <i class="fas fa-user-plus"></i>
-                        <span id="btn-prof-label">
-                            <?= !empty($selected_prof_nome) ? htmlspecialchars($selected_prof_nome) : 'Selecionar Professor' ?>
-                        </span>
-                    </button>
-                    <input type="hidden" name="docente_id" id="dashboard-docente-id"
-                        value="<?= htmlspecialchars($filtro_docente_id) ?>">
-                </div>
-
-                <?php if (!empty($filtro_docente_id)): ?>
-                    <button type="button" onclick="clearTeacherFilter()" class="btn btn-export"
-                        style="height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 0 15px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
-                        <i class="fas fa-times"></i> Limpar Seleção
-                    </button>
-
-                    <?php
-                    $hoje = date('Y-m-d');
-                    $fim_ano = date('Y-12-31');
-                    $inicio_ano = date('Y-01-01');
-                    $total_ano = calculateTeacherYearlyWorkload($conn, (int) $filtro_docente_id, $inicio_ano, $fim_ano);
-                    $saldo_remanescente = calculateTeacherYearlyWorkload($conn, (int) $filtro_docente_id, $hoje, $fim_ano);
-                    $porcentagem = ($total_ano > 0) ? round(($saldo_remanescente / $total_ano) * 100) : 0;
-                    ?>
-                    <div id="individual-workload-container"
-                        style="display: flex; flex-direction: column; gap: 4px; min-width: 200px; padding-left: 10px; border-left: 2px solid var(--border-color);">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 700; color: var(--text-color);">
-                            <span>Horas Disponíveis (Ano)</span>
-                            <span style="color: #2e7d32; margin-left: 10px;">
-                                <?= round($saldo_remanescente - calculateConsumedHours($conn, (int) $filtro_docente_id, $hoje, $fim_ano)) ?>h
-                                /
-                                <?= round($total_ano) ?>h
+    <?php if (!isSecretaria()): ?>
+        <div class="card"
+            style="margin-bottom: 20px; background: var(--card-bg); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px;">
+            <form method="GET" action="index.php" id="dashboard-filter-form"
+                style="display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 15px; align-items: flex-end; flex: 1; flex-wrap: wrap;">
+    
+    
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <label
+                            style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Professor
+                            Selecionado</label>
+                        <button type="button" class="btn btn-primary" id="btn-selecionar-professor"
+                            style="background: <?= !empty($filtro_docente_id) ? '#2e7d32' : '#ed1c16' ?>; border-color: <?= !empty($filtro_docente_id) ? '#1b5e20' : '#ed1c16' ?>; padding: 10px 24px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; gap: 10px; height: 42px;">
+                            <i class="fas fa-user-plus"></i>
+                            <span id="btn-prof-label">
+                                <?= !empty($selected_prof_nome) ? htmlspecialchars($selected_prof_nome) : 'Selecionar Professor' ?>
                             </span>
-                        </div>
-                        <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden; position: relative;"
-                            title="<?= $porcentagem ?>% de carga horária disponível (Cálculo deduz feriados, férias, planejamento e afastamentos)">
+                        </button>
+                        <input type="hidden" name="docente_id" id="dashboard-docente-id"
+                            value="<?= htmlspecialchars($filtro_docente_id) ?>">
+                    </div>
+    
+                    <?php if (!empty($filtro_docente_id)): ?>
+                        <button type="button" onclick="clearTeacherFilter()" class="btn btn-export"
+                            style="height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 0 15px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+                            <i class="fas fa-times"></i> Limpar Seleção
+                        </button>
+    
+                        <?php
+                        $hoje = date('Y-m-d');
+                        $fim_ano = date('Y-12-31');
+                        $inicio_ano = date('Y-01-01');
+                        $total_ano = calculateTeacherYearlyWorkload($conn, (int) $filtro_docente_id, $inicio_ano, $fim_ano);
+                        $saldo_remanescente = calculateTeacherYearlyWorkload($conn, (int) $filtro_docente_id, $hoje, $fim_ano);
+                        $porcentagem = ($total_ano > 0) ? round(($saldo_remanescente / $total_ano) * 100) : 0;
+                        ?>
+                        <div id="individual-workload-container"
+                            style="display: flex; flex-direction: column; gap: 4px; min-width: 200px; padding-left: 10px; border-left: 2px solid var(--border-color);">
                             <div
-                                style="width: <?= $porcentagem ?>%; height: 100%; background: linear-gradient(90deg, #2e7d32, #4caf50); transition: width 1s ease-in-out;">
+                                style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 700; color: var(--text-color);">
+                                <span>Horas Disponíveis (Ano)</span>
+                                <span style="color: #2e7d32; margin-left: 10px;">
+                                    <?= round($saldo_remanescente - calculateConsumedHours($conn, (int) $filtro_docente_id, $hoje, $fim_ano)) ?>h
+                                    /
+                                    <?= round($total_ano) ?>h
+                                </span>
+                            </div>
+                            <div style="width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden; position: relative;"
+                                title="<?= $porcentagem ?>% de carga horária disponível (Cálculo deduz feriados, férias, planejamento e afastamentos)">
+                                <div
+                                    style="width: <?= $porcentagem ?>%; height: 100%; background: linear-gradient(90deg, #2e7d32, #4caf50); transition: width 1s ease-in-out;">
+                                </div>
                             </div>
                         </div>
-                    </div>
-                <?php endif; ?>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
-                <label
-                    style="font-weight: 700; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Navegação
-                    por Mês</label>
-                <div
-                    style="display: flex; align-items: center; gap: 15px; background: var(--bg-color); padding: 5px 10px; border-radius: 50px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); height: 42px;">
-                    <button type="button" onclick="navigateDashboardMonth(-1)" class="month-btn-nav"
-                        style="width:30px;height:30px; color:var(--text-color); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i
-                            class="fas fa-chevron-left" style="font-size:0.75rem;"></i></button>
-                    <span id="dashboard-month-label"
-                        style="font-weight: 800; font-size: 0.9rem; min-width: 140px; text-align: center; text-transform: capitalize; color: var(--text-color);">
-                        <?= $meses_nomes_completos[(int) date('m', strtotime($mes_sel . '-01')) - 1] . ' ' . date('Y', strtotime($mes_sel . '-01')) ?>
-                    </span>
-                    <button type="button" onclick="navigateDashboardMonth(1)" class="month-btn-nav"
-                        style="width:30px;height:30px; color:var(--text-color); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i
-                            class="fas fa-chevron-right" style="font-size:0.75rem;"></i></button>
+                    <?php endif; ?>
                 </div>
-                <input type="hidden" name="mes_sel" id="mes_sel_hidden" value="<?= $mes_sel ?>">
-                <input type="hidden" name="proximas_page" id="proximas_page_hidden" value="<?= $proximas_page ?>">
-            </div>
-        </form>
-    </div>
+    
+                <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
+                    <label
+                        style="font-weight: 700; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Navegação
+                        por Mês</label>
+                    <div
+                        style="display: flex; align-items: center; gap: 15px; background: var(--bg-color); padding: 5px 10px; border-radius: 50px; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.05); height: 42px;">
+                        <button type="button" onclick="navigateDashboardMonth(-1)" class="month-btn-nav"
+                            style="width:30px;height:30px; color:var(--text-color); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i
+                                class="fas fa-chevron-left" style="font-size:0.75rem;"></i></button>
+                        <span id="dashboard-month-label"
+                            style="font-weight: 800; font-size: 0.9rem; min-width: 140px; text-align: center; text-transform: capitalize; color: var(--text-color);">
+                            <?= $meses_nomes_completos[(int) date('m', strtotime($mes_sel . '-01')) - 1] . ' ' . date('Y', strtotime($mes_sel . '-01')) ?>
+                        </span>
+                        <button type="button" onclick="navigateDashboardMonth(1)" class="month-btn-nav"
+                            style="width:30px;height:30px; color:var(--text-color); border:none; display: flex; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 50%; border: 1px solid var(--border-color); cursor:pointer; transition: all 0.2s;"><i
+                                class="fas fa-chevron-right" style="font-size:0.75rem;"></i></button>
+                    </div>
+                    <input type="hidden" name="mes_sel" id="mes_sel_hidden" value="<?= $mes_sel ?>">
+                    <input type="hidden" name="proximas_page" id="proximas_page_hidden" value="<?= $proximas_page ?>">
+                </div>
+            </form>
+        </div>
+    <?php endif; ?>
 
-    <!-- Filtros por Área -->
-    <?php if (!empty($areas_list)): ?>
+    <?php if (!isSecretaria() && !empty($areas_list)): ?>
         <div class="area-filter-bar"
             style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; padding: 16px 20px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; align-items: center;">
             <span
@@ -476,322 +482,324 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
         </div>
     <?php endif; ?>
 
-    <div class="dashboard-grid">
-        <div class="dash-section allow-overflow">
-            <div class="dash-section-header dash-section-header-sticky"
-                style="justify-content: space-between; display: flex; align-items: center; padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
-                <h3
-                    style="display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1.1rem; flex-wrap: wrap;">
-                    <i class="fas fa-users" style="color: var(--primary-red);"></i> Resumo Anual de Horários
-                    <div
-                        style="display: inline-flex; align-items: center; gap: 8px; margin-left: 15px; background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 20px;">
-                        <button type="button" onclick="navigateDashboardMonth(-12)" title="Ano Anterior"
-                            style="border: none; background: transparent; cursor: pointer; color: var(--text-color);"><i
-                                class="fas fa-chevron-left" style="font-size: 0.8rem;"></i></button>
-                        <span style="font-weight: 800; font-size: 0.9rem; color: var(--primary-red);">
-                            <?= $ano_atual ?>
-                        </span>
-                        <button type="button" onclick="navigateDashboardMonth(12)" title="Próximo Ano"
-                            style="border: none; background: transparent; cursor: pointer; color: var(--text-color);"><i
-                                class="fas fa-chevron-right" style="font-size: 0.8rem;"></i></button>
-                    </div>
-
-                    <?php if ($total_pages_prof > 1): ?>
-                        <div class="prof-pagination"
-                            style="display: inline-flex; align-items: center; gap: 10px; margin-left: 15px;">
-                            <a href="?prof_page=<?= max(1, $prof_page - 1) ?>&filtro_area=<?= urlencode($filtro_area) ?>&mes_sel=<?= urlencode($mes_sel) ?>&docente_id=<?= urlencode($filtro_docente_id) ?>#resumo-anual"
-                                title="Anterior"
-                                style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 50%; color: var(--text-color); text-decoration: none; <?= $prof_page <= 1 ? 'opacity:0.3; pointer-events:none;' : '' ?>"><i
-                                    class="fas fa-arrow-left" style="font-size: 0.7rem;"></i></a>
-
-                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700;">
-                                <?= $prof_page ?> /
-                                <?= $total_pages_prof ?>
+    <div class="dashboard-grid" <?= isSecretaria() ? 'style="grid-template-columns: 1fr; max-width: 1400px; margin: 0 auto;"' : '' ?>>
+        <?php if (!isSecretaria()): ?>
+            <div class="dash-section allow-overflow">
+                <div class="dash-section-header dash-section-header-sticky"
+                    style="justify-content: space-between; display: flex; align-items: center; padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                    <h3
+                        style="display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1.1rem; flex-wrap: wrap;">
+                        <i class="fas fa-users" style="color: var(--primary-red);"></i> Resumo Anual de Horários
+                        <div
+                            style="display: inline-flex; align-items: center; gap: 8px; margin-left: 15px; background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 20px;">
+                            <button type="button" onclick="navigateDashboardMonth(-12)" title="Ano Anterior"
+                                style="border: none; background: transparent; cursor: pointer; color: var(--text-color);"><i
+                                    class="fas fa-chevron-left" style="font-size: 0.8rem;"></i></button>
+                            <span style="font-weight: 800; font-size: 0.9rem; color: var(--primary-red);">
+                                <?= $ano_atual ?>
                             </span>
-
-                            <a href="?prof_page=<?= min($total_pages_prof, $prof_page + 1) ?>&filtro_area=<?= urlencode($filtro_area) ?>&mes_sel=<?= urlencode($mes_sel) ?>&docente_id=<?= urlencode($filtro_docente_id) ?>#resumo-anual"
-                                title="Próximo"
-                                style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 50%; color: var(--text-color); text-decoration: none; <?= $prof_page >= $total_pages_prof ? 'opacity:0.3; pointer-events:none;' : '' ?>"><i
-                                    class="fas fa-arrow-right" style="font-size: 0.7rem;"></i></a>
+                            <button type="button" onclick="navigateDashboardMonth(12)" title="Próximo Ano"
+                                style="border: none; background: transparent; cursor: pointer; color: var(--text-color);"><i
+                                    class="fas fa-chevron-right" style="font-size: 0.8rem;"></i></button>
                         </div>
-                    <?php endif; ?>
-                </h3>
-                <div style="display: flex; gap: 15px; font-size: 0.8rem; font-weight: 600;">
-                    <span style="display: flex; align-items: center; gap: 5px; color: #4caf50;"><span
-                            style="width: 10px; height: 10px; background: #4caf50; display: inline-block; border-radius: 2px;"></span>
-                        Livre</span>
-                    <span style="display: flex; align-items: center; gap: 5px; color: #e53935;"><span
-                            style="width: 10px; height: 10px; background: #e53935; display: inline-block; border-radius: 2px;"></span>
-                        Ocupado</span>
-                    <span style="display: flex; align-items: center; gap: 5px; color: #ff8f00;"><span
-                            style="width: 10px; height: 10px; background: #ff8f00; display: inline-block; border-radius: 2px;"></span>
-                        Reservado</span>
-                    <span style="display: flex; align-items: center; gap: 5px; color: #1565c0;"><span
-                            style="width: 10px; height: 10px; background: #1565c0; display: inline-block; border-radius: 2px;"></span>
-                        Feriado / Férias</span>
-                    <span style="display: flex; align-items: center; gap: 5px; color: #555;"><span
-                            style="width: 10px; height: 10px; background: #555; display: inline-block; border-radius: 2px;"></span>
-                        Indisponível</span>
-                </div>
-            </div>
-            <div class="dash-section-body" style="padding: 0;">
-                <?php if (empty($prof_resumo)): ?>
-                    <div class="td-empty" style="padding: 40px; text-align: center; color: var(--text-muted);">
-                        <i class="fas fa-search"
-                            style="font-size: 2rem; display: block; margin-bottom: 10px; opacity: .4;"></i>
-                        <?php if (empty($where_clauses)): ?>
-                            Use o filtro acima para pesquisar um professor e ver seu resumo anual.
-                        <?php else: ?>
-                            Nenhum professor encontrado com esses critérios.
+
+                        <?php if ($total_pages_prof > 1): ?>
+                            <div class="prof-pagination"
+                                style="display: inline-flex; align-items: center; gap: 10px; margin-left: 15px;">
+                                <a href="?prof_page=<?= max(1, $prof_page - 1) ?>&filtro_area=<?= urlencode($filtro_area) ?>&mes_sel=<?= urlencode($mes_sel) ?>&docente_id=<?= urlencode($filtro_docente_id) ?>#resumo-anual"
+                                    title="Anterior"
+                                    style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 50%; color: var(--text-color); text-decoration: none; <?= $prof_page <= 1 ? 'opacity:0.3; pointer-events:none;' : '' ?>"><i
+                                        class="fas fa-arrow-left" style="font-size: 0.7rem;"></i></a>
+
+                                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700;">
+                                    <?= $prof_page ?> /
+                                    <?= $total_pages_prof ?>
+                                </span>
+
+                                <a href="?prof_page=<?= min($total_pages_prof, $prof_page + 1) ?>&filtro_area=<?= urlencode($filtro_area) ?>&mes_sel=<?= urlencode($mes_sel) ?>&docente_id=<?= urlencode($filtro_docente_id) ?>#resumo-anual"
+                                    title="Próximo"
+                                    style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 50%; color: var(--text-color); text-decoration: none; <?= $prof_page >= $total_pages_prof ? 'opacity:0.3; pointer-events:none;' : '' ?>"><i
+                                        class="fas fa-arrow-right" style="font-size: 0.7rem;"></i></a>
+                            </div>
                         <?php endif; ?>
+                    </h3>
+                    <div style="display: flex; gap: 15px; font-size: 0.8rem; font-weight: 600;">
+                        <span style="display: flex; align-items: center; gap: 5px; color: #4caf50;"><span
+                                style="width: 10px; height: 10px; background: #4caf50; display: inline-block; border-radius: 2px;"></span>
+                            Livre</span>
+                        <span style="display: flex; align-items: center; gap: 5px; color: #e53935;"><span
+                                style="width: 10px; height: 10px; background: #e53935; display: inline-block; border-radius: 2px;"></span>
+                            Ocupado</span>
+                        <span style="display: flex; align-items: center; gap: 5px; color: #ff8f00;"><span
+                                style="width: 10px; height: 10px; background: #ff8f00; display: inline-block; border-radius: 2px;"></span>
+                            Reservado</span>
+                        <span style="display: flex; align-items: center; gap: 5px; color: #1565c0;"><span
+                                style="width: 10px; height: 10px; background: #1565c0; display: inline-block; border-radius: 2px;"></span>
+                            Feriado / Férias</span>
+                        <span style="display: flex; align-items: center; gap: 5px; color: #555;"><span
+                                style="width: 10px; height: 10px; background: #555; display: inline-block; border-radius: 2px;"></span>
+                            Indisponível</span>
                     </div>
-                <?php else: ?>
-                    <div class="prof-anual-list" id="resumo-anual"
-                        style="display: flex; flex-direction: column; gap: 35px;">
-                        <?php foreach ($prof_resumo as $pr): ?>
-                            <div class="prof-anual-item" id="prof-card-<?= $pr['id'] ?>"
-                                style="background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow-md); transition: var(--transition-premium); position: relative;">
-                                <div
-                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                    <div style="font-weight: 800; font-size: 1rem; text-transform: uppercase;">
-                                        <a href="javascript:void(0)"
-                                            onclick="openTeacherAgenda(<?= $pr['id'] ?>, '<?= addslashes($pr['nome']) ?>', '<?= $mes_sel ?>')"
-                                            style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
-                                            <?= htmlspecialchars($pr['nome']) ?>
-                                            <i class="fas fa-external-link-alt" style="font-size: 0.7rem; opacity: 0.5;"></i>
-                                        </a>
-                                        <span
-                                            style="color: #888; font-weight: normal; font-size: 0.85rem; text-transform: none;">·
-                                            <?= htmlspecialchars($pr['area']) ?>
-                                        </span>
-                                    </div>
-                                    <div style="display: flex; align-items: center; gap: 15px;">
-                                        <button class="btn-icon-only" onclick="toggleFocusMode('prof-card-<?= $pr['id'] ?>')"
-                                            title="Modo Foco"
-                                            style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 5px;">
-                                            <i class="fas fa-expand-alt"></i>
-                                        </button>
-                                        <span style="color: #4caf50; font-weight: 700; font-size: 0.9rem;">
-                                            <?= $pr['dias_livres'] ?> dias livres
-                                        </span>
-                                        <i class="far fa-calendar-alt" style="color: #888;"></i>
-                                    </div>
-                                </div>
-
-                                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                                    <?php
-                                    foreach ($pr['free_periods'] as $per => $is_free):
-                                        if (!$is_free)
-                                            continue;
-                                        $icon = ($per == 'Manhã') ? 'fa-sun' : (($per == 'Tarde') ? 'fa-cloud-sun' : 'fa-moon');
-                                        ?>
-                                        <div
-                                            style="background: rgba(46, 125, 50, 0.1); color: #4caf50; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(46, 125, 50, 0.2);">
-                                            <i class="fas <?= $icon ?>"></i>
-                                            <?= $per ?> Livre
+                </div>
+                <div class="dash-section-body" style="padding: 0;">
+                    <?php if (empty($prof_resumo)): ?>
+                        <div class="td-empty" style="padding: 40px; text-align: center; color: var(--text-muted);">
+                            <i class="fas fa-search"
+                                style="font-size: 2rem; display: block; margin-bottom: 10px; opacity: .4;"></i>
+                            <?php if (empty($where_clauses)): ?>
+                                Use o filtro acima para pesquisar um professor e ver seu resumo anual.
+                            <?php else: ?>
+                                Nenhum professor encontrado com esses critérios.
+                            <?php endif; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="prof-anual-list" id="resumo-anual"
+                            style="display: flex; flex-direction: column; gap: 35px;">
+                            <?php foreach ($prof_resumo as $pr): ?>
+                                <div class="prof-anual-item" id="prof-card-<?= $pr['id'] ?>"
+                                    style="background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow-md); transition: var(--transition-premium); position: relative;">
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                        <div style="font-weight: 800; font-size: 1rem; text-transform: uppercase;">
+                                            <a href="javascript:void(0)"
+                                                onclick="openTeacherAgenda(<?= $pr['id'] ?>, '<?= addslashes($pr['nome']) ?>', '<?= $mes_sel ?>')"
+                                                style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                                                <?= htmlspecialchars($pr['nome']) ?>
+                                                <i class="fas fa-external-link-alt" style="font-size: 0.7rem; opacity: 0.5;"></i>
+                                            </a>
+                                            <span
+                                                style="color: #888; font-weight: normal; font-size: 0.85rem; text-transform: none;">·
+                                                <?= htmlspecialchars($pr['area']) ?>
+                                            </span>
                                         </div>
-                                    <?php endforeach; ?>
-                                </div>
+                                        <div style="display: flex; align-items: center; gap: 15px;">
+                                            <button class="btn-icon-only" onclick="toggleFocusMode('prof-card-<?= $pr['id'] ?>')"
+                                                title="Modo Foco"
+                                                style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 5px;">
+                                                <i class="fas fa-expand-alt"></i>
+                                            </button>
+                                            <span style="color: #4caf50; font-weight: 700; font-size: 0.9rem;">
+                                                <?= $pr['dias_livres'] ?> dias livres
+                                            </span>
+                                            <i class="far fa-calendar-alt" style="color: #888;"></i>
+                                        </div>
+                                    </div>
 
-                                <div class="timeline-container" style="position: relative;">
-                                    <!-- Botões Navegação Paginada -->
-                                    <button
-                                        onclick="const _gridPrev = this.parentElement.querySelector('.timeline-grid'); _gridPrev.scrollBy({left: -_gridPrev.clientWidth, behavior: 'smooth'})"
-                                        class="timeline-nav-btn prev">
-                                        <i class="fas fa-chevron-left"></i>
-                                    </button>
-
-                                    <div class="timeline-grid"
-                                        style="display: flex; overflow-x: auto; background: var(--bg-color); border-radius: 12px; scroll-behavior: smooth; scroll-snap-type: x mandatory; border: 1px solid var(--border-color);">
+                                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
                                         <?php
-                                        // Agrupa o status anual do docente mês a mês
-                                        $months_data = [];
-                                        foreach ($pr['annual_status'] as $date => $data) {
-                                            $m_idx = (int) date('m', strtotime($date));
-                                            $months_data[$m_idx][$date] = $data;
-                                        }
-                                        ksort($months_data);
-
-                                        foreach ($months_data as $m_idx => $days):
-                                            $m_name = $meses_nomes_completos[$m_idx - 1];
-
-                                            // Conta os dias ocupados vs livres neste mês
-                                            $m_busy_count = 0;
-                                            $m_free_count = 0;
-                                            foreach ($days as $dk => $dd) {
-                                                if ($dd['is_sunday'])
-                                                    continue;
-
-                                                $has_busy = ($dd['Manhã'] === 'Ocupado' || $dd['Manhã'] === 'Reservado' || $dd['Tarde'] === 'Ocupado' || $dd['Tarde'] === 'Reservado' || $dd['Noite'] === 'Ocupado' || $dd['Noite'] === 'Reservado' || $dd['Integral'] === 'Ocupado' || $dd['Integral'] === 'Reservado');
-                                                if ((isset($dd['holiday']) && $dd['holiday']) || (isset($dd['vacation']) && $dd['vacation']))
-                                                    continue;
-
-                                                if ($has_busy)
-                                                    $m_busy_count++;
-                                                else
-                                                    $m_free_count++;
-                                            }
+                                        foreach ($pr['free_periods'] as $per => $is_free):
+                                            if (!$is_free)
+                                                continue;
+                                            $icon = ($per == 'Manhã') ? 'fa-sun' : (($per == 'Tarde') ? 'fa-cloud-sun' : 'fa-moon');
                                             ?>
-                                            <div class="month-group" data-month="<?= $m_idx ?>"
-                                                style="min-width: 100%; scroll-snap-align: start; display: flex; flex-direction: column; gap: 8px; padding: 15px; box-sizing: border-box;">
-                                                <div class="month-header"
-                                                    style="font-size: 0.9rem; font-weight: 900; text-transform: uppercase; color: var(--corTxt3); border-bottom: 2px solid <?= $m_busy_count > 0 ? '#e53935' : '#4caf50' ?>; padding-bottom: 5px; margin-bottom: 8px; letter-spacing: 1.5px; display: flex; justify-content: space-between; align-items: center;">
-                                                    <span>
-                                                        <?= $m_name ?>
-                                                    </span>
-                                                    <span
-                                                        style="font-size: 0.7rem; font-weight: 600; display: flex; gap: 10px; align-items: center;">
-                                                        <?php if ($m_busy_count > 0): ?>
-                                                            <span style="color: #e53935;"><i class="fas fa-times-circle"></i>
-                                                                <?= $m_busy_count ?>
-                                                                ocupado
-                                                                <?= $m_busy_count > 1 ? 's' : '' ?>
-                                                            </span>
-                                                        <?php endif; ?>
-                                                        <span style="color: #4caf50;"><i class="fas fa-check-circle"></i>
-                                                            <?= $m_free_count ?>
-                                                            livre
-                                                            <?= $m_free_count > 1 ? 's' : '' ?>
-                                                        </span>
-                                                        <span style="color: #888;">Ano
-                                                            <?= $ano_atual ?>
-                                                        </span>
-                                                    </span>
-                                                </div>
-                                                <div class="timeline-days-container"
-                                                    style="display: flex; gap: 2px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: thin;">
-                                                    <?php foreach ($days as $date => $data):
-                                                        $d = date('d', strtotime($date));
-                                                        $dow = date('N', strtotime($date));
-                                                        $dias_nomes_curtos = [1 => 'Seg', 2 => 'Ter', 3 => 'Qua', 4 => 'Qui', 5 => 'Sex', 6 => 'Sáb', 7 => 'Dom'];
-                                                        $nome_dia = $dias_nomes_curtos[$dow];
-
-                                                        // Verifica se QUALQUER período no dia está ocupado
-                                                        $any_busy = ($data['Manhã'] === 'Ocupado' || $data['Manhã'] === 'Reservado' || $data['Tarde'] === 'Ocupado' || $data['Tarde'] === 'Reservado' || $data['Noite'] === 'Ocupado' || $data['Noite'] === 'Reservado' || $data['Integral'] === 'Ocupado' || $data['Integral'] === 'Reservado');
-
-                                                        // Define as cores do cabeçalho do dia (Visual semelhante ao da agenda completa)
-                                                        $bg_day = '#2e7d32'; // Verde = Livre
-                                                        $txt_day = '#ffffff';
-                                                        $label_top = $d;
-
-                                                        if (isset($data['holiday']) && $data['holiday']) {
-                                                            $bg_day = '#1565c0'; // Azul para Feriado
-                                                            $label_top = 'F';
-                                                        } elseif (isset($data['vacation']) && $data['vacation']) {
-                                                            $bg_day = '#1565c0'; // Azul para Férias
-                                                            $label_top = 'F';
-                                                        } elseif ($data['is_sunday']) {
-                                                            $bg_day = '#a84a4a'; // Vermelho suave para Domingo
-                                                        } elseif ($any_busy) {
-                                                            $bg_day = '#e53935'; // Vermelho forte para Ocupado
-                                                        } elseif ($data['is_weekend']) {
-                                                            $bg_day = '#2e7d32';
-                                                            $txt_day = '#ffffff';
-                                                        }
-                                                        ?>
-                                                        <?php
-                                                        $is_sat = (date('N', strtotime($date)) == 6);
-                                                        ?>
-                                                        <div class="timeline-day"
-                                                            onclick="window.location.href='php/views/agenda_professores.php?docente_id=<?= $pr['id'] ?>&month=<?= date('Y-m', strtotime($date)) ?>&view_mode=timeline'"
-                                                            style="flex: 1; min-width: 32px; max-width: 42px; display: flex; flex-direction: column; gap: 3px; cursor: pointer; transition: transform 0.2s;"
-                                                            onmouseover="this.style.transform='translateY(-2px)'"
-                                                            onmouseout="this.style.transform='none'"
-                                                            title="<?= (isset($data['holiday']) && $data['holiday']) ? 'FERIADO: ' . $data['holiday'] : ((isset($data['vacation']) && $data['vacation']) ? 'BLOQUEIO: ' . $data['vacation'] : ($any_busy ? 'OCUPADO' : 'LIVRE')) ?>">
-
-                                                            <?php
-                                                            // Gradient for header like agenda_professores.php
-                                                            $bg_gradient = 'linear-gradient(135deg, #2e7d32, #1b5e20)';
-                                                            if (isset($data['holiday']) && $data['holiday'] || isset($data['vacation']) && $data['vacation']) {
-                                                                $bg_gradient = 'linear-gradient(135deg, #1565c0, #1976d2)';
-                                                            } elseif ($data['is_sunday']) {
-                                                                $bg_gradient = '#a84a4a';
-                                                            } elseif ($any_busy) {
-                                                                $bg_gradient = 'linear-gradient(135deg, #e53935, #c62828)';
-                                                            } elseif ($data['is_weekend']) {
-                                                                $bg_gradient = 'linear-gradient(135deg, #2e7d32, #1b5e20)';
-                                                            }
-                                                            ?>
-
-                                                            <div
-                                                                style="text-align: center; font-size: 0.8rem; font-weight: 800; padding: 7px 0; background: <?= $bg_gradient ?>; border-radius: 6px; color: <?= $txt_day ?>; line-height: 1.1; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                                                                <div>
-                                                                    <?= str_pad($label_top, 2, '0', STR_PAD_LEFT) ?>
-                                                                </div>
-                                                                <div
-                                                                    style="font-size: 0.6rem; opacity: 0.9; text-transform: uppercase;">
-                                                                    <?= substr($nome_dia, 0, 3) ?>
-                                                                </div>
-                                                            </div>
-                                                            <?php
-                                                            $periods = ['Manhã', 'Tarde', 'Noite'];
-                                                            foreach ($periods as $p):
-                                                                // Define a cor de cada período na subbarra inferior
-                                                                if ((isset($data['holiday']) && $data['holiday']) || (isset($data['vacation']) && $data['vacation'])) {
-                                                                    $p_color = '#1565c0'; // Azul = Férias/Feriado
-                                                                } elseif ($data['is_sunday']) {
-                                                                    $p_color = '#a84a4a'; // Vermelho suave para Domingo
-                                                                } elseif ($data[$p] === 'Ocupado') {
-                                                                    $p_color = '#e53935'; // Vermelho = Ocupado
-                                                                } elseif ($data[$p] === 'OFF_SCHEDULE') {
-                                                                    $p_color = '#555'; // Cinza = Fora do Horário
-                                                                } elseif ($data[$p] === 'Reservado') {
-                                                                    $p_color = '#ff8f00'; // Laranja = Reservado
-                                                                } elseif ($is_sat && $p === 'Noite') {
-                                                                    $p_color = '#ccc'; // Cinza Claro = Sábado à Noite (Inativo - Fallback)
-                                                                } else {
-                                                                    $p_color = '#4caf50'; // Verde = Livre
-                                                                }
-                                                                ?>
-                                                                <?php
-                                                                $status_label = ($data[$p] === 'OFF_SCHEDULE' || ($is_sat && $p === 'Noite')) ? 'Indisponível' : $data[$p];
-                                                                ?>
-                                                                <div style="height: 6px; width: 100%; background: <?= $p_color ?>; border-radius: 1px;"
-                                                                    title="<?= $date ?> - <?= $p ?>: <?= $status_label ?>">
-                                                                </div>
-                                                            <?php endforeach; ?>
-                                                        </div>
-                                                    <?php endforeach; ?>
-                                                </div>
+                                            <div
+                                                style="background: rgba(46, 125, 50, 0.1); color: #4caf50; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(46, 125, 50, 0.2);">
+                                                <i class="fas <?= $icon ?>"></i>
+                                                <?= $per ?> Livre
                                             </div>
                                         <?php endforeach; ?>
                                     </div>
 
-                                    <!-- Added wrapper for arrows to not overlay scrollbar -->
-                                    <button
-                                        onclick="const _gridNext = this.parentElement.querySelector('.timeline-grid'); _gridNext.scrollBy({left: _gridNext.clientWidth, behavior: 'smooth'})"
-                                        class="timeline-nav-btn next">
-                                        <i class="fas fa-chevron-right"></i>
-                                    </button>
-                                </div>
-                                <div
-                                    style="display: flex; gap: 15px; font-size: 0.75rem; color: var(--text-muted); margin-top: 15px; font-weight: 700; flex-wrap: wrap; align-items: center; background: var(--bg-color); padding: 10px 20px; border-radius: 10px;">
-                                    <span style="color: var(--text-color); margin-right: 5px;"><i
-                                            class="fas fa-info-circle"></i> Legenda de Períodos:</span>
-                                    <span style="display: flex; align-items: center; gap: 6px;"><span
-                                            style="width: 12px; height: 4px; background: #4caf50; border-radius: 1px; display: inline-block;"></span>
-                                        Manhã</span>
-                                    <span style="display: flex; align-items: center; gap: 6px;"><span
-                                            style="width: 12px; height: 4px; background: #4caf50; border-radius: 1px; display: inline-block;"></span>
-                                        Tarde</span>
-                                    <span style="display: flex; align-items: center; gap: 6px;"><span
-                                            style="width: 12px; height: 4px; background: #4caf50; border-radius: 1px; display: inline-block;"></span>
-                                        Noite</span>
-                                    <span style="display: flex; align-items: center; gap: 6px;"><span
-                                            style="width: 12px; height: 4px; background: #555; border-radius: 1px; display: inline-block;"></span>
-                                        Indisponível</span>
-                                    <span style="margin-left: auto; font-size: 0.7rem; opacity: 0.8; font-style: italic;">
-                                        * Períodos exibidos de cima para baixo
-                                    </span>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
+                                    <div class="timeline-container" style="position: relative;">
+                                        <!-- Botões Navegação Paginada -->
+                                        <button
+                                            onclick="const _gridPrev = this.parentElement.querySelector('.timeline-grid'); _gridPrev.scrollBy({left: -_gridPrev.clientWidth, behavior: 'smooth'})"
+                                            class="timeline-nav-btn prev">
+                                            <i class="fas fa-chevron-left"></i>
+                                        </button>
 
-        <div class="sidebar-column">
+                                        <div class="timeline-grid"
+                                            style="display: flex; overflow-x: auto; background: var(--bg-color); border-radius: 12px; scroll-behavior: smooth; scroll-snap-type: x mandatory; border: 1px solid var(--border-color);">
+                                            <?php
+                                            // Agrupa o status anual do docente mês a mês
+                                            $months_data = [];
+                                            foreach ($pr['annual_status'] as $date => $data) {
+                                                $m_idx = (int) date('m', strtotime($date));
+                                                $months_data[$m_idx][$date] = $data;
+                                            }
+                                            ksort($months_data);
+
+                                            foreach ($months_data as $m_idx => $days):
+                                                $m_name = $meses_nomes_completos[$m_idx - 1];
+
+                                                // Conta os dias ocupados vs livres neste mês
+                                                $m_busy_count = 0;
+                                                $m_free_count = 0;
+                                                foreach ($days as $dk => $dd) {
+                                                    if ($dd['is_sunday'])
+                                                        continue;
+
+                                                    $has_busy = ($dd['Manhã'] === 'Ocupado' || $dd['Manhã'] === 'Reservado' || $dd['Tarde'] === 'Ocupado' || $dd['Tarde'] === 'Reservado' || $dd['Noite'] === 'Ocupado' || $dd['Noite'] === 'Reservado' || $dd['Integral'] === 'Ocupado' || $dd['Integral'] === 'Reservado');
+                                                    if ((isset($dd['holiday']) && $dd['holiday']) || (isset($dd['vacation']) && $dd['vacation']))
+                                                        continue;
+
+                                                    if ($has_busy)
+                                                        $m_busy_count++;
+                                                    else
+                                                        $m_free_count++;
+                                                }
+                                                ?>
+                                                <div class="month-group" data-month="<?= $m_idx ?>"
+                                                    style="min-width: 100%; scroll-snap-align: start; display: flex; flex-direction: column; gap: 8px; padding: 15px; box-sizing: border-box;">
+                                                    <div class="month-header"
+                                                        style="font-size: 0.9rem; font-weight: 900; text-transform: uppercase; color: var(--corTxt3); border-bottom: 2px solid <?= $m_busy_count > 0 ? '#e53935' : '#4caf50' ?>; padding-bottom: 5px; margin-bottom: 8px; letter-spacing: 1.5px; display: flex; justify-content: space-between; align-items: center;">
+                                                        <span>
+                                                            <?= $m_name ?>
+                                                        </span>
+                                                        <span
+                                                            style="font-size: 0.7rem; font-weight: 600; display: flex; gap: 10px; align-items: center;">
+                                                            <?php if ($m_busy_count > 0): ?>
+                                                                <span style="color: #e53935;"><i class="fas fa-times-circle"></i>
+                                                                    <?= $m_busy_count ?>
+                                                                    ocupado
+                                                                    <?= $m_busy_count > 1 ? 's' : '' ?>
+                                                                </span>
+                                                            <?php endif; ?>
+                                                            <span style="color: #4caf50;"><i class="fas fa-check-circle"></i>
+                                                                <?= $m_free_count ?>
+                                                                livre
+                                                                <?= $m_free_count > 1 ? 's' : '' ?>
+                                                            </span>
+                                                            <span style="color: #888;">Ano
+                                                                <?= $ano_atual ?>
+                                                            </span>
+                                                        </span>
+                                                    </div>
+                                                    <div class="timeline-days-container"
+                                                        style="display: flex; gap: 2px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: thin;">
+                                                        <?php foreach ($days as $date => $data):
+                                                            $d = date('d', strtotime($date));
+                                                            $dow = date('N', strtotime($date));
+                                                            $dias_nomes_curtos = [1 => 'Seg', 2 => 'Ter', 3 => 'Qua', 4 => 'Qui', 5 => 'Sex', 6 => 'Sáb', 7 => 'Dom'];
+                                                            $nome_dia = $dias_nomes_curtos[$dow];
+
+                                                            // Verifica se QUALQUER período no dia está ocupado
+                                                            $any_busy = ($data['Manhã'] === 'Ocupado' || $data['Manhã'] === 'Reservado' || $data['Tarde'] === 'Ocupado' || $data['Tarde'] === 'Reservado' || $data['Noite'] === 'Ocupado' || $data['Noite'] === 'Reservado' || $data['Integral'] === 'Ocupado' || $data['Integral'] === 'Reservado');
+
+                                                            // Define as cores do cabeçalho do dia (Visual semelhante ao da agenda completa)
+                                                            $bg_day = '#2e7d32'; // Verde = Livre
+                                                            $txt_day = '#ffffff';
+                                                            $label_top = $d;
+
+                                                            if (isset($data['holiday']) && $data['holiday']) {
+                                                                $bg_day = '#1565c0'; // Azul para Feriado
+                                                                $label_top = 'F';
+                                                            } elseif (isset($data['vacation']) && $data['vacation']) {
+                                                                $bg_day = '#1565c0'; // Azul para Férias
+                                                                $label_top = 'F';
+                                                            } elseif ($data['is_sunday']) {
+                                                                $bg_day = '#a84a4a'; // Vermelho suave para Domingo
+                                                            } elseif ($any_busy) {
+                                                                $bg_day = '#e53935'; // Vermelho forte para Ocupado
+                                                            } elseif ($data['is_weekend']) {
+                                                                $bg_day = '#2e7d32';
+                                                                $txt_day = '#ffffff';
+                                                            }
+                                                            ?>
+                                                            <?php
+                                                            $is_sat = (date('N', strtotime($date)) == 6);
+                                                            ?>
+                                                            <div class="timeline-day"
+                                                                onclick="window.location.href='php/views/agenda_professores.php?docente_id=<?= $pr['id'] ?>&month=<?= date('Y-m', strtotime($date)) ?>&view_mode=timeline'"
+                                                                style="flex: 1; min-width: 32px; max-width: 42px; display: flex; flex-direction: column; gap: 3px; cursor: pointer; transition: transform 0.2s;"
+                                                                onmouseover="this.style.transform='translateY(-2px)'"
+                                                                onmouseout="this.style.transform='none'"
+                                                                title="<?= (isset($data['holiday']) && $data['holiday']) ? 'FERIADO: ' . $data['holiday'] : ((isset($data['vacation']) && $data['vacation']) ? 'BLOQUEIO: ' . $data['vacation'] : ($any_busy ? 'OCUPADO' : 'LIVRE')) ?>">
+
+                                                                <?php
+                                                                // Gradient for header like agenda_professores.php
+                                                                $bg_gradient = 'linear-gradient(135deg, #2e7d32, #1b5e20)';
+                                                                if (isset($data['holiday']) && $data['holiday'] || isset($data['vacation']) && $data['vacation']) {
+                                                                    $bg_gradient = 'linear-gradient(135deg, #1565c0, #1976d2)';
+                                                                } elseif ($data['is_sunday']) {
+                                                                    $bg_gradient = '#a84a4a';
+                                                                } elseif ($any_busy) {
+                                                                    $bg_gradient = 'linear-gradient(135deg, #e53935, #c62828)';
+                                                                } elseif ($data['is_weekend']) {
+                                                                    $bg_gradient = 'linear-gradient(135deg, #2e7d32, #1b5e20)';
+                                                                }
+                                                                ?>
+
+                                                                <div
+                                                                    style="text-align: center; font-size: 0.8rem; font-weight: 800; padding: 7px 0; background: <?= $bg_gradient ?>; border-radius: 6px; color: <?= $txt_day ?>; line-height: 1.1; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                                                    <div>
+                                                                        <?= str_pad($label_top, 2, '0', STR_PAD_LEFT) ?>
+                                                                    </div>
+                                                                    <div
+                                                                        style="font-size: 0.6rem; opacity: 0.9; text-transform: uppercase;">
+                                                                        <?= substr($nome_dia, 0, 3) ?>
+                                                                    </div>
+                                                                </div>
+                                                                <?php
+                                                                $periods = ['Manhã', 'Tarde', 'Noite'];
+                                                                foreach ($periods as $p):
+                                                                    // Define a cor de cada período na subbarra inferior
+                                                                    if ((isset($data['holiday']) && $data['holiday']) || (isset($data['vacation']) && $data['vacation'])) {
+                                                                        $p_color = '#1565c0'; // Azul = Férias/Feriado
+                                                                    } elseif ($data['is_sunday']) {
+                                                                        $p_color = '#a84a4a'; // Vermelho suave para Domingo
+                                                                    } elseif ($data[$p] === 'Ocupado') {
+                                                                        $p_color = '#e53935'; // Vermelho = Ocupado
+                                                                    } elseif ($data[$p] === 'OFF_SCHEDULE') {
+                                                                        $p_color = '#555'; // Cinza = Fora do Horário
+                                                                    } elseif ($data[$p] === 'Reservado') {
+                                                                        $p_color = '#ff8f00'; // Laranja = Reservado
+                                                                    } elseif ($is_sat && $p === 'Noite') {
+                                                                        $p_color = '#ccc'; // Cinza Claro = Sábado à Noite (Inativo - Fallback)
+                                                                    } else {
+                                                                        $p_color = '#4caf50'; // Verde = Livre
+                                                                    }
+                                                                    ?>
+                                                                    <?php
+                                                                    $status_label = ($data[$p] === 'OFF_SCHEDULE' || ($is_sat && $p === 'Noite')) ? 'Indisponível' : $data[$p];
+                                                                    ?>
+                                                                    <div style="height: 6px; width: 100%; background: <?= $p_color ?>; border-radius: 1px;"
+                                                                        title="<?= $date ?> - <?= $p ?>: <?= $status_label ?>">
+                                                                    </div>
+                                                                <?php endforeach; ?>
+                                                            </div>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+
+                                        <!-- Added wrapper for arrows to not overlay scrollbar -->
+                                        <button
+                                            onclick="const _gridNext = this.parentElement.querySelector('.timeline-grid'); _gridNext.scrollBy({left: _gridNext.clientWidth, behavior: 'smooth'})"
+                                            class="timeline-nav-btn next">
+                                            <i class="fas fa-chevron-right"></i>
+                                        </button>
+                                    </div>
+                                    <div
+                                        style="display: flex; gap: 15px; font-size: 0.75rem; color: var(--text-muted); margin-top: 15px; font-weight: 700; flex-wrap: wrap; align-items: center; background: var(--bg-color); padding: 10px 20px; border-radius: 10px;">
+                                        <span style="color: var(--text-color); margin-right: 5px;"><i
+                                                class="fas fa-info-circle"></i> Legenda de Períodos:</span>
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span
+                                                style="width: 12px; height: 4px; background: #4caf50; border-radius: 1px; display: inline-block;"></span>
+                                            Manhã</span>
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span
+                                                style="width: 12px; height: 4px; background: #4caf50; border-radius: 1px; display: inline-block;"></span>
+                                            Tarde</span>
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span
+                                                style="width: 12px; height: 4px; background: #4caf50; border-radius: 1px; display: inline-block;"></span>
+                                            Noite</span>
+                                        <span style="display: flex; align-items: center; gap: 6px;"><span
+                                                style="width: 12px; height: 4px; background: #555; border-radius: 1px; display: inline-block;"></span>
+                                            Indisponível</span>
+                                        <span style="margin-left: auto; font-size: 0.7rem; opacity: 0.8; font-style: italic;">
+                                            * Períodos exibidos de cima para baixo
+                                        </span>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <div class="sidebar-column" <?= isSecretaria() ? 'style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 30px; padding: 20px;"' : '' ?>>
             <div class="dash-section" style="border-left: 4px solid #1976d2; background: rgba(25, 118, 210, 0.03);">
                 <div class="dash-section-header">
                     <h3 style="color: #1976d2;"><i class="fas fa-history"></i> Turmas Encerradas (7 dias)</h3>
@@ -973,6 +981,7 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
     }
 </style>
 
+<?php if (!isSecretaria()): ?>
 <!-- Modais de Produção Aluno/Hora -->
 <link rel="stylesheet" href="css/producao_dashboard.css">
 <script src="js/producao_aluno_hora.js"></script>
@@ -1736,4 +1745,5 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
         </div>
     </div>
 </div>
+<?php endif; ?>
 <?php include __DIR__ . '/php/components/footer.php'; ?>

@@ -686,6 +686,30 @@ switch ($action) {
         $executor = $_SESSION['user_nome'] ?? 'Gestor';
         dispararNotificacaoGlobal($conn, 'registro_horario', 'Novo Horário Registrado', "A turma $sigla foi agendada por $executor para " . date('d/m/Y', strtotime($data_inicio)) . " a " . date('d/m/Y', strtotime($data_fim)) . ".", BASE_URL . "/php/views/turmas.php", ['admin', 'gestor', 'professor', 'cri']);
 
+        // --- ENVIO DE E-MAIL (NOVO HORÁRIO/TURMA/RESERVA) ---
+        if (isset($_POST['send_email']) && $_POST['send_email'] == '1') {
+            require_once __DIR__ . '/../configs/mailer.php';
+            foreach ($all_docente_ids as $did) {
+                $d_res = mysqli_query($conn, "SELECT nome, email FROM docente WHERE id = $did");
+                if ($d_row = mysqli_fetch_assoc($d_res)) {
+                    $d_email = $d_row['email'];
+                    $d_nome = $d_row['nome'];
+                    if (!empty($d_email)) {
+                        $subject = $is_reserva ? "Solicitação de Reserva: $sigla" : "Nova Turma Atribuída: $sigla";
+                        $status_msg = $is_reserva ? "Status atual: <strong>PENDENTE</strong>. Você será notificado quando for aprovada." : "A aula já foi confirmada na sua agenda.";
+                        
+                        $body = "<h2>Olá, $d_nome!</h2>
+                                 <p>Um novo registro foi realizado para você no sistema de horários.</p>
+                                 <p><strong>Identificação:</strong> $sigla<br>
+                                 <strong>Período:</strong> $periodo ($h_inicio às $h_fim)<br>
+                                 <strong>Datas:</strong> " . date('d/m/Y', strtotime($data_inicio)) . " a " . date('d/m/Y', strtotime($data_fim)) . "</p>
+                                 <p>$status_msg</p>";
+                        sendEmail($d_email, $subject, $body);
+                    }
+                }
+            }
+        }
+
         echo json_encode(['success' => true, 'message' => 'Turma criada e horário agendado com sucesso!'], JSON_UNESCAPED_UNICODE);
         break;
 
@@ -773,6 +797,28 @@ switch ($action) {
 
             $executor = $_SESSION['user_nome'] ?? 'Gestor';
             dispararNotificacaoGlobal($conn, 'reserva_realizada', 'Sua reserva foi Aprovada', "A reserva da turma {$r['sigla']} foi aprovada por $executor e confirmada na agenda.", BASE_URL . "/php/views/gerenciar_reservas.php?status=CONCLUIDA&reserva_id=$reserva_id", ['admin', 'gestor', 'professor', 'cri']); // Goes everywhere but ignores selves mostly, users will see if it's theirs
+
+            // --- ENVIO DE E-MAIL (APROVAÇÃO) ---
+            if (isset($_POST['send_email']) && $_POST['send_email'] == '1') {
+                require_once __DIR__ . '/../configs/mailer.php';
+                $did = $r['docente_id'];
+                $d_res = mysqli_query($conn, "SELECT nome, email FROM docente WHERE id = $did");
+                if ($d_row = mysqli_fetch_assoc($d_res)) {
+                    $d_email = $d_row['email'];
+                    $d_nome = $d_row['nome'];
+                    if (!empty($d_email)) {
+                        $subject = "Reserva Aprovada: {$r['sigla']}";
+                        $body = "<h2>Olá, $d_nome!</h2>
+                                 <p>Sua solicitação de reserva foi <strong>APROVADA</strong>.</p>
+                                 <p><strong>Turma/Reserva:</strong> {$r['sigla']}<br>
+                                 <strong>Período:</strong> {$r['periodo']} ({$r['hora_inicio']} às {$r['hora_fim']})<br>
+                                 <strong>Início:</strong> " . date('d/m/Y', strtotime($r['data_inicio'])) . "<br>
+                                 <strong>Fim:</strong> " . date('d/m/Y', strtotime($r['data_fim'])) . "</p>
+                                 <p>A aula já foi confirmada na sua agenda.</p>";
+                        sendEmail($d_email, $subject, $body);
+                    }
+                }
+            }
 
             mysqli_commit($conn);
             echo json_encode(['success' => true, 'message' => 'Reserva aprovada e aula cadastrada!']);

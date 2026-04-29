@@ -4,6 +4,9 @@ require_once __DIR__ . '/../configs/db.php';
 require_once __DIR__ . '/../configs/auth.php';
 require_once __DIR__ . '/../configs/utils.php';
 
+// Previne que avisos/erros do PHP quebrem o JSON
+ob_start();
+
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
@@ -27,6 +30,7 @@ switch ($action) {
         $turma_id_alvo = (int)($_GET['turma_id'] ?? 0);
         
         if (!$turma_id_alvo) {
+            if (ob_get_length()) ob_clean();
             echo json_encode(['professores' => [], 'debug' => 'ID da turma não fornecido.']);
             exit;
         }
@@ -39,6 +43,7 @@ switch ($action) {
         }
 
         if (empty($dias_aula_turma)) {
+            if (ob_get_length()) ob_clean();
             echo json_encode(['professores' => [], 'debug' => 'Nenhuma aula encontrada para esta turma no período selecionado.']);
             exit;
         }
@@ -90,6 +95,7 @@ switch ($action) {
             }
         }
 
+        if (ob_get_length()) ob_clean();
         echo json_encode(['professores' => $professores_disponiveis]);
         break;
 
@@ -103,12 +109,14 @@ switch ($action) {
             ORDER BY t.data_inicio DESC, t.sigla ASC
         ");
         $turmas = mysqli_fetch_all($res, MYSQLI_ASSOC);
+        if (ob_get_length()) ob_clean();
         echo json_encode(['turmas' => $turmas]);
         break;
 
     case 'get_docentes_por_turma':
         $turma_id = (int) ($_GET['turma_id'] ?? 0);
         if (!$turma_id) {
+            if (ob_get_length()) ob_clean();
             echo json_encode(['docentes' => []]);
             exit;
         }
@@ -127,6 +135,7 @@ switch ($action) {
             ORDER BY d.nome ASC
         ");
         $docentes = mysqli_fetch_all($res, MYSQLI_ASSOC);
+        if (ob_get_length()) ob_clean();
         echo json_encode(['docentes' => $docentes]);
         break;
 
@@ -143,6 +152,7 @@ switch ($action) {
         $data_fim = mysqli_real_escape_string($conn, $_POST['data_fim'] ?? '');
 
         if (!$docente_substituto_id || !$turma_id || !$data_inicio || !$data_fim || !$docente_titular_id) {
+            if (ob_get_length()) ob_clean();
             echo json_encode(['success' => false, 'message' => 'Parâmetros insuficientes. Selecione o titular e o substituto.']);
             exit;
         }
@@ -171,8 +181,10 @@ switch ($action) {
                 "O professor $nome_prof foi alocado para substituir na turma $sigla entre $data_inicio e $data_fim. Ação realizada por $usuario_acao.", 
                 BASE_URL . "/php/views/agenda_professores.php?docente_id=$docente_substituto_id", ['admin', 'gestor', 'professor']);
 
+            if (ob_get_length()) ob_clean();
             echo json_encode(['success' => true, 'message' => "Substituição realizada em $afetados aulas.", 'count' => $afetados]);
         } else {
+            if (ob_get_length()) ob_clean();
             echo json_encode(['success' => false, 'message' => 'Erro ao atualizar banco: ' . mysqli_error($conn)]);
         }
         break;
@@ -189,10 +201,12 @@ switch ($action) {
         $row = mysqli_fetch_assoc($res);
         $data = $row['ultima'] ?: date('Y-m-d');
 
+        if (ob_get_length()) ob_clean();
         echo json_encode(['data_mais_recente' => $data]);
         break;
 
     default:
+        if (ob_get_length()) ob_clean();
         echo json_encode(['error' => 'Ação não encontrada']);
         break;
 }

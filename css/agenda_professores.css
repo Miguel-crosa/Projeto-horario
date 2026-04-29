@@ -658,14 +658,35 @@
 
 
 
+.sem-month-box {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.sem-month-box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 25px rgba(0,0,0,0.08);
+    border-color: var(--primary-red);
+}
+
 .sem-month-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.78rem;
-    font-weight: 800;
+    font-size: 0.9rem;
+    font-weight: 900;
     text-transform: uppercase;
-    margin-bottom: 6px;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    color: var(--text-color);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .sem-month-stats {
@@ -693,66 +714,85 @@
 .sem-day {
     aspect-ratio: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: 0.62rem;
-    font-weight: 700;
-    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    border-radius: 6px;
     cursor: default;
-    min-height: 20px;
+    min-height: 28px;
+    transition: all 0.2s;
+    position: relative;
 }
 
-.sem-day-empty {
-    visibility: hidden;
+.sem-day-num-label {
+    z-index: 2;
+}
+
+.sem-day-bars-container {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    right: 2px;
+    display: flex;
+    gap: 1px;
+}
+
+.sem-day-bars-container > div {
+    flex: 1;
+    height: 3px !important;
+    border-radius: 10px;
 }
 
 .sem-day-free {
-    background: #4caf50; /* Same as bar-seg-free */
-    color: #fff;
+    background: rgba(16, 185, 129, 0.08);
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.2);
     cursor: pointer;
 }
 
 .sem-day-free:hover {
-    background: #2e7d32;
+    background: #10b981;
     color: #fff;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 .sem-day-busy {
-    background: #e53935;
+    background: linear-gradient(135deg, #f43f5e, #e11d48);
     color: #fff;
-}
-
-.sem-day-partial {
-    background: #f9a825;
-    color: #fff;
-    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(244, 63, 94, 0.3);
+    border: none;
 }
 
 .sem-day-sunday {
-    background: #f5f5f5;
-    color: #bbb;
+    background: transparent;
+    color: #94a3b8;
+    opacity: 0.4;
 }
 
 .sem-day-weekend {
-    background: #fff8e1;
-    color: #f57f17;
-    cursor: pointer;
-}
-
-.sem-day-reserved {
-    background: #f9a825;
-    color: #fff;
-}
-
-.sem-day-reserved-own {
-    background: #ffd600;
-    color: #000;
+    background: rgba(148, 163, 184, 0.05);
+    color: #64748b;
+    border: 1px dashed #cbd5e1;
 }
 
 .sem-day-feriado {
-    background: #1565c0;
-    /* Blue for Holidays */
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
     color: #fff;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.sem-day-reserved {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.sem-day-reserved-own {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
 .modal-overlay.active {
@@ -1084,22 +1124,40 @@
 
 .prof-info-row {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 10px;
+    padding: 15px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border-left: 4px solid var(--primary-red);
 }
 
 .semestral-stats-group {
     display: flex;
-    gap: 12px;
-    font-size: 0.75rem;
+    gap: 20px;
+    font-size: 0.85rem;
     font-weight: 700;
 }
 
-.sem-calendar-grid {
+.semestral-stats-group i {
+    font-size: 1rem;
+    opacity: 0.8;
+}
+
+.semestral-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    padding: 10px 0;
+}
+
+@media (max-width: 1200px) {
+    .semestral-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+    .semestral-grid { grid-template-columns: 1fr; }
 }
 
 .sem-day-num-label {
