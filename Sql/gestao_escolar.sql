@@ -1,8 +1,8 @@
-    -- ============================================================
-    -- GESTÃO ESCOLAR – Script Completo de Criação do Banco
-    -- Copie e cole este script inteiro no phpMyAdmin ou MySQL CLI.
-    -- Ele cria o banco, todas as tabelas, índices e o usuário admin.
-    -- ============================================================
+-- ============================================================
+-- GESTÃO ESCOLAR — Script Completo de Criação do Banco
+-- Copie e cole este script inteiro no phpMyAdmin ou MySQL CLI.
+-- Ele cria o banco, todas as tabelas, índices e o usuário admin.
+-- ============================================================
 
     CREATE DATABASE IF NOT EXISTS gestao_escolar DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
     USE gestao_escolar;
