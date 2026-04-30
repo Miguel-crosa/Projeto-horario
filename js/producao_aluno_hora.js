@@ -117,7 +117,8 @@ function renderProducaoChart(filter = '') {
 }
 
 function filterProducaoChart() {
-    const query = document.getElementById('search-producao-prof').value;
+    const searchInput = document.getElementById('search-producao-prof');
+    const query = searchInput ? searchInput.value : '';
     renderProducaoChart(query);
 }
 
@@ -212,7 +213,8 @@ async function confirmarEvasao() {
             // Atualiza UI em tempo real
             openTeacherDetail(docenteId); // Recarrega Modal 2
             updateTotalProducao(); // Recarrega Totalizador Geral
-            renderProducaoChart(document.getElementById('search-producao-prof').value); // Recarrega Gráfico ranking
+            const searchInput = document.getElementById('search-producao-prof');
+            renderProducaoChart(searchInput ? searchInput.value : ''); // Recarrega Gráfico ranking
         } else {
             alert('Erro ao registrar evasão: ' + result.error);
         }
@@ -270,7 +272,8 @@ async function confirmarAdicao() {
             // Atualiza UI em tempo real
             openTeacherDetail(docenteId); // Recarrega Modal 2
             updateTotalProducao(); // Recarrega Totalizador Geral
-            renderProducaoChart(document.getElementById('search-producao-prof').value); // Recarrega Gráfico ranking
+            const searchInput = document.getElementById('search-producao-prof');
+            renderProducaoChart(searchInput ? searchInput.value : ''); // Recarrega Gráfico ranking
         } else {
             alert('Erro ao adicionar aluno: ' + result.error);
         }

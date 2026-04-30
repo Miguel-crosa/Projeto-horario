@@ -446,7 +446,7 @@ function isVacation($conn, $did, $date)
     return mysqli_fetch_assoc($res);
 }
 
-function calculateConsumedHours($conn, $did, $start_date, $end_date)
+function calculateConsumedHours($conn, $did, $start_date, $end_date, $include_preparacao = true)
 {
     if (!$did)
         return 0;
@@ -540,37 +540,39 @@ function calculateConsumedHours($conn, $did, $start_date, $end_date)
     }
     $stmt->close();
 
-    // 3. Preparação / Ausências
-    $stmt = $conn->prepare("SELECT horario_inicio, horario_fim, data_inicio, data_fim, dias_semana, tipo 
-                            FROM preparacao_atestados WHERE docente_id = ? AND status = 'ativo'
-                            AND data_inicio <= ? AND data_fim >= ?");
-    $stmt->bind_param("iss", $did, $end_date, $start_date);
-    $stmt->execute();
-    $res = $stmt->get_result();
+    if ($include_preparacao) {
+        // 3. Preparação / Ausências
+        $stmt = $conn->prepare("SELECT horario_inicio, horario_fim, data_inicio, data_fim, dias_semana, tipo 
+                                FROM preparacao_atestados WHERE docente_id = ? AND status = 'ativo'
+                                AND data_inicio <= ? AND data_fim >= ?");
+        $stmt->bind_param("iss", $did, $end_date, $start_date);
+        $stmt->execute();
+        $res = $stmt->get_result();
 
-    while ($row = $res->fetch_assoc()) {
-        if ($row['horario_inicio'] && $row['horario_fim']) {
-            $h = (strtotime($row['horario_fim']) - strtotime($row['horario_inicio'])) / 3600;
-            $d_perm = !empty($row['dias_semana']) ? explode(',', $row['dias_semana']) : [];
+        while ($row = $res->fetch_assoc()) {
+            if ($row['horario_inicio'] && $row['horario_fim']) {
+                $h = (strtotime($row['horario_fim']) - strtotime($row['horario_inicio'])) / 3600;
+                $d_perm = !empty($row['dias_semana']) ? explode(',', $row['dias_semana']) : [];
 
-            $it = new DateTime(max($start_date, $row['data_inicio']));
-            $itFim = new DateTime(min($end_date, $row['data_fim']));
-            // FIX: normaliza para meia-noite
-            $it->setTime(0, 0, 0);
-            $itFim->setTime(0, 0, 0);
+                $it = new DateTime(max($start_date, $row['data_inicio']));
+                $itFim = new DateTime(min($end_date, $row['data_fim']));
+                // FIX: normaliza para meia-noite
+                $it->setTime(0, 0, 0);
+                $itFim->setTime(0, 0, 0);
 
-            while ($it->format('Y-m-d') <= $itFim->format('Y-m-d')) {
-                $dow = (int) $it->format('N');
-                if ($row['tipo'] !== 'preparação' || empty($d_perm) || in_array($dow, $d_perm)) {
-                    if (!isHoliday($conn, $it->format('Y-m-d')) && !isVacation($conn, $did, $it->format('Y-m-d'))) {
-                        $total_hours += $h;
+                while ($it->format('Y-m-d') <= $itFim->format('Y-m-d')) {
+                    $dow = (int) $it->format('N');
+                    if ($row['tipo'] !== 'preparação' || empty($d_perm) || in_array($dow, $d_perm)) {
+                        if (!isHoliday($conn, $it->format('Y-m-d')) && !isVacation($conn, $did, $it->format('Y-m-d'))) {
+                            $total_hours += $h;
+                        }
                     }
+                    $it->modify('+1 day');
                 }
-                $it->modify('+1 day');
             }
         }
+        $stmt->close();
     }
-    $stmt->close();
 
     return (float) $total_hours;
 }

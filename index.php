@@ -412,7 +412,7 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                             style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 700; color: var(--text-color);">
                             <span>Horas Disponíveis (Ano)</span>
                             <span style="color: #2e7d32; margin-left: 10px;">
-                                <?= round($saldo_remanescente - calculateConsumedHours($conn, (int) $filtro_docente_id, $hoje, $fim_ano)) ?>h
+                                <?= round($saldo_remanescente - calculateConsumedHours($conn, (int) $filtro_docente_id, $hoje, $fim_ano, false)) ?>h
                                 /
                                 <?= round($total_ano) ?>h
                             </span>
@@ -1017,6 +1017,12 @@ $cores = ['#e53935', '#1976d2', '#388e3c', '#ff8f00', '#9c27b0', '#00838f', '#6d
                     style="text-align: center; color: var(--text-muted); font-size: 0.95rem; margin-top: -10px; margin-bottom: 25px; font-weight: 500;">
                     <i class="fas fa-info-circle"></i> Clique em uma barra para abrir o detalhamento por turma.
                 </p>
+                <div class="chart-controls" style="display: flex; justify-content: center; margin-bottom: 20px;">
+                    <div class="search-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="search-producao-prof" placeholder="Pesquisar professor no ranking..." oninput="filterProducaoChart()">
+                    </div>
+                </div>
                 <div class="producao-kpi-container">
                     <div class="producao-kpi-card" style="margin-bottom: 20px;">
                         <span class="kpi-label">Produção Total Acumulada</span>

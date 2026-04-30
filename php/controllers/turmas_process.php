@@ -355,7 +355,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $notif_msg = "A reserva ($sigla) foi " . ($id ? "atualizada" : "solicitada") . " por $executor.";
             dispararNotificacaoGlobal($conn, $notif_tipo, $notif_titulo, $notif_msg, BASE_URL . "/php/views/gerenciar_reservas.php?status=PENDENTE&reserva_id=$res_id", ['admin', 'gestor']);
 
-            if (!$id) {
+            if (!$id && isset($_POST['send_email']) && $_POST['send_email'] == '1') {
                 require_once __DIR__ . '/../configs/mailer.php';
                 $did = $principal_docente;
                 $d_res = mysqli_query($conn, "SELECT d.nome, u.email FROM docente d LEFT JOIN usuario u ON u.docente_id = d.id WHERE d.id = $did");
@@ -364,14 +364,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $d_nome = $d_row['nome'];
                     if (!empty($d_email)) {
                         $subject = "Solicitação de Reserva: $sigla";
-                        $body = "<h2>Olá, $d_nome!</h2><p>Uma nova solicitação de reserva foi realizada...</p>";
+                        $body = "<h2>Olá, $d_nome!</h2><p>Uma nova solicitação de reserva foi realizada no sistema.</p><p><strong>Sigla:</strong> $sigla<br><strong>Período:</strong> $periodo</p>";
                         if (!sendEmail($d_email, $subject, $body)) {
                             mysqli_rollback($conn);
                             handle_response($conn, false, "Falha ao enviar e-mail de notificação da reserva. A operação foi cancelada.", "", $is_ajax);
                         }
                     } else {
                         mysqli_rollback($conn);
-                        handle_response($conn, false, "O docente selecionado não possui e-mail cadastrado. Não é possível enviar a notificação.", "", $is_ajax);
+                        handle_response($conn, false, "O docente selecionado não possui e-mail cadastrado. Não é possível enviar a notificação solicitada.", "", $is_ajax);
                     }
                 }
             }

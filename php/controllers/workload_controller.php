@@ -19,12 +19,14 @@ if ($action === 'get_individual') {
 
     $total_ano = calculateTeacherYearlyWorkload($conn, $docente_id, $inicio_ano, $fim_ano);
     $saldo_remanescente = calculateTeacherYearlyWorkload($conn, $docente_id, $hoje, $fim_ano);
+    $consumido = calculateConsumedHours($conn, $docente_id, $hoje, $fim_ano, false);
+    $saldo_final = max(0, $saldo_remanescente - $consumido);
 
     echo json_encode([
         'success' => true,
         'total_ano' => round($total_ano, 1),
-        'saldo_remanescente' => round($saldo_remanescente, 1),
-        'progresso' => $total_ano > 0 ? round(($saldo_remanescente / $total_ano) * 100, 1) : 0
+        'saldo_remanescente' => round($saldo_final, 1),
+        'progresso' => $total_ano > 0 ? round(($saldo_final / $total_ano) * 100, 1) : 0
     ]);
     exit;
 }
@@ -40,12 +42,14 @@ if ($action === 'get_global') {
     while ($row = mysqli_fetch_assoc($res)) {
         $did = (int)$row['id'];
         $saldo = calculateTeacherYearlyWorkload($conn, $did, $hoje, $fim_ano);
+        $consumido = calculateConsumedHours($conn, $did, $hoje, $fim_ano, false);
+        $saldo_real = max(0, $saldo - $consumido);
         
-        if ($saldo > 0) {
+        if ($saldo_real > 0) {
             $ranking[] = [
                 'id' => $did,
                 'nome' => $row['nome'],
-                'saldo' => round($saldo, 1)
+                'saldo' => round($saldo_real, 1)
             ];
         }
     }

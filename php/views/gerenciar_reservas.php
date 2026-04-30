@@ -43,7 +43,7 @@ if ($status_filter === 'APROVADA') {
     $types = 's';
 }
 
-if ($owner_filter === 'mine' || isCRI()) {
+if ($owner_filter === 'mine') {
     $where .= " AND r.usuario_id = ?";
     $params[] = $auth_user_id;
     $types .= 'i';
@@ -442,15 +442,13 @@ include __DIR__ . '/../components/header.php';
         </a>
     </div>
 
-    <?php if (!isCRI()): ?>
-        <div class="owner-filters">
-            <select onchange="location.href='?status=<?= $status_filter ?>&owner='+this.value"
-                style="padding: 8px 15px; border-radius: 10px; border: 1px solid var(--border-color);">
-                <option value="all" <?= $owner_filter === 'all' ? 'selected' : '' ?>>Todas as Reservas</option>
-                <option value="mine" <?= $owner_filter === 'mine' ? 'selected' : '' ?>>Minhas Solicitações</option>
-            </select>
-        </div>
-    <?php endif; ?>
+    <div class="owner-filters">
+        <select onchange="location.href='?status=<?= $status_filter ?>&owner=' + this.value"
+            style="padding: 8px 15px; border-radius: 10px; border: 1px solid var(--border-color);">
+            <option value="all" <?= $owner_filter === 'all' ? 'selected' : '' ?>>Todas as Reservas</option>
+            <option value="mine" <?= $owner_filter === 'mine' ? 'selected' : '' ?>>Minhas Solicitações</option>
+        </select>
+    </div>
 </div>
 
 <?php if (empty($reservas)): ?>
