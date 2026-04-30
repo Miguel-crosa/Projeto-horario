@@ -12,7 +12,7 @@ if ($action == 'delete') {
     $res = mysqli_query($conn, "SELECT sigla FROM turma WHERE id = '$id'");
     if ($row = mysqli_fetch_assoc($res)) {
         $sigla_deleted = $row['sigla'];
-        
+
         // --- HARD DELETE SEMPRE PERMANENTE ---
         // 1. Limpar agenda primeiro para evitar orfãos (se houver constraints)
         mysqli_query($conn, "DELETE FROM agenda WHERE turma_id = '$id'");
@@ -62,9 +62,12 @@ if ($action == 'bulk_update' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     $horario_fim = mysqli_real_escape_string($conn, $_POST['horario_fim'] ?? '');
 
     $update_fields = [];
-    if (!empty($periodo)) $update_fields[] = "periodo = '$periodo'";
-    if (!empty($horario_inicio)) $update_fields[] = "horario_inicio = '$horario_inicio'";
-    if (!empty($horario_fim)) $update_fields[] = "horario_fim = '$horario_fim'";
+    if (!empty($periodo))
+        $update_fields[] = "periodo = '$periodo'";
+    if (!empty($horario_inicio))
+        $update_fields[] = "horario_inicio = '$horario_inicio'";
+    if (!empty($horario_fim))
+        $update_fields[] = "horario_fim = '$horario_fim'";
 
     if (empty($update_fields)) {
         header("Location: $return_url&msg=info&info_text=Nenhuma alteração informada.");
@@ -79,12 +82,12 @@ if ($action == 'bulk_update' && $_SERVER['REQUEST_METHOD'] == 'POST') {
         $res = mysqli_query($conn, "SELECT * FROM turma WHERE id = '$t_id'");
         if ($t_data = mysqli_fetch_assoc($res)) {
             $sigla_display = $t_data['sigla'] ?: "Turma #$t_id";
-            
+
             // Valores novos (se informados) ou atuais
             $new_periodo = !empty($_POST['periodo']) ? mysqli_real_escape_string($conn, $_POST['periodo']) : $t_data['periodo'];
             $new_h_ini = !empty($_POST['horario_inicio']) ? mysqli_real_escape_string($conn, $_POST['horario_inicio']) : $t_data['horario_inicio'];
             $new_h_fim = !empty($_POST['horario_fim']) ? mysqli_real_escape_string($conn, $_POST['horario_fim']) : $t_data['horario_fim'];
-            
+
             $dias_arr = !empty($t_data['dias_semana']) ? explode(',', $t_data['dias_semana']) : [];
             $docentes = array_values(array_filter([$t_data['docente_id1'], $t_data['docente_id2'], $t_data['docente_id3'], $t_data['docente_id4']], function ($val) {
                 return $val !== null && $val > 0;
@@ -96,21 +99,32 @@ if ($action == 'bulk_update' && $_SERVER['REQUEST_METHOD'] == 'POST') {
             foreach ($docentes as $did) {
                 // 1. Conflito de Horário (Agenda)
                 $conf_res = checkDocenteConflicts($conn, $did, $t_id, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_h_ini, $new_h_fim, $t_data['tipo_agenda'], $t_data['agenda_flexivel']);
-                if ($conf_res !== true) { $error_turma = $conf_res; break; }
+                if ($conf_res !== true) {
+                    $error_turma = $conf_res;
+                    break;
+                }
 
                 // 2. Horário de Trabalho (Blocos Autorizados)
                 $work_res = checkDocenteWorkSchedule($conn, $did, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_periodo, $new_h_ini, $new_h_fim, $t_data['tipo_agenda'], $t_data['agenda_flexivel']);
-                if ($work_res !== true) { $error_turma = $work_res; break; }
+                if ($work_res !== true) {
+                    $error_turma = $work_res;
+                    break;
+                }
 
                 // 3. Limites de Carga Horária
                 $limit_res = checkDocenteLimits($conn, $did, $t_id, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_h_ini, $new_h_fim, $new_periodo, $t_data['tipo_agenda'], $t_data['agenda_flexivel']);
-                if ($limit_res !== true) { $error_turma = $limit_res; break; }
+                if ($limit_res !== true) {
+                    $error_turma = $limit_res;
+                    break;
+                }
             }
 
             // 4. Conflito de Ambiente
             if (!$error_turma && !empty($t_data['ambiente_id']) && $t_data['ambiente_id'] > 0) {
                 $amb_res = checkAmbienteConflict($conn, $t_data['ambiente_id'], $t_id, $t_data['data_inicio'], $t_data['data_fim'], $dias_arr, $new_h_ini, $new_h_fim, $t_data['tipo_agenda'], $t_data['agenda_flexivel']);
-                if ($amb_res !== true) { $error_turma = $amb_res; }
+                if ($amb_res !== true) {
+                    $error_turma = $amb_res;
+                }
             }
 
             if ($error_turma) {
@@ -120,9 +134,12 @@ if ($action == 'bulk_update' && $_SERVER['REQUEST_METHOD'] == 'POST') {
 
             // --- EXECUÇÃO DO UPDATE ---
             $fields = [];
-            if (!empty($_POST['periodo'])) $fields[] = "periodo = '$new_periodo'";
-            if (!empty($_POST['horario_inicio'])) $fields[] = "horario_inicio = '$new_h_ini'";
-            if (!empty($_POST['horario_fim'])) $fields[] = "horario_fim = '$new_h_fim'";
+            if (!empty($_POST['periodo']))
+                $fields[] = "periodo = '$new_periodo'";
+            if (!empty($_POST['horario_inicio']))
+                $fields[] = "horario_inicio = '$new_h_ini'";
+            if (!empty($_POST['horario_fim']))
+                $fields[] = "horario_fim = '$new_h_fim'";
 
             if (!empty($fields)) {
                 $sql = "UPDATE turma SET " . implode(', ', $fields) . " WHERE id = '$t_id'";
@@ -135,13 +152,13 @@ if ($action == 'bulk_update' && $_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
     }
-    
+
     // Prepara mensagem final
     $msg_text = "Edição concluída: $success_count turmas atualizadas.";
     if (!empty($errors)) {
         $msg_text .= "<br><br><strong>Atenção:</strong> " . count($errors) . " turmas não puderam ser alteradas por conflitos:<br>" . implode("<br>", $errors);
     }
-    
+
     $msg_type = $success_count > 0 ? "bulk_success" : "error";
     $separator = (strpos($return_url, '?') !== false) ? '&' : '?';
     header("Location: $return_url" . $separator . "msg=$msg_type&msg_text=" . urlencode($msg_text));
@@ -152,11 +169,12 @@ if ($action === 'delete_bulk' && isAdmin()) {
     $ids = $_POST['ids'] ?? [];
     $return_url = $_POST['return_url'] ?? '../views/turmas.php';
     if (!empty($ids)) {
-        $ids_sql = implode("','", array_map(function($id) use ($conn) { return mysqli_real_escape_string($conn, $id); }, $ids));
-        
+        $ids_sql = implode("','", array_map(function ($id) use ($conn) {
+            return mysqli_real_escape_string($conn, $id); }, $ids));
+
         // 1. Limpar Agendas
         mysqli_query($conn, "DELETE FROM agenda WHERE turma_id IN ('$ids_sql')");
-        
+
         // 2. Excluir Turmas
         if (mysqli_query($conn, "DELETE FROM turma WHERE id IN ('$ids_sql')")) {
             $msg = urlencode(count($ids) . " turmas foram excluídas permanentemente.");
@@ -208,8 +226,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $data_inicio = mysqli_real_escape_string($conn, $_POST['data_inicio']);
     $data_fim = mysqli_real_escape_string($conn, $_POST['data_fim']);
     $ambiente_id = !empty($_POST['ambiente_id']) ? mysqli_real_escape_string($conn, $_POST['ambiente_id']) : "NULL";
-    if ($ambiente_id === 'outro') $ambiente_id = "NULL";
-    
+    if ($ambiente_id === 'outro')
+        $ambiente_id = "NULL";
+
     $sigla = mysqli_real_escape_string($conn, $_POST['sigla'] ?? '');
     $vagas = (int) ($_POST['vagas'] ?? 32);
     $local = mysqli_real_escape_string($conn, $_POST['local'] ?? 'Sede');
@@ -222,8 +241,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $horario_fim = mysqli_real_escape_string($conn, $_POST['horario_fim'] ?? '11:30');
 
     // Normalização: Garante que tenha minutos (ex: "08" -> "08:00")
-    if (!empty($horario_inicio) && strpos($horario_inicio, ':') === false) $horario_inicio .= ':00';
-    if (!empty($horario_fim) && strpos($horario_fim, ':') === false) $horario_fim .= ':00';
+    if (!empty($horario_inicio) && strpos($horario_inicio, ':') === false)
+        $horario_inicio .= ':00';
+    if (!empty($horario_fim) && strpos($horario_fim, ':') === false)
+        $horario_fim .= ':00';
 
     $tipo_custeio = mysqli_real_escape_string($conn, $_POST['tipo_custeio'] ?? 'Gratuidade');
     $previsao_despesa = (float) ($_POST['previsao_despesa'] ?? 0);
@@ -243,7 +264,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $derived_days = [];
         foreach ($flex_dates as $fd) {
             $fd = trim($fd);
-            if (empty($fd)) continue;
+            if (empty($fd))
+                continue;
             $dow = (int) date('w', strtotime($fd));
             $dayName = $daysMapFlex[$dow] ?? '';
             if ($dayName && !in_array($dayName, $derived_days)) {
@@ -255,7 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } else {
         $dias_semana_str = mysqli_real_escape_string($conn, implode(',', $dias_semana_arr));
     }
-    
+
     // TRAVA: Aulas Noturnas não podem passar das 23:00
     if ($periodo === 'Noite' && !empty($horario_fim) && $horario_fim > '23:00') {
         $horario_fim = '23:00';
@@ -279,12 +301,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $curso_nome_email = "Não informado";
     if ($curso_id !== "NULL") {
         $c_res = mysqli_query($conn, "SELECT nome FROM curso WHERE id = $curso_id");
-        if ($c_row = mysqli_fetch_assoc($c_res)) $curso_nome_email = $c_row['nome'];
+        if ($c_row = mysqli_fetch_assoc($c_res))
+            $curso_nome_email = $c_row['nome'];
     }
-    $ambiente_nome_email = $local; 
+    $ambiente_nome_email = $local;
     if ($ambiente_id !== "NULL" && $ambiente_id > 0) {
         $a_res = mysqli_query($conn, "SELECT nome FROM ambiente WHERE id = $ambiente_id");
-        if ($a_row = mysqli_fetch_assoc($a_res)) $ambiente_nome_email = $a_row['nome'];
+        if ($a_row = mysqli_fetch_assoc($a_res))
+            $ambiente_nome_email = $a_row['nome'];
     }
     $di_fmt = date('d/m/Y', strtotime($data_inicio));
     $df_fmt = date('d/m/Y', strtotime($data_fim));
@@ -343,13 +367,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if (!$usuario_id) {
             $admin_res = mysqli_query($conn, "SELECT id FROM usuario WHERE role = 'admin' LIMIT 1");
             if ($row_adm = mysqli_fetch_assoc($admin_res)) {
-                $usuario_id = (int)$row_adm['id'];
+                $usuario_id = (int) $row_adm['id'];
             } else {
                 mysqli_rollback($conn);
                 handle_response($conn, false, "Sessão expirada. Por favor, faça login novamente.", "login.php", $is_ajax);
             }
         }
-        $usuario_id_sql = $usuario_id ? (int)$usuario_id : "NULL";
+        $usuario_id_sql = $usuario_id ? (int) $usuario_id : "NULL";
 
         $principal_docente = !empty($docentes_to_check) ? $docentes_to_check[0] : 0;
         if (!$principal_docente && empty($id)) {
@@ -394,7 +418,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     <p style='margin: 5px 0;'><strong>Dias:</strong> $dias_fmt</p>
                                     <p style='margin: 5px 0;'><strong>Ambiente:</strong> $ambiente_nome_email</p>
                                 </div>
-                                <p style='margin-top: 15px; font-weight: 600; color: #1565c0;'>Lembre-se de preparar sua agenda.</p>
                                 <p style='margin-top: 10px; font-size: 0.9rem; color: #666;'>Você receberá uma nova notificação assim que a reserva for aprovada ou recusada pela coordenação.</p>
                                 <p style='margin-top: 15px; font-size: 0.85rem; color: #555; line-height: 1.4;'><strong>Importante:</strong> prepare-se para essa nova turma, elaborando os Planos de Ensino e o Cronograma de Aulas e entregando-os à coordenação com, no mínimo, dois dias de antecedência, a necessidade de materiais de apoio (apostilas ou livros), materiais de consumo e a adequação do ambiente, alinhando essas demandas previamente com o Prof. Flávio.</p>
                                 <hr style='border: 0; border-top: 1px solid #eee; margin: 20px 0;'>
@@ -405,6 +428,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             mysqli_rollback($conn);
                             handle_response($conn, false, "Falha ao enviar e-mail de notificação da reserva. A operação foi cancelada.", "", $is_ajax);
                         }
+
+                        // Enviar cópia para a coordenação (configurado em mailer.php)
+                        $f_subject = "Cópia: Solicitação de Reserva - $display_nome";
+                        $f_body = "
+                            <div style='font-family: sans-serif; color: #333;'>
+                                <h2 style='color: #ed1c24;'>Olá, $nome_copia!</h2>
+                                <p>Informamos que uma <strong>nova reserva</strong> foi cadastrada no sistema.</p>
+                                <div style='background: #f4f4f4; padding: 15px; border-radius: 8px; border-left: 4px solid #ed1c24;'>
+                                    <p style='margin: 5px 0;'><strong>Docente:</strong> $d_nome</p>
+                                    <p style='margin: 5px 0;'><strong>Curso:</strong> $curso_nome_email</p>
+                                    <p style='margin: 5px 0;'><strong>Sigla:</strong> $display_nome</p>
+                                    <p style='margin: 5px 0;'><strong>Datas:</strong> $di_fmt até $df_fmt</p>
+                                    <p style='margin: 5px 0;'><strong>Horário:</strong> $h_ini_fmt às $h_fim_fmt ($periodo)</p>
+                                    <p style='margin: 5px 0;'><strong>Dias:</strong> $dias_fmt</p>
+                                    <p style='margin: 5px 0;'><strong>Ambiente:</strong> $ambiente_nome_email</p>
+                                </div>
+                                <hr style='border: 0; border-top: 1px solid #eee; margin: 20px 0;'>
+                                <p style='font-size: 0.85rem; color: #888;'>Confira agora: <a href='https://ocupacaodocente.senaivotuporanga.com.br/' style='color: #ed1c24; text-decoration: none; font-weight: 700;'>https://ocupacaodocente.senaivotuporanga.com.br/</a></p>
+                            </div>
+                        ";
+                        sendEmail($email_copia, $f_subject, $f_body);
                     } else {
                         mysqli_rollback($conn);
                         handle_response($conn, false, "O docente selecionado não possui e-mail cadastrado. Não é possível enviar a notificação solicitada.", "", $is_ajax);
@@ -470,7 +514,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         <p style='margin: 5px 0;'><strong>Ambiente:</strong> $ambiente_nome_email</p>
                                         <p style='margin: 5px 0;'><strong>Tipo:</strong> $tipo</p>
                                     </div>
-                                    <p style='margin-top: 15px; font-weight: 600; color: #2e7d32;'>Lembre-se de preparar sua agenda.</p>
                                     <p style='margin-top: 10px; font-size: 0.9rem; color: #666;'>O seu cronograma já foi gerado na agenda do sistema.</p>
                                     <p style='margin-top: 15px; font-size: 0.85rem; color: #555; line-height: 1.4;'><strong>Importante:</strong> prepare-se para essa nova turma, elaborando os Planos de Ensino e o Cronograma de Aulas e entregando-os à coordenação com, no mínimo, dois dias de antecedência, a necessidade de materiais de apoio (apostilas ou livros), materiais de consumo e a adequação do ambiente, alinhando essas demandas previamente com o Prof. Flávio.</p>
                                     <hr style='border: 0; border-top: 1px solid #eee; margin: 20px 0;'>
@@ -485,10 +528,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         }
                     }
                 }
-                
+
                 if ($emails_enviados === 0) {
                     mysqli_rollback($conn);
                     handle_response($conn, false, "Nenhum dos docentes selecionados possui e-mail cadastrado. Não é possível enviar a notificação solicitada.", "", $is_ajax);
+                } else {
+                    // Enviar cópia única para a coordenação (configurado em mailer.php)
+                    $f_subject = "Cópia: Nova Turma Cadastrada - $display_nome";
+                    $f_body = "
+                        <div style='font-family: sans-serif; color: #333;'>
+                            <h2 style='color: #ed1c24;'>Olá, $nome_copia!</h2>
+                            <p>Informamos que uma <strong>nova turma</strong> foi cadastrada no sistema.</p>
+                            <div style='background: #f4f4f4; padding: 15px; border-radius: 8px; border-left: 4px solid #ed1c24;'>
+                                <p style='margin: 5px 0;'><strong>Curso:</strong> $curso_nome_email</p>
+                                <p style='margin: 5px 0;'><strong>Turma:</strong> $display_nome</p>
+                                <p style='margin: 5px 0;'><strong>Período:</strong> $di_fmt até $df_fmt</p>
+                                <p style='margin: 5px 0;'><strong>Horário:</strong> $h_ini_fmt às $h_fim_fmt ($periodo)</p>
+                                <p style='margin: 5px 0;'><strong>Dias:</strong> $dias_fmt</p>
+                                <p style='margin: 5px 0;'><strong>Ambiente:</strong> $ambiente_nome_email</p>
+                                <p style='margin: 5px 0;'><strong>Tipo:</strong> $tipo</p>
+                            </div>
+                            <hr style='border: 0; border-top: 1px solid #eee; margin: 20px 0;'>
+                            <p style='font-size: 0.85rem; color: #888;'>Confira agora: <a href='https://ocupacaodocente.senaivotuporanga.com.br/' style='color: #ed1c24; text-decoration: none; font-weight: 700;'>https://ocupacaodocente.senaivotuporanga.com.br/</a></p>
+                        </div>
+                    ";
+                    sendEmail($email_copia, $f_subject, $f_body);
                 }
             }
             mysqli_commit($conn);
@@ -498,4 +562,4 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
     exit;
 }
-
+
