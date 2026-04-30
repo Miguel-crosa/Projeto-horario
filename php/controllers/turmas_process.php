@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../configs/db.php';
 require_once __DIR__ . '/../configs/auth.php';
 require_once __DIR__ . '/../configs/utils.php';
+require_once __DIR__ . '/../configs/mailer.php';
 
 $action = isset($_GET['action']) ? $_GET['action'] : 'save';
 
@@ -398,7 +399,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             dispararNotificacaoGlobal($conn, $notif_tipo, $notif_titulo, $notif_msg, BASE_URL . "/php/views/gerenciar_reservas.php?status=PENDENTE&reserva_id=$res_id", ['admin', 'gestor']);
 
             if (!$id && isset($_POST['send_email']) && $_POST['send_email'] == '1') {
-                require_once __DIR__ . '/../configs/mailer.php';
                 $did = $principal_docente;
                 $d_res = mysqli_query($conn, "SELECT d.nome, u.email FROM docente d LEFT JOIN usuario u ON u.docente_id = d.id WHERE d.id = $did");
                 if ($d_res && $d_row = mysqli_fetch_assoc($d_res)) {
@@ -448,7 +448,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <p style='font-size: 0.85rem; color: #888;'>Confira agora: <a href='https://ocupacaodocente.senaivotuporanga.com.br/' style='color: #ed1c24; text-decoration: none; font-weight: 700;'>https://ocupacaodocente.senaivotuporanga.com.br/</a></p>
                             </div>
                         ";
-                        sendEmail(EMAIL_COPIA, $f_subject, $f_body);
+                        if (!sendEmail(EMAIL_COPIA, $f_subject, $f_body)) {
+                            error_log("Erro ao enviar cópia da reserva para: " . EMAIL_COPIA);
+                        }
                     } else {
                         mysqli_rollback($conn);
                         handle_response($conn, false, "O docente selecionado não possui e-mail cadastrado. Não é possível enviar a notificação solicitada.", "", $is_ajax);
@@ -492,7 +494,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             generateAgendaRecords($conn, $turma_id, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_to_check, $tipo_agenda, $agenda_flexivel);
 
             if (isset($_POST['send_email']) && $_POST['send_email'] == '1') {
-                require_once __DIR__ . '/../configs/mailer.php';
                 $emails_enviados = 0;
                 foreach ($docentes_to_check as $did) {
                     $d_res = mysqli_query($conn, "SELECT d.nome, u.email FROM docente d LEFT JOIN usuario u ON u.docente_id = d.id WHERE d.id = $did");
@@ -552,7 +553,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <p style='font-size: 0.85rem; color: #888;'>Confira agora: <a href='https://ocupacaodocente.senaivotuporanga.com.br/' style='color: #ed1c24; text-decoration: none; font-weight: 700;'>https://ocupacaodocente.senaivotuporanga.com.br/</a></p>
                         </div>
                     ";
-                    sendEmail(EMAIL_COPIA, $f_subject, $f_body);
+                    if (!sendEmail(EMAIL_COPIA, $f_subject, $f_body)) {
+                        error_log("Erro ao enviar cópia da nova turma para: " . EMAIL_COPIA);
+                    }
                 }
             }
             mysqli_commit($conn);
