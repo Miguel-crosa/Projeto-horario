@@ -394,7 +394,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     <p style='margin: 5px 0;'><strong>Dias:</strong> $dias_fmt</p>
                                     <p style='margin: 5px 0;'><strong>Ambiente:</strong> $ambiente_nome_email</p>
                                 </div>
-                                <p style='margin-top: 15px; font-size: 0.9rem; color: #666;'>Você receberá uma nova notificação assim que a reserva for aprovada ou recusada pela coordenação.</p>
+                                <p style='margin-top: 15px; font-weight: 600; color: #1565c0;'>Lembre-se de preparar sua agenda.</p>
+                                <p style='margin-top: 10px; font-size: 0.9rem; color: #666;'>Você receberá uma nova notificação assim que a reserva for aprovada ou recusada pela coordenação.</p>
+                                <p style='margin-top: 15px; font-size: 0.85rem; color: #555; line-height: 1.4;'><strong>Importante:</strong> prepare-se para essa nova turma, elaborando os Planos de Ensino e o Cronograma de Aulas e entregando-os à coordenação com, no mínimo, dois dias de antecedência, a necessidade de materiais de apoio (apostilas ou livros), materiais de consumo e a adequação do ambiente, alinhando essas demandas previamente com o Prof. Flávio.</p>
+                                <hr style='border: 0; border-top: 1px solid #eee; margin: 20px 0;'>
+                                <p style='font-size: 0.85rem; color: #888;'>Confira agora: <a href='https://ocupacaodocente.senaivotuporanga.com.br/' style='color: #ed1c24; text-decoration: none; font-weight: 700;'>https://ocupacaodocente.senaivotuporanga.com.br/</a></p>
                             </div>
                         ";
                         if (!sendEmail($d_email, $subject, $body)) {
@@ -466,7 +470,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         <p style='margin: 5px 0;'><strong>Ambiente:</strong> $ambiente_nome_email</p>
                                         <p style='margin: 5px 0;'><strong>Tipo:</strong> $tipo</p>
                                     </div>
-                                    <p style='margin-top: 15px; font-size: 0.9rem; color: #666;'>O seu cronograma já foi gerado na agenda do sistema.</p>
+                                    <p style='margin-top: 15px; font-weight: 600; color: #2e7d32;'>Lembre-se de preparar sua agenda.</p>
+                                    <p style='margin-top: 10px; font-size: 0.9rem; color: #666;'>O seu cronograma já foi gerado na agenda do sistema.</p>
+                                    <p style='margin-top: 15px; font-size: 0.85rem; color: #555; line-height: 1.4;'><strong>Importante:</strong> prepare-se para essa nova turma, elaborando os Planos de Ensino e o Cronograma de Aulas e entregando-os à coordenação com, no mínimo, dois dias de antecedência, a necessidade de materiais de apoio (apostilas ou livros), materiais de consumo e a adequação do ambiente, alinhando essas demandas previamente com o Prof. Flávio.</p>
+                                    <hr style='border: 0; border-top: 1px solid #eee; margin: 20px 0;'>
+                                    <p style='font-size: 0.85rem; color: #888;'>Confira agora: <a href='https://ocupacaodocente.senaivotuporanga.com.br/' style='color: #ed1c24; text-decoration: none; font-weight: 700;'>https://ocupacaodocente.senaivotuporanga.com.br/</a></p>
                                 </div>
                             ";
                             if (!sendEmail($d_email, $subject, $body)) {
