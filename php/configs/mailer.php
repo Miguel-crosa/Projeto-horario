@@ -5,8 +5,8 @@ use PHPMailer\PHPMailer\Exception;
 require_once __DIR__ . '/../../vendor/autoload.php';
 
 // Configurações de Notificação (Cópia para Coordenação)
-$email_copia = 'email-cordenacao@email.com';
-$nome_copia = 'Prof. Nome-da-cordenacao';
+define('EMAIL_COPIA', 'email-cordenacao@email.com');
+define('NOME_COPIA', 'Prof. Nome-da-cordenacao');
 
 /**
  * Função global para envio de e-mails via PHPMailer.

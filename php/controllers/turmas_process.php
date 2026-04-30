@@ -433,7 +433,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $f_subject = "Cópia: Solicitação de Reserva - $display_nome";
                         $f_body = "
                             <div style='font-family: sans-serif; color: #333;'>
-                                <h2 style='color: #ed1c24;'>Olá, $nome_copia!</h2>
+                                <h2 style='color: #ed1c24;'>Olá, " . NOME_COPIA . "!</h2>
                                 <p>Informamos que uma <strong>nova reserva</strong> foi cadastrada no sistema.</p>
                                 <div style='background: #f4f4f4; padding: 15px; border-radius: 8px; border-left: 4px solid #ed1c24;'>
                                     <p style='margin: 5px 0;'><strong>Docente:</strong> $d_nome</p>
@@ -448,7 +448,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <p style='font-size: 0.85rem; color: #888;'>Confira agora: <a href='https://ocupacaodocente.senaivotuporanga.com.br/' style='color: #ed1c24; text-decoration: none; font-weight: 700;'>https://ocupacaodocente.senaivotuporanga.com.br/</a></p>
                             </div>
                         ";
-                        sendEmail($email_copia, $f_subject, $f_body);
+                        sendEmail(EMAIL_COPIA, $f_subject, $f_body);
                     } else {
                         mysqli_rollback($conn);
                         handle_response($conn, false, "O docente selecionado não possui e-mail cadastrado. Não é possível enviar a notificação solicitada.", "", $is_ajax);
@@ -537,7 +537,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $f_subject = "Cópia: Nova Turma Cadastrada - $display_nome";
                     $f_body = "
                         <div style='font-family: sans-serif; color: #333;'>
-                            <h2 style='color: #ed1c24;'>Olá, $nome_copia!</h2>
+                            <h2 style='color: #ed1c24;'>Olá, " . NOME_COPIA . "!</h2>
                             <p>Informamos que uma <strong>nova turma</strong> foi cadastrada no sistema.</p>
                             <div style='background: #f4f4f4; padding: 15px; border-radius: 8px; border-left: 4px solid #ed1c24;'>
                                 <p style='margin: 5px 0;'><strong>Curso:</strong> $curso_nome_email</p>
@@ -552,7 +552,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <p style='font-size: 0.85rem; color: #888;'>Confira agora: <a href='https://ocupacaodocente.senaivotuporanga.com.br/' style='color: #ed1c24; text-decoration: none; font-weight: 700;'>https://ocupacaodocente.senaivotuporanga.com.br/</a></p>
                         </div>
                     ";
-                    sendEmail($email_copia, $f_subject, $f_body);
+                    sendEmail(EMAIL_COPIA, $f_subject, $f_body);
                 }
             }
             mysqli_commit($conn);
