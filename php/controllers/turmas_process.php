@@ -275,6 +275,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $display_nome = !empty($sigla) ? $sigla : ($is_reserva ? "Reserva" : "Turma (Sem Sigla)");
 
+    // --- DADOS PARA O E-MAIL (Busca nomes amigáveis) ---
+    $curso_nome_email = "Não informado";
+    if ($curso_id !== "NULL") {
+        $c_res = mysqli_query($conn, "SELECT nome FROM curso WHERE id = $curso_id");
+        if ($c_row = mysqli_fetch_assoc($c_res)) $curso_nome_email = $c_row['nome'];
+    }
+    $ambiente_nome_email = $local; 
+    if ($ambiente_id !== "NULL" && $ambiente_id > 0) {
+        $a_res = mysqli_query($conn, "SELECT nome FROM ambiente WHERE id = $ambiente_id");
+        if ($a_row = mysqli_fetch_assoc($a_res)) $ambiente_nome_email = $a_row['nome'];
+    }
+    $di_fmt = date('d/m/Y', strtotime($data_inicio));
+    $df_fmt = date('d/m/Y', strtotime($data_fim));
+    $h_ini_fmt = substr($horario_inicio, 0, 5);
+    $h_fim_fmt = substr($horario_fim, 0, 5);
+    $dias_fmt = !empty($dias_semana_str) ? str_replace(',', ', ', $dias_semana_str) : 'Datas específicas (Flexível)';
+
+
     // --- VALIDATION: Professor Hour Limits & Conflicts ---
     $docentes_to_check = array_values(array_filter([$docente_id1, $docente_id2, $docente_id3, $docente_id4], function ($val) {
         return $val !== "NULL" && $val > 0;
@@ -363,8 +381,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $d_email = trim($d_row['email'] ?? '');
                     $d_nome = $d_row['nome'];
                     if (!empty($d_email)) {
-                        $subject = "Solicitação de Reserva: $sigla";
-                        $body = "<h2>Olá, $d_nome!</h2><p>Uma nova solicitação de reserva foi realizada no sistema.</p><p><strong>Sigla:</strong> $sigla<br><strong>Período:</strong> $periodo</p>";
+                        $subject = "Solicitação de Reserva: $display_nome";
+                        $body = "
+                            <div style='font-family: sans-serif; color: #333;'>
+                                <h2 style='color: #ed1c24;'>Olá, $d_nome!</h2>
+                                <p>Uma nova <strong>solicitação de reserva</strong> foi realizada no sistema e está aguardando aprovação.</p>
+                                <div style='background: #f4f4f4; padding: 15px; border-radius: 8px; border-left: 4px solid #ffb300;'>
+                                    <p style='margin: 5px 0;'><strong>Curso:</strong> $curso_nome_email</p>
+                                    <p style='margin: 5px 0;'><strong>Sigla:</strong> $display_nome</p>
+                                    <p style='margin: 5px 0;'><strong>Datas:</strong> $di_fmt até $df_fmt</p>
+                                    <p style='margin: 5px 0;'><strong>Horário:</strong> $h_ini_fmt às $h_fim_fmt ($periodo)</p>
+                                    <p style='margin: 5px 0;'><strong>Dias:</strong> $dias_fmt</p>
+                                    <p style='margin: 5px 0;'><strong>Ambiente:</strong> $ambiente_nome_email</p>
+                                </div>
+                                <p style='margin-top: 15px; font-size: 0.9rem; color: #666;'>Você receberá uma nova notificação assim que a reserva for aprovada ou recusada pela coordenação.</p>
+                            </div>
+                        ";
                         if (!sendEmail($d_email, $subject, $body)) {
                             mysqli_rollback($conn);
                             handle_response($conn, false, "Falha ao enviar e-mail de notificação da reserva. A operação foi cancelada.", "", $is_ajax);
@@ -421,7 +453,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $d_nome = $d_row['nome'];
                         if (!empty($d_email)) {
                             $subject = "Nova Turma Atribuída: $display_nome";
-                            $body = "<h2>Olá, $d_nome!</h2><p>Uma nova turma foi atribuída...</p>";
+                            $body = "
+                                <div style='font-family: sans-serif; color: #333;'>
+                                    <h2 style='color: #ed1c24;'>Olá, $d_nome!</h2>
+                                    <p>Informamos que uma <strong>nova turma</strong> foi cadastrada e atribuída a você no sistema.</p>
+                                    <div style='background: #f4f4f4; padding: 15px; border-radius: 8px; border-left: 4px solid #ed1c24;'>
+                                        <p style='margin: 5px 0;'><strong>Curso:</strong> $curso_nome_email</p>
+                                        <p style='margin: 5px 0;'><strong>Turma:</strong> $display_nome</p>
+                                        <p style='margin: 5px 0;'><strong>Período:</strong> $di_fmt até $df_fmt</p>
+                                        <p style='margin: 5px 0;'><strong>Horário:</strong> $h_ini_fmt às $h_fim_fmt ($periodo)</p>
+                                        <p style='margin: 5px 0;'><strong>Dias:</strong> $dias_fmt</p>
+                                        <p style='margin: 5px 0;'><strong>Ambiente:</strong> $ambiente_nome_email</p>
+                                        <p style='margin: 5px 0;'><strong>Tipo:</strong> $tipo</p>
+                                    </div>
+                                    <p style='margin-top: 15px; font-size: 0.9rem; color: #666;'>O seu cronograma já foi gerado na agenda do sistema.</p>
+                                </div>
+                            ";
                             if (!sendEmail($d_email, $subject, $body)) {
                                 mysqli_rollback($conn);
                                 handle_response($conn, false, "Falha ao enviar e-mail de notificação para $d_nome ($d_email). O cadastro foi revertido.", "", $is_ajax);
