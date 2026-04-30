@@ -4,28 +4,23 @@ use PHPMailer\PHPMailer\Exception;
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-// Configurações de Notificação (Cópia para Coordenação)
-define('EMAIL_COPIA', 'email-cordenacao@email.com');
-define('NOME_COPIA', 'Prof. Nome-da-cordenacao');
-
 /**
  * Função global para envio de e-mails via PHPMailer.
  * Configure as credenciais SMTP conforme seu ambiente.
  */
-function sendEmail($to, $subject, $body, $altBody = '')
-{
+function sendEmail($to, $subject, $body, $altBody = '') {
     $mail = new PHPMailer(true);
 
     try {
         // Configurações do Servidor (AJUSTE CONFORME NECESSÁRIO)
         // $mail->SMTPDebug = 2; // Habilite para debug
         $mail->isSMTP();
-        $mail->Host = 'smtp.gmail.com'; // Exemplo: Gmail
-        $mail->SMTPAuth = true;
-        $mail->Username = 'seu-email@gmail.com'; // Seu e-mail
-        $mail->Password = 'sua-senha-ou-app-password'; // Sua senha
+        $mail->Host       = 'smtp.gmail.com'; // Exemplo: Gmail
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'seu-email@gmail.com'; // Seu e-mail
+        $mail->Password   = 'sua-senha-ou-app-password'; // Sua senha
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = 587;
+        $mail->Port       = 587;
 
         // Destinatários
         $mail->setFrom('seu-email@gmail.com', 'Sistema de Horários');
@@ -34,7 +29,7 @@ function sendEmail($to, $subject, $body, $altBody = '')
         // Conteúdo
         $mail->isHTML(true);
         $mail->Subject = $subject;
-        $mail->Body = $body;
+        $mail->Body    = $body;
         $mail->AltBody = $altBody ?: strip_tags($body);
 
         // Charset

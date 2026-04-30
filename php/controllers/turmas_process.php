@@ -2,7 +2,6 @@
 require_once __DIR__ . '/../configs/db.php';
 require_once __DIR__ . '/../configs/auth.php';
 require_once __DIR__ . '/../configs/utils.php';
-require_once __DIR__ . '/../configs/mailer.php';
 
 $action = isset($_GET['action']) ? $_GET['action'] : 'save';
 
@@ -171,7 +170,8 @@ if ($action === 'delete_bulk' && isAdmin()) {
     $return_url = $_POST['return_url'] ?? '../views/turmas.php';
     if (!empty($ids)) {
         $ids_sql = implode("','", array_map(function ($id) use ($conn) {
-            return mysqli_real_escape_string($conn, $id); }, $ids));
+            return mysqli_real_escape_string($conn, $id);
+        }, $ids));
 
         // 1. Limpar Agendas
         mysqli_query($conn, "DELETE FROM agenda WHERE turma_id IN ('$ids_sql')");
@@ -399,6 +399,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             dispararNotificacaoGlobal($conn, $notif_tipo, $notif_titulo, $notif_msg, BASE_URL . "/php/views/gerenciar_reservas.php?status=PENDENTE&reserva_id=$res_id", ['admin', 'gestor']);
 
             if (!$id && isset($_POST['send_email']) && $_POST['send_email'] == '1') {
+                require_once __DIR__ . '/../configs/mailer.php';
                 $did = $principal_docente;
                 $d_res = mysqli_query($conn, "SELECT d.nome, u.email FROM docente d LEFT JOIN usuario u ON u.docente_id = d.id WHERE d.id = $did");
                 if ($d_res && $d_row = mysqli_fetch_assoc($d_res)) {
@@ -429,11 +430,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             handle_response($conn, false, "Falha ao enviar e-mail de notificação da reserva. A operação foi cancelada.", "", $is_ajax);
                         }
 
-                        // Enviar cópia para a coordenação (configurado em mailer.php)
+                        // Enviar cópia para o Prof. Flávio
+                        $flavio_email = 'email-docente@email.com';
                         $f_subject = "Cópia: Solicitação de Reserva - $display_nome";
                         $f_body = "
                             <div style='font-family: sans-serif; color: #333;'>
-                                <h2 style='color: #ed1c24;'>Olá, " . NOME_COPIA . "!</h2>
+                                <h2 style='color: #ed1c24;'>Olá, Prof. Flávio!</h2>
                                 <p>Informamos que uma <strong>nova reserva</strong> foi cadastrada no sistema.</p>
                                 <div style='background: #f4f4f4; padding: 15px; border-radius: 8px; border-left: 4px solid #ed1c24;'>
                                     <p style='margin: 5px 0;'><strong>Docente:</strong> $d_nome</p>
@@ -448,9 +450,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <p style='font-size: 0.85rem; color: #888;'>Confira agora: <a href='https://ocupacaodocente.senaivotuporanga.com.br/' style='color: #ed1c24; text-decoration: none; font-weight: 700;'>https://ocupacaodocente.senaivotuporanga.com.br/</a></p>
                             </div>
                         ";
-                        if (!sendEmail(EMAIL_COPIA, $f_subject, $f_body)) {
-                            error_log("Erro ao enviar cópia da reserva para: " . EMAIL_COPIA);
-                        }
+                        sendEmail($flavio_email, $f_subject, $f_body);
                     } else {
                         mysqli_rollback($conn);
                         handle_response($conn, false, "O docente selecionado não possui e-mail cadastrado. Não é possível enviar a notificação solicitada.", "", $is_ajax);
@@ -494,6 +494,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             generateAgendaRecords($conn, $turma_id, $dias_semana_arr, $periodo, $horario_inicio, $horario_fim, $data_inicio, $data_fim, $ambiente_id, $docentes_to_check, $tipo_agenda, $agenda_flexivel);
 
             if (isset($_POST['send_email']) && $_POST['send_email'] == '1') {
+                require_once __DIR__ . '/../configs/mailer.php';
                 $emails_enviados = 0;
                 foreach ($docentes_to_check as $did) {
                     $d_res = mysqli_query($conn, "SELECT d.nome, u.email FROM docente d LEFT JOIN usuario u ON u.docente_id = d.id WHERE d.id = $did");
@@ -534,11 +535,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     mysqli_rollback($conn);
                     handle_response($conn, false, "Nenhum dos docentes selecionados possui e-mail cadastrado. Não é possível enviar a notificação solicitada.", "", $is_ajax);
                 } else {
-                    // Enviar cópia única para a coordenação (configurado em mailer.php)
+                    // Enviar cópia única para o Prof. Flávio após o envio aos docentes
+                    $flavio_email = 'email-docente@email.com';
                     $f_subject = "Cópia: Nova Turma Cadastrada - $display_nome";
                     $f_body = "
                         <div style='font-family: sans-serif; color: #333;'>
-                            <h2 style='color: #ed1c24;'>Olá, " . NOME_COPIA . "!</h2>
+                            <h2 style='color: #ed1c24;'>Olá, Prof. Flávio!</h2>
                             <p>Informamos que uma <strong>nova turma</strong> foi cadastrada no sistema.</p>
                             <div style='background: #f4f4f4; padding: 15px; border-radius: 8px; border-left: 4px solid #ed1c24;'>
                                 <p style='margin: 5px 0;'><strong>Curso:</strong> $curso_nome_email</p>
@@ -553,9 +555,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <p style='font-size: 0.85rem; color: #888;'>Confira agora: <a href='https://ocupacaodocente.senaivotuporanga.com.br/' style='color: #ed1c24; text-decoration: none; font-weight: 700;'>https://ocupacaodocente.senaivotuporanga.com.br/</a></p>
                         </div>
                     ";
-                    if (!sendEmail(EMAIL_COPIA, $f_subject, $f_body)) {
-                        error_log("Erro ao enviar cópia da nova turma para: " . EMAIL_COPIA);
-                    }
+                    sendEmail($flavio_email, $f_subject, $f_body);
                 }
             }
             mysqli_commit($conn);
