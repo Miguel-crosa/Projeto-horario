@@ -91,7 +91,7 @@ switch ($action) {
                     AND data = ? 
                     AND status = 'RESERVADO' 
                     AND turma_id IS NULL";
-        
+
         if ($periodo) {
             $query .= " AND periodo = ?";
             $stmt = $conn->prepare($query);
@@ -125,7 +125,7 @@ switch ($action) {
 
         $placeholders = implode(',', array_fill(0, count($dates), '?'));
         $query = "DELETE FROM agenda WHERE docente_id = ? AND data IN ($placeholders) AND status = 'RESERVADO' AND turma_id IS NULL";
-        
+
         if ($periodo) {
             $query .= " AND periodo = ?";
         }
@@ -311,7 +311,7 @@ switch ($action) {
         // 2. Check Exclusivity and Hour Limits
         $h_ini_check = $_POST['horario_inicio'] ?? '';
         $h_fim_check = $_POST['horario_fim'] ?? '';
-        
+
         // Se não enviado, busca os defaults do período para o cálculo de limite
         if (!$h_ini_check || !$h_fim_check) {
             $periodDefaults = ['Manhã' => ['07:30', '11:30'], 'Tarde' => ['13:30', '17:30'], 'Noite' => ['18:00', '23:00'], 'Integral' => ['07:30', '17:30']];
@@ -324,10 +324,13 @@ switch ($action) {
         $target_h_per_day = ($t2 - $t1) / 3600;
 
         if ($periodo === 'Integral') {
-            if ($target_h_per_day > 4) $target_h_per_day -= 2; // Almoço (11:30 - 13:30)
-            if ($target_h_per_day > 8) $target_h_per_day = 8;
+            if ($target_h_per_day > 4)
+                $target_h_per_day -= 2; // Almoço (11:30 - 13:30)
+            if ($target_h_per_day > 8)
+                $target_h_per_day = 8;
         } else {
-            if ($target_h_per_day > 4) $target_h_per_day = 4;
+            if ($target_h_per_day > 4)
+                $target_h_per_day = 4;
         }
 
         foreach ($all_docente_ids as $did) {
@@ -337,7 +340,7 @@ switch ($action) {
             if ($doc_lim) {
                 $it_start = new DateTime($data_inicio);
                 $it_end = new DateTime($data_fim);
-                
+
                 // --- MONTHLY LIMIT VALIDATION (Iterate through all affected months) ---
                 if ($doc_lim['monthly_hours_limit'] > 0) {
                     $months_to_check = [];
@@ -347,14 +350,14 @@ switch ($action) {
                         if (!isset($months_to_check[$m_key])) {
                             $months_to_check[$m_key] = [
                                 'start' => $temp_it->format('Y-m-01'),
-                                'end'   => $temp_it->format('Y-m-t'),
+                                'end' => $temp_it->format('Y-m-t'),
                                 'new_hours' => 0
                             ];
                         }
-                        
+
                         // Check if this specific day is a class day for this docente
                         $curr_d = $temp_it->format('Y-m-d');
-                        $w_idx = (int)$temp_it->format('w');
+                        $w_idx = (int) $temp_it->format('w');
                         if (in_array($daysMap[$w_idx], $dias_semana)) {
                             if (!isHoliday($conn, $curr_d) && !isVacation($conn, $did, $curr_d)) {
                                 $months_to_check[$m_key]['new_hours'] += $target_h_per_day;
@@ -368,7 +371,7 @@ switch ($action) {
                         if (($consumed + $m_data['new_hours']) > ($doc_lim['monthly_hours_limit'] + 0.01)) {
                             $m_label = date('m/Y', strtotime($m_data['start']));
                             echo json_encode([
-                                'success' => false, 
+                                'success' => false,
                                 'message' => "Limite MENSAL excedido para {$doc_lim['nome']} em $m_label ($consumed h atuais + {$m_data['new_hours']} h previstas > {$doc_lim['monthly_hours_limit']} h limite)."
                             ]);
                             exit;
@@ -387,16 +390,16 @@ switch ($action) {
                             $w_start->modify('Monday this week');
                             $w_end = clone $w_start;
                             $w_end->modify('+6 days');
-                            
+
                             $weeks_to_check[$w_key] = [
                                 'start' => $w_start->format('Y-m-d'),
-                                'end'   => $w_end->format('Y-m-d'),
+                                'end' => $w_end->format('Y-m-d'),
                                 'new_hours' => 0
                             ];
                         }
 
                         $curr_d = $temp_it->format('Y-m-d');
-                        $w_idx = (int)$temp_it->format('w');
+                        $w_idx = (int) $temp_it->format('w');
                         if (in_array($daysMap[$w_idx], $dias_semana)) {
                             if (!isHoliday($conn, $curr_d) && !isVacation($conn, $did, $curr_d)) {
                                 $weeks_to_check[$w_key]['new_hours'] += $target_h_per_day;
@@ -546,7 +549,8 @@ switch ($action) {
                 $res_n = mysqli_query($conn, "SELECT nome FROM ambiente WHERE id = '$ambiente_id' LIMIT 1");
                 if ($row_n = mysqli_fetch_assoc($res_n)) {
                     $nome_amb = mb_strtolower(trim($row_n['nome']), 'UTF-8');
-                    if ($nome_amb === 'a definir') $is_placeholder = true;
+                    if ($nome_amb === 'a definir')
+                        $is_placeholder = true;
                 }
             }
 
@@ -625,7 +629,8 @@ switch ($action) {
             $dates = array_unique(explode(',', $agenda_flexivel));
             foreach ($dates as $dateStr) {
                 $dateStr = trim($dateStr);
-                if (empty($dateStr)) continue;
+                if (empty($dateStr))
+                    continue;
                 $w = (int) date('w', strtotime($dateStr));
                 $dayName = $daysMap[$w] ?? '';
                 $dia_esc = mysqli_real_escape_string($conn, $dayName);
@@ -697,7 +702,7 @@ switch ($action) {
                     if (!empty($d_email)) {
                         $subject = $is_reserva ? "Solicitação de Reserva: $sigla" : "Nova Turma Atribuída: $sigla";
                         $status_msg = $is_reserva ? "Status atual: <strong>PENDENTE</strong>. Você será notificado quando for aprovada." : "A aula já foi confirmada na sua agenda.";
-                        
+
                         $body = "<h2>Olá, $d_nome!</h2>
                                  <p>Um novo registro foi realizado para você no sistema de horários.</p>
                                  <p><strong>Identificação:</strong> $sigla<br>
@@ -738,9 +743,9 @@ switch ($action) {
             $dias_arr = explode(',', $r['dias_semana']);
             $env_id = !empty($r['ambiente_id']) ? $r['ambiente_id'] : "NULL";
             $cur_id = !empty($r['curso_id']) ? $r['curso_id'] : "NULL";
-            $props = !empty($r['numero_proposta']) ? "'".$r['numero_proposta']."'" : "NULL";
-            $parc = !empty($r['parceiro']) ? "'".$r['parceiro']."'" : "NULL";
-            $cont = !empty($r['contato_parceiro']) ? "'".$r['contato_parceiro']."'" : "NULL";
+            $props = !empty($r['numero_proposta']) ? "'" . $r['numero_proposta'] . "'" : "NULL";
+            $parc = !empty($r['parceiro']) ? "'" . $r['parceiro'] . "'" : "NULL";
+            $cont = !empty($r['contato_parceiro']) ? "'" . $r['contato_parceiro'] . "'" : "NULL";
 
             $sql_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, local, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro) 
                           VALUES ($cur_id, '{$r['tipo']}', '{$r['sigla']}', {$r['vagas']}, '{$r['periodo']}', '{$r['data_inicio']}', '{$r['data_fim']}', '{$r['dias_semana']}', $env_id, {$r['docente_id']}, '{$r['local']}', '{$r['tipo_custeio']}', {$r['previsao_despesa']}, {$r['valor_turma']}, $props, '{$r['tipo_atendimento']}', $parc, $cont)";

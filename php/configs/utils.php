@@ -623,6 +623,34 @@ function isWithinWorkSchedule($conn, $did, $date, $periodo)
     return true;
 }
 
+/**
+ * Normaliza a entrada de agenda_flexivel para um array de arrays ['data' => '...', 'periodo' => '...']
+ */
+function parseFlexDates($input, $default_periodo = '') {
+    if (empty($input)) return [];
+    $dates = [];
+    if (is_string($input)) {
+        $decoded = json_decode($input, true);
+        if (is_array($decoded)) {
+            $dates = $decoded;
+        } else {
+            $raw = array_filter(array_map('trim', explode(',', $input)));
+            foreach ($raw as $d) {
+                $dates[] = ['data' => $d, 'periodo' => $default_periodo];
+            }
+        }
+    } else if (is_array($input)) {
+        $dates = $input;
+    }
+
+    // Garante que cada item seja um array com a chave 'data'
+    return array_map(function($item) use ($default_periodo) {
+        if (is_string($item)) return ['data' => $item, 'periodo' => $default_periodo];
+        if (!isset($item['periodo']) || empty($item['periodo'])) $item['periodo'] = $default_periodo;
+        return $item;
+    }, $dates);
+}
+
 function checkDocenteWorkSchedule($conn, $did, $data_start, $data_end, $days_arr, $periodo, $h_start, $h_end, $tipo_agenda = 'recorrente', $agenda_flexivel = null)
 {
     if (!$did || $did <= 0)
@@ -633,12 +661,11 @@ function checkDocenteWorkSchedule($conn, $did, $data_start, $data_end, $days_arr
 
     $dates_to_check = [];
     if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
-        $flex_data = is_string($agenda_flexivel) ? json_decode($agenda_flexivel, true) : $agenda_flexivel;
-        if (!is_array($flex_data)) $flex_data = [];
+        $flex_data = parseFlexDates($agenda_flexivel, $periodo);
         foreach ($flex_data as $item) {
             $dates_to_check[] = [
                 'data' => $item['data'],
-                'periodo' => $item['periodo'] ?? $periodo,
+                'periodo' => $item['periodo'],
                 'dia_nome' => [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'][date('w', strtotime($item['data']))]
             ];
         }
@@ -708,8 +735,7 @@ function checkAmbienteConflict($conn, $ambiente_id, $turma_id_to_ignore, $data_s
     $ignore_stmt = $turma_id_to_ignore ? "AND a.turma_id != $turma_id_to_ignore" : "";
 
     if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
-        $flex_data = is_string($agenda_flexivel) ? json_decode($agenda_flexivel, true) : $agenda_flexivel;
-        if (!is_array($flex_data)) $flex_data = [];
+        $flex_data = parseFlexDates($agenda_flexivel);
         foreach ($flex_data as $item) {
             $dt = $item['data'];
             $hi = $item['h_inicio'] ?? $h_start;
@@ -968,15 +994,27 @@ function checkDocenteLimits($conn, $docente_id, $turma_id_to_ignore, $data_start
                 $r_start = ($week_start->format('Y-m-d') > $it->format('Y-m-d')) ? $week_start : $it;
                 $r_end = ($week_end->format('Y-m-d') < $end->format('Y-m-d')) ? $week_end : $end;
 
-                $check_day = clone $r_start;
-                while ($check_day->format('Y-m-d') <= $r_end->format('Y-m-d')) {
-                    $curr_v = $check_day->format('Y-m-d');
-                    if (in_array(getDayNameString($check_day), $days_arr)) {
-                        if (!isHoliday($conn, $curr_v) && !isVacation($conn, $docente_id, $curr_v)) {
-                            $classes_this_week++;
+                // FIX: se for flexível, contamos apenas as datas selecionadas que caem nesta semana
+                if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
+                    $flex_list = parseFlexDates($agenda_flexivel);
+                    foreach ($flex_list as $f) {
+                        if ($f['data'] >= $r_start->format('Y-m-d') && $f['data'] <= $r_end->format('Y-m-d')) {
+                            if (!isHoliday($conn, $f['data']) && !isVacation($conn, $docente_id, $f['data'])) {
+                                $classes_this_week++;
+                            }
                         }
                     }
-                    $check_day->modify('+1 day');
+                } else {
+                    $check_day = clone $r_start;
+                    while ($check_day->format('Y-m-d') <= $r_end->format('Y-m-d')) {
+                        $curr_v = $check_day->format('Y-m-d');
+                        if (in_array(getDayNameString($check_day), $days_arr)) {
+                            if (!isHoliday($conn, $curr_v) && !isVacation($conn, $docente_id, $curr_v)) {
+                                $classes_this_week++;
+                            }
+                        }
+                        $check_day->modify('+1 day');
+                    }
                 }
 
                 $new_hours_w = $classes_this_week * $hours_per_class;
@@ -1027,16 +1065,26 @@ function checkDocenteLimits($conn, $docente_id, $turma_id_to_ignore, $data_start
                 $r_end = ($m_end->format('Y-m-d') < $end->format('Y-m-d')) ? $m_end : $end;
 
                 $classes_this_month = 0;
-                $check_day = clone $r_start;
-
-                while ($check_day->format('Y-m-d') <= $r_end->format('Y-m-d')) {
-                    $curr_v = $check_day->format('Y-m-d');
-                    if (in_array(getDayNameString($check_day), $days_arr)) {
-                        if (!isHoliday($conn, $curr_v) && !isVacation($conn, $docente_id, $curr_v)) {
-                            $classes_this_month++;
+                if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
+                    $flex_list = parseFlexDates($agenda_flexivel);
+                    foreach ($flex_list as $f) {
+                        if ($f['data'] >= $r_start->format('Y-m-d') && $f['data'] <= $r_end->format('Y-m-d')) {
+                            if (!isHoliday($conn, $f['data']) && !isVacation($conn, $docente_id, $f['data'])) {
+                                $classes_this_month++;
+                            }
                         }
                     }
-                    $check_day->modify('+1 day');
+                } else {
+                    $check_day = clone $r_start;
+                    while ($check_day->format('Y-m-d') <= $r_end->format('Y-m-d')) {
+                        $curr_v = $check_day->format('Y-m-d');
+                        if (in_array(getDayNameString($check_day), $days_arr)) {
+                            if (!isHoliday($conn, $curr_v) && !isVacation($conn, $docente_id, $curr_v)) {
+                                $classes_this_month++;
+                            }
+                        }
+                        $check_day->modify('+1 day');
+                    }
                 }
 
                 $new_hours_m = $classes_this_month * $hours_per_class;
@@ -1088,8 +1136,7 @@ function checkDocenteConflicts($conn, $docente_id, $turma_id_to_ignore, $data_st
 
     // Para agenda flexível, verificamos cada data individualmente
     if ($tipo_agenda === 'flexivel' && !empty($agenda_flexivel)) {
-        $flex_data = is_string($agenda_flexivel) ? json_decode($agenda_flexivel, true) : $agenda_flexivel;
-        if (!is_array($flex_data)) $flex_data = [];
+        $flex_data = parseFlexDates($agenda_flexivel);
         foreach ($flex_data as $item) {
             $dt = $item['data'];
             $hi = $item['h_inicio'] ?? $h_start;

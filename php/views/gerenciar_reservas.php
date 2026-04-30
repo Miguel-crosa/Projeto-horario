@@ -304,11 +304,13 @@ include __DIR__ . '/../components/header.php';
             padding: 15px;
             align-items: stretch;
         }
+
         .status-filters {
             overflow-x: auto;
             padding-bottom: 10px;
             -webkit-overflow-scrolling: touch;
         }
+
         .filter-chip {
             white-space: nowrap;
         }

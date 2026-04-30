@@ -431,7 +431,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         }
 
                         // Enviar cópia para o Prof. Flávio
-                        $flavio_email = 'email-docente@email.com';
+                        $flavio_email = 'flavio.silva@sp.senai.br';
                         $f_subject = "Cópia: Solicitação de Reserva - $display_nome";
                         $f_body = "
                             <div style='font-family: sans-serif; color: #333;'>
@@ -535,14 +535,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     mysqli_rollback($conn);
                     handle_response($conn, false, "Nenhum dos docentes selecionados possui e-mail cadastrado. Não é possível enviar a notificação solicitada.", "", $is_ajax);
                 } else {
+                    // Coletar nomes dos docentes para a cópia do Flávio
+                    $docentes_nomes_arr = [];
+                    foreach ($docentes_to_check as $d_id) {
+                        $res_n = mysqli_query($conn, "SELECT nome FROM docente WHERE id = $d_id");
+                        if ($row_n = mysqli_fetch_assoc($res_n)) {
+                            $docentes_nomes_arr[] = $row_n['nome'];
+                        }
+                    }
+                    $docentes_lista_str = implode(', ', $docentes_nomes_arr);
+
                     // Enviar cópia única para o Prof. Flávio após o envio aos docentes
-                    $flavio_email = 'email-docente@email.com';
+                    $flavio_email = 'flavio.silva@sp.senai.br';
                     $f_subject = "Cópia: Nova Turma Cadastrada - $display_nome";
                     $f_body = "
                         <div style='font-family: sans-serif; color: #333;'>
                             <h2 style='color: #ed1c24;'>Olá, Prof. Flávio!</h2>
                             <p>Informamos que uma <strong>nova turma</strong> foi cadastrada no sistema.</p>
                             <div style='background: #f4f4f4; padding: 15px; border-radius: 8px; border-left: 4px solid #ed1c24;'>
+                                <p style='margin: 5px 0;'><strong>Docentes:</strong> $docentes_lista_str</p>
                                 <p style='margin: 5px 0;'><strong>Curso:</strong> $curso_nome_email</p>
                                 <p style='margin: 5px 0;'><strong>Turma:</strong> $display_nome</p>
                                 <p style='margin: 5px 0;'><strong>Período:</strong> $di_fmt até $df_fmt</p>
