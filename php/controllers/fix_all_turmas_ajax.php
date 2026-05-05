@@ -85,7 +85,11 @@ if ($h_ini && $h_fim) {
     $raw_h = ($t2 - $t1) / 3600;
 
     if ($turma['periodo'] === 'Integral') {
-        if ($raw_h > 4) $raw_h -= 2; // Almoço (11:30 - 13:30)
+        if ($raw_h > 4) {
+            $alm_parts = explode(':', $turma['horario_almoco'] ?? '02:00');
+            $alm_h = (int)$alm_parts[0] + ((int)($alm_parts[1] ?? 0) / 60);
+            $raw_h -= $alm_h;
+        }
         $horas_por_dia = min(8, $raw_h);
     } else {
         $horas_por_dia = min(4, $raw_h);

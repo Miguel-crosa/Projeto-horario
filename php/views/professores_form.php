@@ -49,23 +49,11 @@ if ($id) {
             <select name="area_conhecimento" class="form-input" required>
                 <option value="">Selecione a area...</option>
                 <?php
-                $areas_padronizadas = [
-                    'TECNOLOGIA DA INFORMAÇÃO',
-                    'Mecatrônica / Automação',
-                    'Metalmecânica',
-                    'Logística',
-                    'Eletroeletrônica',
-                    'Gestão / Qualidade',
-                    'Alimentos',
-                    'Vestuário',
-                    'Soldagem',
-                    'Manutenção Industrial',
-                    'Automotiva',
-                    'Construção Civil'
-                ];
+                $res_areas = mysqli_query($conn, "SELECT nome FROM area ORDER BY nome ASC");
                 $area_atual = $prof['area_conhecimento'] ?? '';
                 $area_encontrada = false;
-                foreach ($areas_padronizadas as $ap):
+                while($a = mysqli_fetch_assoc($res_areas)):
+                    $ap = $a['nome'];
                     $selected = (strcasecmp(trim($area_atual), trim($ap)) == 0);
                     if ($selected)
                         $area_encontrada = true;
@@ -73,7 +61,7 @@ if ($id) {
                     <option value="<?= htmlspecialchars($ap) ?>" <?= $selected ? 'selected' : '' ?>>
                         <?= htmlspecialchars($ap) ?>
                     </option>
-                <?php endforeach; ?>
+                <?php endwhile; ?>
                 <?php if ($area_atual && !$area_encontrada): ?>
                     <option value="<?= htmlspecialchars($area_atual) ?>" selected>
                         <?= htmlspecialchars($area_atual) ?> (Personalizado)

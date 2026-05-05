@@ -49,25 +49,14 @@ if ($id) {
             <select name="area_vinculada" id="area_select" class="form-input" <?= $sala['tipo'] == 'Outros' ? 'disabled' : '' ?>>
                 <option value="">Selecione a área...</option>
                 <?php
-                $areas_padronizadas = [
-                    'TI / Software',
-                    'Mecatrônica / Automação',
-                    'Metalmecânica',
-                    'Logística',
-                    'Eletroeletrônica',
-                    'Gestão / Qualidade',
-                    'Alimentos',
-                    'Vestuário',
-                    'Soldagem',
-                    'Manutenção Industrial',
-                    'Automotiva',
-                    'Construção Civil'
-                ];
-                foreach ($areas_padronizadas as $ap): ?>
+                $res_areas = mysqli_query($conn, "SELECT nome FROM area ORDER BY nome ASC");
+                while ($a = mysqli_fetch_assoc($res_areas)): 
+                    $ap = $a['nome'];
+                ?>
                     <option value="<?= htmlspecialchars($ap) ?>" <?= trim($sala['area_vinculada']) == trim($ap) ? 'selected' : '' ?>>
                         <?= htmlspecialchars($ap) ?>
                     </option>
-                <?php endforeach; ?>
+                <?php endwhile; ?>
             </select>
         </div>
         <div class="form-group" id="container_area_input" <?= $sala['tipo'] == 'Outros' ? '' : 'style="display:none;"' ?>>

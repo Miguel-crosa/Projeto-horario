@@ -39,7 +39,7 @@ class AgendaModel
             SELECT a.id, a.dia_semana, a.periodo, a.horario_inicio, a.horario_fim,
                    a.data AS agenda_data, a.status, a.docente_id,
                    c.nome AS curso_nome, t.sigla as turma_nome, t.data_inicio, t.data_fim, t.id AS turma_id,
-                   t.valor_turma, t.tipo_custeio, t.previsao_despesa,
+                   t.valor_turma, t.tipo_custeio, t.previsao_despesa, t.horario_almoco,
                    COALESCE(amb.nome, t.local) AS ambiente_nome, 'AULA' as type
             FROM agenda a
             JOIN turma t ON a.turma_id = t.id
@@ -81,7 +81,7 @@ class AgendaModel
             SELECT r.id, r.dias_semana AS dia_semana_list, r.periodo, r.hora_inicio AS horario_inicio, r.hora_fim AS horario_fim,
                    r.status, r.docente_id,
                    c.nome AS curso_nome, r.data_inicio, r.data_fim, NULL AS turma_id,
-                   r.valor_turma, r.tipo_custeio, r.previsao_despesa,
+                   r.valor_turma, r.tipo_custeio, r.previsao_despesa, r.horario_almoco,
                    COALESCE(amb.nome, r.local) AS ambiente_nome, r.usuario_id, r.sigla, 'RESERVA' as type
             FROM reservas r
             LEFT JOIN curso c ON r.curso_id = c.id

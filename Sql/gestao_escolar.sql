@@ -134,6 +134,7 @@
         contato_parceiro VARCHAR(255) DEFAULT NULL,
         horario_inicio TIME DEFAULT '07:30',
         horario_fim TIME DEFAULT '11:30',
+        horario_almoco TIME DEFAULT '02:00',
         tipo_agenda ENUM('recorrente', 'flexivel') DEFAULT 'recorrente',
         agenda_flexivel TEXT DEFAULT NULL,
         ativo TINYINT(1) DEFAULT 1,
@@ -176,6 +177,7 @@
         dias_semana VARCHAR(255) NOT NULL,
         hora_inicio TIME NOT NULL,
         hora_fim TIME NOT NULL,
+        horario_almoco TIME DEFAULT '02:00',
         periodo VARCHAR(50) DEFAULT NULL,
         sigla VARCHAR(50) DEFAULT NULL,
         vagas INT DEFAULT NULL,
@@ -233,7 +235,7 @@
     CREATE TABLE IF NOT EXISTS preparacao_atestados (
         id INT AUTO_INCREMENT PRIMARY KEY,
         docente_id INT NOT NULL,
-        tipo ENUM('preparação', 'atestado') NOT NULL,
+        tipo ENUM('preparação', 'atestado', 'ausência') NOT NULL,
         data_inicio DATE NOT NULL,
         data_fim DATE NOT NULL,
         dias_semana VARCHAR(255) DEFAULT NULL,
@@ -259,6 +261,20 @@
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+    -- ============================================================
+    -- 13. ÁREAS DE CONHECIMENTO
+    -- ============================================================
+    CREATE TABLE IF NOT EXISTS area (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nome VARCHAR(255) UNIQUE NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+    INSERT IGNORE INTO area (nome) VALUES 
+    ('TECNOLOGIA DA INFORMAÇÃO'), ('Mecatrônica / Automação'), ('Metalmecânica'), 
+    ('Logística'), ('Eletroeletrônica'), ('Gestão / Qualidade'), ('Alimentos'), 
+    ('Vestuário'), ('Soldagem'), ('Manutenção Industrial'), ('Automotiva'), 
+    ('Construção Civil'), ('Madeira e Mobiliário'), ('Administração e Gestão'), ('TI / Software');
 
     -- ============================================================
     -- ÍNDICES DE PERFORMANCE
@@ -326,4 +342,17 @@
 
     -- 4. Suporte ao novo cargo Secretaria
     ALTER TABLE usuario MODIFY COLUMN role ENUM('admin', 'gestor', 'professor', 'cri', 'secretaria') NOT NULL DEFAULT 'professor';
+
+    -- 5. Suporte ao Horário de Almoço Configurável
+    ALTER TABLE turma ADD COLUMN IF NOT EXISTS horario_almoco TIME DEFAULT '02:00' AFTER horario_fim;
+    ALTER TABLE reservas ADD COLUMN IF NOT EXISTS horario_almoco TIME DEFAULT '02:00' AFTER hora_fim;
+
+    -- 6. Suporte a Áreas Dinâmicas e Ausências
+    CREATE TABLE IF NOT EXISTS area (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nome VARCHAR(255) UNIQUE NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+    ALTER TABLE preparacao_atestados MODIFY COLUMN tipo ENUM('preparação', 'atestado', 'ausência') NOT NULL;
     */
+

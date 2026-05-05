@@ -226,6 +226,7 @@ switch ($action) {
         $h_fim = mysqli_real_escape_string($conn, $_POST['horario_fim'] ?? '');
         $data_inicio = mysqli_real_escape_string($conn, $_POST['data_inicio'] ?? '');
         $data_fim = mysqli_real_escape_string($conn, $_POST['data_fim'] ?? '');
+        $h_almoco = mysqli_real_escape_string($conn, $_POST['horario_almoco'] ?? '02:00');
 
         $is_simulation = ($_POST['is_simulation'] ?? '0') == '1';
         $is_reserva_flag = ($_POST['is_reserva'] ?? '0') == '1' || isCRI();
@@ -324,8 +325,11 @@ switch ($action) {
         $target_h_per_day = ($t2 - $t1) / 3600;
 
         if ($periodo === 'Integral') {
-            if ($target_h_per_day > 4)
-                $target_h_per_day -= 2; // Almoço (11:30 - 13:30)
+            if ($target_h_per_day > 4) {
+                $alm_parts = explode(':', $h_almoco);
+                $alm_h = (int)$alm_parts[0] + ((int)($alm_parts[1] ?? 0) / 60);
+                $target_h_per_day -= $alm_h;
+            }
             if ($target_h_per_day > 8)
                 $target_h_per_day = 8;
         } else {
@@ -586,8 +590,8 @@ switch ($action) {
             $dias_str = mysqli_real_escape_string($conn, implode(',', $dias_semana));
             $agenda_flex_esc = mysqli_real_escape_string($conn, $agenda_flexivel);
 
-            $sql_res = "INSERT INTO reservas (docente_id, curso_id, ambiente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, periodo, sigla, vagas, local, tipo, status, tipo_agenda, agenda_flexivel)
-                        VALUES ($docente_id, $curso_id, $ambiente_id, $auth_user_id, '$data_inicio', '$data_fim', '$dias_str', '$h_inicio', '$h_fim', '$periodo', '$sigla', $vagas, '$local', '$tipo', 'PENDENTE', '$tipo_agenda', '$agenda_flex_esc')";
+            $sql_res = "INSERT INTO reservas (docente_id, curso_id, ambiente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, periodo, sigla, vagas, local, tipo, status, tipo_agenda, agenda_flexivel, horario_almoco)
+                        VALUES ($docente_id, $curso_id, $ambiente_id, $auth_user_id, '$data_inicio', '$data_fim', '$dias_str', '$h_inicio', '$h_fim', '$periodo', '$sigla', $vagas, '$local', '$tipo', 'PENDENTE', '$tipo_agenda', '$agenda_flex_esc', '$h_almoco')";
 
             if (mysqli_query($conn, $sql_res)) {
                 $reserva_id = mysqli_insert_id($conn);
@@ -614,8 +618,8 @@ switch ($action) {
         $d4_val = $docente_id4 ? $docente_id4 : 'NULL';
         $agenda_flex_esc = mysqli_real_escape_string($conn, $agenda_flexivel);
 
-        $insert_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, docente_id2, docente_id3, docente_id4, local, tipo_agenda, agenda_flexivel) 
-                         VALUES ($curso_id, '$tipo', '$sigla', $vagas, '$periodo', '$data_inicio', '$data_fim', '$dias_str', $amb_id_val, $docente_id, $d2_val, $d3_val, $d4_val, '$local', '$tipo_agenda', '$agenda_flex_esc')";
+        $insert_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, docente_id2, docente_id3, docente_id4, local, tipo_agenda, agenda_flexivel, horario_almoco) 
+                         VALUES ($curso_id, '$tipo', '$sigla', $vagas, '$periodo', '$data_inicio', '$data_fim', '$dias_str', $amb_id_val, $docente_id, $d2_val, $d3_val, $d4_val, '$local', '$tipo_agenda', '$agenda_flex_esc', '$h_almoco')";
         if (!mysqli_query($conn, $insert_turma)) {
             echo json_encode(['success' => false, 'message' => 'Erro ao criar turma: ' . mysqli_error($conn)]);
             exit;
@@ -747,8 +751,8 @@ switch ($action) {
             $parc = !empty($r['parceiro']) ? "'" . $r['parceiro'] . "'" : "NULL";
             $cont = !empty($r['contato_parceiro']) ? "'" . $r['contato_parceiro'] . "'" : "NULL";
 
-            $sql_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, local, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro) 
-                          VALUES ($cur_id, '{$r['tipo']}', '{$r['sigla']}', {$r['vagas']}, '{$r['periodo']}', '{$r['data_inicio']}', '{$r['data_fim']}', '{$r['dias_semana']}', $env_id, {$r['docente_id']}, '{$r['local']}', '{$r['tipo_custeio']}', {$r['previsao_despesa']}, {$r['valor_turma']}, $props, '{$r['tipo_atendimento']}', $parc, $cont)";
+            $sql_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, local, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, horario_almoco) 
+                          VALUES ($cur_id, '{$r['tipo']}', '{$r['sigla']}', {$r['vagas']}, '{$r['periodo']}', '{$r['data_inicio']}', '{$r['data_fim']}', '{$r['dias_semana']}', $env_id, {$r['docente_id']}, '{$r['local']}', '{$r['tipo_custeio']}', {$r['previsao_despesa']}, {$r['valor_turma']}, $props, '{$r['tipo_atendimento']}', $parc, $cont, '{$r['horario_almoco']}')";
             if (!mysqli_query($conn, $sql_turma))
                 throw new Exception("Erro ao criar turma: " . mysqli_error($conn) . " SQL: " . $sql_turma);
             $turma_id = mysqli_insert_id($conn);

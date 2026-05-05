@@ -35,6 +35,7 @@ $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
 // --- CÁLCULO DE ALERTAS (LIMITE E AUTORIZAÇÃO) ---
 $alertas_info = [
     'limite_semanal' => ['label' => 'Limite Semanal', 'icon' => 'fa-exclamation-circle', 'color' => '#d32f2f', 'ids' => []],
+    'conflito_horario' => ['label' => 'Conflito Horário', 'icon' => 'fa-clone', 'color' => '#7b1fa2', 'ids' => []],
     'sem_bloco' => ['label' => 'Sem Bloco/HT', 'icon' => 'fa-calendar-times', 'color' => '#f57c00', 'ids' => []]
 ];
 
@@ -42,6 +43,7 @@ $alertas_info = [
 $docentes_meta = [];
 $cache_consumo = []; // [docente_id][week_key] => hours
 $cache_bloco = [];   // [docente_id][periodo][dias][datas_key] => bool
+$cache_conflitos = []; // [turma_id] => bool
 
 // 1. Buscar limites e IDs de docentes únicos na lista
 $res_meta = mysqli_query($conn, "SELECT id, weekly_hours_limit FROM docente");
@@ -57,35 +59,42 @@ foreach($turmas as $t) {
 }
 $doc_ids_list = array_keys($all_doc_ids);
 
-// 2. PRE-FETCH de Consumo Semanal (Otimização "Mega Query")
+// 2. PRE-FETCH de Consumo e Conflitos (Otimização "Mega Query")
 if (!$is_archived_view && !empty($doc_ids_list)) {
     $ids_str = implode(',', $doc_ids_list);
-    // Buscamos o consumo de todas as turmas/agendas para esses docentes no período atual
-    // Para simplificar e ser rápido, pegamos as semanas das turmas na lista
-    $semanas_alvo = [];
-    foreach($turmas as $t) {
-        if ($t['data_inicio']) {
-            $sem = date('YW', strtotime('monday this week', strtotime($t['data_inicio'])));
-            $semanas_alvo[$sem] = true;
-        }
-    }
-    
-    // Se houver muitas semanas, pegamos o intervalo min/max
     $min_date = date('Y-m-d', strtotime('-1 month'));
-    $max_date = date('Y-m-d', strtotime('+3 months'));
+    $max_date = date('Y-m-d', strtotime('+4 months'));
     
-    // Query otimizada para pegar totais semanais de uma vez
-    $q_consumo = "SELECT docente_id, YEARWEEK(data, 1) as sem_key, 
-                         SUM(CASE WHEN periodo = 'Integral' THEN LEAST(8, GREATEST(0, TIMESTAMPDIFF(MINUTE, horario_inicio, horario_fim)/60 - 2))
-                                  ELSE LEAST(4, TIMESTAMPDIFF(MINUTE, horario_inicio, horario_fim)/60) END) as total_horas
-                  FROM agenda 
-                  WHERE docente_id IN ($ids_str) 
-                  AND data BETWEEN '$min_date' AND '$max_date'
-                  GROUP BY docente_id, sem_key";
+    // A. Consumo Semanal
+    $q_consumo = "SELECT a.docente_id, YEARWEEK(a.data, 1) as sem_key, 
+                         SUM(CASE WHEN a.periodo = 'Integral' THEN LEAST(8, GREATEST(0, TIMESTAMPDIFF(MINUTE, a.horario_inicio, a.horario_fim)/60 - (TIME_TO_SEC(IFNULL(t.horario_almoco, '02:00:00'))/3600)))
+                                  ELSE LEAST(4, TIMESTAMPDIFF(MINUTE, a.horario_inicio, a.horario_fim)/60) END) as total_horas
+                  FROM agenda a 
+                  LEFT JOIN turma t ON a.turma_id = t.id
+                  WHERE a.docente_id IN ($ids_str) 
+                  AND a.data BETWEEN '$min_date' AND '$max_date'
+                  GROUP BY a.docente_id, sem_key";
     $res_c = mysqli_query($conn, $q_consumo);
     if ($res_c) {
         while($rc = mysqli_fetch_assoc($res_c)) {
             $cache_consumo[$rc['docente_id']][$rc['sem_key']] = (float)$rc['total_horas'];
+        }
+    }
+
+    // B. Detecção de Conflitos (Docentes em duas turmas no mesmo horário)
+    $q_conflitos = "SELECT DISTINCT a1.turma_id 
+                    FROM agenda a1
+                    JOIN agenda a2 ON a1.docente_id = a2.docente_id 
+                        AND a1.data = a2.data 
+                        AND a1.turma_id != a2.turma_id
+                        AND a1.horario_inicio < a2.horario_fim 
+                        AND a1.horario_fim > a2.horario_inicio
+                    WHERE a1.docente_id IN ($ids_str)
+                    AND a1.data BETWEEN '$min_date' AND '$max_date'";
+    $res_conf = mysqli_query($conn, $q_conflitos);
+    if ($res_conf) {
+        while($rconf = mysqli_fetch_assoc($res_conf)) {
+            $cache_conflitos[$rconf['turma_id']] = true;
         }
     }
 }
@@ -126,6 +135,13 @@ foreach ($turmas as &$t) {
             }
         }
     }
+
+    // 3. Verificação de Conflitos de Horário (Duplicidade)
+    if (isset($cache_conflitos[$t['id']])) {
+        $alertas_info['conflito_horario']['ids'][] = $t['id'];
+        $t['alertas'][] = 'conflito_horario';
+    }
+
     $t['alertas'] = array_unique($t['alertas']);
 }
 unset($t);
@@ -177,19 +193,19 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
 <div class="filter-bar"
     style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
     <div class="search-box" style="flex: 1; max-width: 300px;">
-        <input type="text" id="filter-sigla" placeholder="Filtrar por Sigla ou Curso..." class="form-input"
+        <input type="text" id="t-filter-sigla" placeholder="Filtrar por Sigla ou Curso..." class="form-input"
             style="width: 100%;" onkeyup="filterTurmas()" onkeydown="if(event.key==='Enter') event.preventDefault();">
     </div>
-    <input type="text" id="filter-docente" placeholder="Filtrar por Docente..." class="form-input" style="width: 180px;"
+    <input type="text" id="t-filter-docente" placeholder="Filtrar por Docente..." class="form-input" style="width: 180px;"
         onkeyup="filterTurmas()" onkeydown="if(event.key==='Enter') event.preventDefault();">
-    <select id="filter-periodo" class="form-input" style="width: 140px;" onchange="filterTurmas()">
+    <select id="t-filter-periodo" class="form-input" style="width: 140px;" onchange="filterTurmas()">
         <option value="">Todos Períodos</option>
         <option value="Manhã">Manhã</option>
         <option value="Tarde">Tarde</option>
         <option value="Noite">Noite</option>
         <option value="Integral">Integral</option>
     </select>
-    <select id="filter-dia" class="form-input" style="width: 130px;" onchange="filterTurmas()">
+    <select id="t-filter-dia" class="form-input" style="width: 130px;" onchange="filterTurmas()">
         <option value="">Todos Dias</option>
         <option value="Segunda-feira">Segunda</option>
         <option value="Terça-feira">Terça</option>
@@ -198,7 +214,7 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
         <option value="Sexta-feira">Sexta</option>
         <option value="Sábado">Sábado</option>
     </select>
-    <select id="filter-sort" class="form-input" style="width: 160px;" onchange="applyQuickSort()">
+    <select id="t-filter-sort" class="form-input" style="width: 160px;" onchange="applyQuickSort()">
         <option value="">Ordenar por...</option>
         <option value="ch_desc">Maior Carga Horária</option>
         <option value="ch_asc">Menor Carga Horária</option>
@@ -212,7 +228,7 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
                 <i class="fas fa-bookmark"></i> RESERVA
             </button>
         <?php endif; ?>
-        <?php if (isAdmin()): ?>
+        <?php if (isAdmin() || isGestor()): ?>
             <a href="fix_turmas_loading.php" class="btn"
                 style="font-weight: 700; background: #00796b; color: #ffffff; border: none; height: 38px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.3s ease;">
                 <i class="fas fa-magic"></i> AJUSTAR HORÁRIOS
@@ -258,19 +274,21 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
     }
 
     function filterTurmas() {
-        const siglaInput = document.getElementById('filter-sigla');
+        const siglaInput = document.getElementById('t-filter-sigla');
         const sigla = siglaInput ? siglaInput.value.toLowerCase() : '';
-        const periodoInput = document.getElementById('filter-periodo');
+        const periodoInput = document.getElementById('t-filter-periodo');
         const periodo = periodoInput ? periodoInput.value : '';
-        const docenteInput = document.getElementById('filter-docente');
+        const docenteInput = document.getElementById('t-filter-docente');
         const docenteFilter = docenteInput ? docenteInput.value.toLowerCase().trim() : '';
-        const diaInput = document.getElementById('filter-dia');
+        const diaInput = document.getElementById('t-filter-dia');
         const dia = diaInput ? diaInput.value : '';
         const rows = Array.from(document.querySelectorAll('#turmas-table tbody tr:not(.empty-row)'));
 
+        const colIndexPeriodo = <?= can_edit() ? 7 : 6 ?>;
+
         rows.forEach(row => {
             const text = row.innerText.toLowerCase();
-            const pCell = row.cells[6].innerText.trim();
+            const pCell = row.cells[colIndexPeriodo].innerText.trim();
             // Coluna oculta com nomes dos docentes (última coluna de dados, antes de ações)
             const docentesCell = row.dataset.docentes || '';
             const diasTurma = row.dataset.dias || '';
@@ -299,10 +317,10 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
         container.innerHTML = '';
 
         const filters = [
-            { id: 'filter-sigla', label: 'Busca', icon: 'fa-search' },
-            { id: 'filter-docente', label: 'Professor', icon: 'fa-user-tie' },
-            { id: 'filter-periodo', label: 'Período', icon: 'fa-clock' },
-            { id: 'filter-dia', label: 'Dia', icon: 'fa-calendar-day' }
+            { id: 't-filter-sigla', label: 'Busca', icon: 'fa-search' },
+            { id: 't-filter-docente', label: 'Professor', icon: 'fa-user-tie' },
+            { id: 't-filter-periodo', label: 'Período', icon: 'fa-clock' },
+            { id: 't-filter-dia', label: 'Dia', icon: 'fa-calendar-day' }
         ];
 
         filters.forEach(f => {
@@ -364,7 +382,7 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
     }
 
     function applyQuickSort() {
-        const sortVal = document.getElementById('filter-sort').value;
+        const sortVal = document.getElementById('t-filter-sort').value;
         if (!sortVal) return;
 
         if (sortVal === 'ch_desc') {
@@ -650,7 +668,7 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
         // Ctrl + K (Busca)
         if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
             e.preventDefault();
-            const searchInput = document.getElementById('filter-sigla');
+            const searchInput = document.getElementById('t-filter-sigla');
             if (searchInput) {
                 searchInput.focus();
                 searchInput.select();
@@ -659,12 +677,12 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
 
         // Esc (Limpar Filtros e Seleção)
         if (e.key === 'Escape') {
-            const searchInput = document.getElementById('filter-sigla');
-            const profInput = document.getElementById('filter-docente');
+            const searchInput = document.getElementById('t-filter-sigla');
+            const profInput = document.getElementById('t-filter-docente');
             if (searchInput) searchInput.value = '';
             if (profInput) profInput.value = '';
-            document.getElementById('filter-periodo').value = '';
-            document.getElementById('filter-dia').value = '';
+            document.getElementById('t-filter-periodo').value = '';
+            document.getElementById('t-filter-dia').value = '';
             filterTurmas();
             clearSelection();
         }
@@ -676,20 +694,20 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
         const urlParams = new URLSearchParams(window.location.search);
 
         const siglaParam = urlParams.get('sigla');
-        if (siglaParam) document.getElementById('filter-sigla').value = siglaParam;
+        if (siglaParam) document.getElementById('t-filter-sigla').value = siglaParam;
 
         const docenteParam = urlParams.get('docente');
-        if (docenteParam) document.getElementById('filter-docente').value = docenteParam;
+        if (docenteParam) document.getElementById('t-filter-docente').value = docenteParam;
 
         const periodoParam = urlParams.get('periodo');
-        if (periodoParam) document.getElementById('filter-periodo').value = periodoParam;
+        if (periodoParam) document.getElementById('t-filter-periodo').value = periodoParam;
 
         const diaParam = urlParams.get('dia');
-        if (diaParam) document.getElementById('filter-dia').value = diaParam;
+        if (diaParam) document.getElementById('t-filter-dia').value = diaParam;
 
         const sortParam = urlParams.get('sort');
         if (sortParam) {
-            document.getElementById('filter-sort').value = sortParam;
+            document.getElementById('t-filter-sort').value = sortParam;
             applyQuickSort();
         }
 
@@ -767,11 +785,11 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
 
     function getCurrentFilterParams() {
         const params = new URLSearchParams();
-        const sigla = document.getElementById('filter-sigla').value;
-        const docente = document.getElementById('filter-docente').value;
-        const periodo = document.getElementById('filter-periodo').value;
-        const dia = document.getElementById('filter-dia').value;
-        const sort = document.getElementById('filter-sort').value;
+        const sigla = document.getElementById('t-filter-sigla').value;
+        const docente = document.getElementById('t-filter-docente').value;
+        const periodo = document.getElementById('t-filter-periodo').value;
+        const dia = document.getElementById('t-filter-dia').value;
+        const sort = document.getElementById('t-filter-sort').value;
 
         if (sigla) params.set('sigla', sigla);
         if (docente) params.set('docente', docente);
@@ -815,25 +833,25 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
                             onclick="toggleSelectAll(this)"></th>
                 <?php endif; ?>
                 <th style="width: 40px;">#</th>
-                <th onclick="sortTable(2)" style="cursor:pointer;">SIGLA <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(<?= can_edit() ? 2 : 1 ?>)" style="cursor:pointer;">SIGLA <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
                 <th>STATUS</th>
                 <th style="width: 100px; text-align: center;">ALERTAS</th>
-                <th onclick="sortTable(4)" style="cursor:pointer;">CURSO <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(<?= can_edit() ? 5 : 4 ?>)" style="cursor:pointer;">CURSO <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(5)" style="cursor:pointer;">C/H <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(<?= can_edit() ? 6 : 5 ?>)" style="cursor:pointer;">C/H <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(6)" style="cursor:pointer;">PERÍODO <span class="sort-icon"><i
+                <th onclick="sortTable(<?= can_edit() ? 7 : 6 ?>)" style="cursor:pointer;">PERÍODO <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
                 <th>HORÁRIO</th>
                 <th>DIAS</th>
-                <th onclick="sortTable(9)" style="cursor:pointer;">DOCENTE(S) <span class="sort-icon"><i
+                <th onclick="sortTable(<?= can_edit() ? 10 : 9 ?>)" style="cursor:pointer;">DOCENTE(S) <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(10)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i
+                <th onclick="sortTable(<?= can_edit() ? 11 : 10 ?>)" style="cursor:pointer;">INÍCIO <span class="sort-icon"><i
                             class="fas fa-sort" style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(11)" style="cursor:pointer;">FIM <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(<?= can_edit() ? 12 : 11 ?>)" style="cursor:pointer;">FIM <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
-                <th onclick="sortTable(12)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
+                <th onclick="sortTable(<?= can_edit() ? 13 : 12 ?>)" style="cursor:pointer;">VAGAS <span class="sort-icon"><i class="fas fa-sort"
                             style="opacity: 0.3;"></i></span></th>
                 <?php if (can_edit()): ?>
                     <th style="text-align: center;">AÇÕES</th>
@@ -960,7 +978,7 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
                                         <span class="docente-badge docente-cell"
                                             style="background: rgba(229,57,53,0.08); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; border: 1px solid rgba(229,57,53,0.15); cursor: pointer; transition: all 0.2s;"
                                             title="Filtrar por: <?= xe($dn) ?>"
-                                            onclick="document.getElementById('filter-docente').value='<?= xe($dn) ?>'; filterTurmas();">
+                                            onclick="document.getElementById('t-filter-docente').value='<?= xe($dn) ?>'; filterTurmas();">
                                             <i class="fas fa-user-tie"
                                                 style="font-size: 0.7rem; opacity: 0.6; margin-right: 4px;"></i><?= xe($dn) ?>
                                         </span>

@@ -26,6 +26,7 @@ $turma = [
     'dias_semana' => '',
     'horario_inicio' => '07:30',
     'horario_fim' => '11:30',
+    'horario_almoco' => '02:00',
     'tipo_custeio' => 'Gratuidade',
     'previsao_despesa' => 0,
     'valor_turma' => 0,

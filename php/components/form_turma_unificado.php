@@ -13,7 +13,7 @@ $turma = $turma ?? [
     'curso_id' => '', 'ambiente_id' => '', 'periodo' => '', 'data_inicio' => '', 'data_fim' => '',
     'tipo' => 'Presencial', 'sigla' => '', 'vagas' => '32', 'docente_id1' => '', 'docente_id2' => '',
     'docente_id3' => '', 'docente_id4' => '', 'local' => 'Sede', 'dias_semana' => '',
-    'horario_inicio' => '07:30', 'horario_fim' => '11:30',
+    'horario_inicio' => '07:30', 'horario_fim' => '11:30', 'horario_almoco' => '02:00',
     'tipo_custeio' => 'Gratuidade', 'previsao_despesa' => 0, 'valor_turma' => 0,
     'numero_proposta' => '', 'tipo_atendimento' => 'Balcão', 'parceiro' => '', 'contato_parceiro' => ''
 ];
@@ -233,6 +233,11 @@ if (!isset($feriados_data) && isset($conn)) {
             <label class="form-label">Horário Até</label>
             <input type="time" name="horario_fim" id="horario_fim_unified" class="form-input"
                 value="<?= substr($turma['horario_fim'] ?? '11:30', 0, 5) ?>" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label" title="Duração do intervalo de almoço">Horário de Almoço</label>
+            <input type="time" name="horario_almoco" id="horario_almoco_unified" class="form-input"
+                value="<?= substr($turma['horario_almoco'] ?? '02:00', 0, 5) ?>" required>
         </div>
     </div>
 
@@ -1004,13 +1009,21 @@ if (!isset($feriados_data) && isset($conn)) {
         }
 
         let horasPorDia = 0;
+        const h_alm = document.getElementById('horario_almoco_unified');
         if (h_ini && h_fim && h_ini.value && h_fim.value) {
             const [h1, m1] = h_ini.value.split(':').map(Number);
             const [h2, m2] = h_fim.value.split(':').map(Number);
             let rawHours = ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
             
             if (periodo === 'Integral') {
-                if (rawHours > 4) rawHours -= 2; // Almoço (11:30 - 13:30)
+                if (rawHours > 4) {
+                    let almocoH = 2;
+                    if (h_alm && h_alm.value) {
+                        const [ha, ma] = h_alm.value.split(':').map(Number);
+                        almocoH = ha + (ma / 60);
+                    }
+                    rawHours -= almocoH; 
+                }
                 horasPorDia = Math.min(8, rawHours);
             } else {
                 horasPorDia = Math.min(4, rawHours);
@@ -1144,7 +1157,7 @@ if (!isset($feriados_data) && isset($conn)) {
         if (cursoAreaFilter) cursoAreaFilter.onchange = renderModalCursosUnified;
         if (cursoTipoFilter) cursoTipoFilter.onchange = renderModalCursosUnified;
 
-        const fields = ['periodo-select-unified', 'data-inicio-unified', 'horario_inicio_unified', 'horario_fim_unified'];
+        const fields = ['periodo-select-unified', 'data-inicio-unified', 'horario_inicio_unified', 'horario_fim_unified', 'horario_almoco_unified'];
         fields.forEach(id => {
             const el = document.getElementById(id);
             if(el) el.addEventListener('change', calcularDataFimUnified);
@@ -1414,6 +1427,18 @@ if (!isset($feriados_data) && isset($conn)) {
         if (data.data_fim) {
             const df = document.getElementById('data-fim-unified');
             if(df) df.value = data.data_fim;
+        }
+        if (data.horario_inicio) {
+            const hi = document.getElementById('horario_inicio_unified');
+            if(hi) hi.value = data.horario_inicio.substring(0, 5);
+        }
+        if (data.horario_fim) {
+            const hf = document.getElementById('horario_fim_unified');
+            if(hf) hf.value = data.horario_fim.substring(0, 5);
+        }
+        if (data.horario_almoco) {
+            const ha = document.getElementById('horario_almoco_unified');
+            if(ha) ha.value = data.horario_almoco.substring(0, 5);
         }
         if (data.periodo) {
             const pSel = document.getElementById('periodo-select-unified');

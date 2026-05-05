@@ -40,29 +40,16 @@ switch ($action) {
             exit;
         }
 
-        // Gestor can ONLY create CRI or Secretaria
+        // Gestores podem criar CRI, Secretaria, Professor e outros Gestores
         if ($user_role === 'gestor') {
-            if ($role !== 'cri' && $role !== 'secretaria') {
-                $role = 'cri';
+            if ($role === 'admin') {
+                $role = 'gestor'; // Previne promoção indevida
             }
         }
 
-        // Sanitize role
-        if (!in_array($role, ['admin', 'gestor', 'professor', 'cri', 'secretaria'])) {
-            $role = 'professor';
-        }
-
-        // Gestores can only create CRI or Secretaria
-        if ($user_role === 'gestor' && $role !== 'cri' && $role !== 'secretaria') {
-            $role = 'cri';
-        }
-
-        // SECURITY FIX (IDOR): Only admin can create admin/gestor users
-        // Gestor can ONLY create CRI or Professor (forced below)
-        if ($user_role !== 'admin') {
-            if ($role === 'admin' || $role === 'gestor') {
-                $role = 'cri'; // Downgrade preventivo
-            }
+        // SECURITY: Only admin can create admin users
+        if ($user_role !== 'admin' && $role === 'admin') {
+            $role = 'gestor';
         }
 
         // Check if email already exists
@@ -104,8 +91,8 @@ switch ($action) {
         exit;
 
     case 'edit':
-        // Only admin can edit users
-        if ($user_role !== 'admin') {
+        // Admin e Gestor podem editar usuários
+        if ($user_role !== 'admin' && $user_role !== 'gestor') {
             http_response_code(403);
             $_SESSION['usuarios_error'] = 'Permissão insuficiente.';
             header('Location: ../views/usuarios.php');
@@ -117,6 +104,24 @@ switch ($action) {
         $email = trim($_POST['email'] ?? '');
         $role = $_POST['role'] ?? 'cri';
         $docente_id = !empty($_POST['docente_id']) ? (int) $_POST['docente_id'] : null;
+
+        // Validação de segurança para Gestores
+        if ($user_role === 'gestor') {
+            // 1. Verificar cargo original do usuário sendo editado
+            $stmt_check = $conn->prepare("SELECT role FROM usuario WHERE id = ?");
+            $stmt_check->bind_param('i', $id);
+            $stmt_check->execute();
+            $result_check = $stmt_check->get_result()->fetch_assoc();
+            $orig_role = $result_check['role'] ?? '';
+            $stmt_check->close();
+
+            // 2. Bloquear se tentar editar um admin ou promover alguém a admin
+            if ($orig_role === 'admin' || $role === 'admin') {
+                $_SESSION['usuarios_error'] = 'Gestores não podem editar administradores ou atribuir este papel.';
+                header('Location: ../views/usuarios.php');
+                exit;
+            }
+        }
 
         if (empty($nome) || empty($email) || !$id) {
             $_SESSION['usuarios_error'] = 'Dados inválidos.';
@@ -216,6 +221,20 @@ switch ($action) {
         }
 
         $id = (int) ($_GET['id'] ?? 0);
+
+        if ($user_role === 'gestor') {
+            $stmt_check = $conn->prepare("SELECT role FROM usuario WHERE id = ?");
+            $stmt_check->bind_param('i', $id);
+            $stmt_check->execute();
+            $target_role = $stmt_check->get_result()->fetch_assoc()['role'] ?? '';
+            $stmt_check->close();
+            if ($target_role === 'admin') {
+                $_SESSION['usuarios_error'] = 'Gestores não podem resetar senhas de administradores.';
+                header('Location: ../views/usuarios.php');
+                exit;
+            }
+        }
+
         $hash = password_hash('senaisp', PASSWORD_BCRYPT);
 
         $stmt = $conn->prepare("UPDATE usuario SET senha = ?, obrigar_troca_senha = 1 WHERE id = ?");
@@ -238,6 +257,19 @@ switch ($action) {
 
         $id = (int) ($_GET['id'] ?? 0);
         $status = (int) ($_GET['status'] ?? 1);
+
+        if ($user_role === 'gestor') {
+            $stmt_check = $conn->prepare("SELECT role FROM usuario WHERE id = ?");
+            $stmt_check->bind_param('i', $id);
+            $stmt_check->execute();
+            $target_role = $stmt_check->get_result()->fetch_assoc()['role'] ?? '';
+            $stmt_check->close();
+            if ($target_role === 'admin') {
+                $_SESSION['usuarios_error'] = 'Gestores não podem alterar o status de administradores.';
+                header('Location: ../views/usuarios.php');
+                exit;
+            }
+        }
 
         // Prevent self-deactivation
         if ($id === (int) $_SESSION['user_id']) {

@@ -336,6 +336,10 @@ if (isCRI() || isProfessor() || isSecretaria()) {
                     class="links <?= in_array($current_page, ['cursos.php', 'cursos_form.php']) ? 'ativo' : '' ?>">
                     <i class="bi bi-journal-bookmark-fill" style="margin-right: 10px;"></i> Cursos
                 </a>
+                <a href="<?= $prefix ?>php/views/areas.php"
+                    class="links <?= $current_page == 'areas.php' ? 'ativo' : '' ?>">
+                    <i class="bi bi-layers-fill" style="margin-right: 10px;"></i> Áreas
+                </a>
                 <a href="<?= $prefix ?>php/views/feriados.php"
                     class="links <?= $current_page == 'feriados.php' ? 'ativo' : '' ?>">
                     <i class="bi bi-calendar-event" style="margin-right: 10px;"></i> Feriados
@@ -359,7 +363,7 @@ if (isCRI() || isProfessor() || isSecretaria()) {
                 <?php endif; ?>
                 <?php if (isAdmin() || isGestor() || isProfessor()): ?>
                     <?php
-                    $planejamento_pages = ['agenda_professores.php', 'agenda_salas.php', 'gerenciar_reservas.php'];
+                    $planejamento_pages = ['agenda_professores.php', 'agenda_turmas.php', 'agenda_salas.php', 'gerenciar_reservas.php'];
                     $is_planejamento_active = in_array($current_page, $planejamento_pages);
                     ?>
                     <?php
@@ -376,6 +380,10 @@ if (isCRI() || isProfessor() || isSecretaria()) {
                             <a href="<?= $prefix ?>php/views/agenda_professores.php"
                                 class="links-sub <?= $current_page == 'agenda_professores.php' ? 'active-sub' : '' ?>">
                                 <i class="bi bi-calendar-check" style="margin-right: 8px;"></i> Agenda Professores
+                            </a>
+                            <a href="<?= $prefix ?>php/views/agenda_turmas.php"
+                                class="links-sub <?= $current_page == 'agenda_turmas.php' ? 'active-sub' : '' ?>">
+                                <i class="bi bi-calendar-range" style="margin-right: 8px;"></i> Cronograma Turmas
                             </a>
                             <?php if (!isProfessor()): ?>
                                 <a href="<?= $prefix ?>php/views/agenda_salas.php"
@@ -757,6 +765,9 @@ if (isCRI() || isProfessor() || isSecretaria()) {
             </a>
             <a href="<?= $prefix ?>php/views/agenda_professores.php" class="cp-item">
                 <i class="fas fa-calendar-alt"></i> Agenda de Professores <span class="cp-shortcut">A</span>
+            </a>
+            <a href="<?= $prefix ?>php/views/agenda_turmas.php" class="cp-item">
+                <i class="fas fa-stream"></i> Cronograma de Turmas <span class="cp-shortcut">C</span>
             </a>
             <?php if (can_edit()): ?>
                 <a href="<?= $prefix ?>php/views/professores.php" class="cp-item">

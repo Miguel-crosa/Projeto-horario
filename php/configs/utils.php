@@ -455,7 +455,7 @@ function calculateConsumedHours($conn, $did, $start_date, $end_date, $include_pr
     $daysMap = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
 
     // 1. Aulas Confirmadas
-    $stmt = $conn->prepare("SELECT a.horario_inicio, a.horario_fim, a.data, a.dia_semana, a.periodo, t.data_inicio, t.data_fim 
+    $stmt = $conn->prepare("SELECT a.horario_inicio, a.horario_fim, a.data, a.dia_semana, a.periodo, t.data_inicio, t.data_fim, t.horario_almoco 
                             FROM agenda a 
                             LEFT JOIN turma t ON a.turma_id = t.id
                             WHERE a.docente_id = ? 
@@ -470,8 +470,14 @@ function calculateConsumedHours($conn, $did, $start_date, $end_date, $include_pr
     while ($row = $res->fetch_assoc()) {
         $h = (strtotime($row['horario_fim']) - strtotime($row['horario_inicio'])) / 3600;
         if (($row['periodo'] ?? '') === 'Integral') {
-            if ($h > 4)
-                $h -= 2; // Subtrai 2h de almoço (11:30 - 13:30)
+            if ($h > 4) {
+                $almoco_h = 2.0;
+                if (!empty($row['horario_almoco'])) {
+                    $parts = explode(':', $row['horario_almoco']);
+                    $almoco_h = $parts[0] + ($parts[1] / 60);
+                }
+                $h -= $almoco_h;
+            }
             if ($h > 8)
                 $h = 8;  // Limite rigoroso de 8h
         } else {
@@ -503,7 +509,7 @@ function calculateConsumedHours($conn, $did, $start_date, $end_date, $include_pr
     $stmt->close();
 
     // 2. Reservas
-    $stmt = $conn->prepare("SELECT data_inicio, data_fim, hora_inicio, hora_fim, dias_semana, periodo 
+    $stmt = $conn->prepare("SELECT data_inicio, data_fim, hora_inicio, hora_fim, dias_semana, periodo, horario_almoco 
                             FROM reservas WHERE docente_id = ? AND status IN ('PENDENTE', 'APROVADA', 'ativo', 'CONCLUIDA')
                             AND data_inicio <= ? AND data_fim >= ?");
     $stmt->bind_param("iss", $did, $end_date, $start_date);
@@ -513,8 +519,14 @@ function calculateConsumedHours($conn, $did, $start_date, $end_date, $include_pr
     while ($row = $res->fetch_assoc()) {
         $h = (strtotime($row['hora_fim']) - strtotime($row['hora_inicio'])) / 3600;
         if (($row['periodo'] ?? '') === 'Integral') {
-            if ($h > 4)
-                $h -= 2;
+            if ($h > 4) {
+                $almoco_h = 2.0;
+                if (!empty($row['horario_almoco'])) {
+                    $parts = explode(':', $row['horario_almoco']);
+                    $almoco_h = $parts[0] + ($parts[1] / 60);
+                }
+                $h -= $almoco_h;
+            }
             if ($h > 8)
                 $h = 8;
         } else {
@@ -926,7 +938,7 @@ function generateAgendaRecords($conn, $turma_id, $dias_arr, $periodo, $h_inicio,
  * que o horário 00:00:00 faça o último dia ser cortado nas interseções de
  * semana/mês.
  */
-function checkDocenteLimits($conn, $docente_id, $turma_id_to_ignore, $data_start, $data_end, $days_arr, $h_start, $h_end, $periodo = '', $tipo_agenda = 'recorrente', $agenda_flexivel = null)
+function checkDocenteLimits($conn, $docente_id, $turma_id_to_ignore, $data_start, $data_end, $days_arr, $h_start, $h_end, $periodo = '', $tipo_agenda = 'recorrente', $agenda_flexivel = null, $horario_almoco = '02:00')
 {
     if (!$docente_id || $docente_id <= 0)
         return true;
@@ -952,8 +964,11 @@ function checkDocenteLimits($conn, $docente_id, $turma_id_to_ignore, $data_start
 
     // Regra de Limites Rigorosos (8h Integral / 4h Parcial)
     if ($periodo === 'Integral') {
-        if ($hours_per_class > 4)
-            $hours_per_class -= 2; // Subtrai 2h de almoço
+        if ($hours_per_class > 4) {
+            $alm_parts = explode(':', $horario_almoco);
+            $alm_h = (int)$alm_parts[0] + ((int)($alm_parts[1] ?? 0) / 60);
+            $hours_per_class -= $alm_h;
+        }
         if ($hours_per_class > 8)
             $hours_per_class = 8;
     } else {
@@ -1021,13 +1036,14 @@ function checkDocenteLimits($conn, $docente_id, $turma_id_to_ignore, $data_start
 
                 $q = "SELECT SUM(
                         CASE 
-                            WHEN periodo = 'Integral' THEN LEAST(8, (TIMESTAMPDIFF(SECOND, horario_inicio, horario_fim)/3600) - IF(TIMESTAMPDIFF(SECOND, horario_inicio, horario_fim) > 14400, 2, 0))
-                            ELSE LEAST(4, (TIMESTAMPDIFF(SECOND, horario_inicio, horario_fim)/3600))
+                            WHEN a.periodo = 'Integral' THEN LEAST(8, (TIMESTAMPDIFF(SECOND, a.horario_inicio, a.horario_fim)/3600) - (TIME_TO_SEC(IFNULL(t.horario_almoco, '02:00:00'))/3600))
+                            ELSE LEAST(4, (TIMESTAMPDIFF(SECOND, a.horario_inicio, a.horario_fim)/3600))
                         END
                       ) as total 
-                      FROM agenda 
-                      WHERE docente_id = $docente_id 
-                      AND YEARWEEK(data, 1) = $yw";
+                      FROM agenda a 
+                      LEFT JOIN turma t ON a.turma_id = t.id
+                      WHERE a.docente_id = $docente_id 
+                      AND YEARWEEK(a.data, 1) = $yw";
                 if ($turma_id_to_ignore)
                     $q .= " AND turma_id != $turma_id_to_ignore";
 
@@ -1091,13 +1107,14 @@ function checkDocenteLimits($conn, $docente_id, $turma_id_to_ignore, $data_start
 
                 $q = "SELECT SUM(
                         CASE 
-                            WHEN periodo = 'Integral' THEN LEAST(8, (TIMESTAMPDIFF(SECOND, horario_inicio, horario_fim)/3600) - IF(TIMESTAMPDIFF(SECOND, horario_inicio, horario_fim) > 14400, 2, 0))
-                            ELSE LEAST(4, (TIMESTAMPDIFF(SECOND, horario_inicio, horario_fim)/3600))
+                            WHEN a.periodo = 'Integral' THEN LEAST(8, (TIMESTAMPDIFF(SECOND, a.horario_inicio, a.horario_fim)/3600) - (TIME_TO_SEC(IFNULL(t.horario_almoco, '02:00:00'))/3600))
+                            ELSE LEAST(4, (TIMESTAMPDIFF(SECOND, a.horario_inicio, a.horario_fim)/3600))
                         END
                       ) as total 
-                      FROM agenda 
-                      WHERE docente_id = $docente_id 
-                      AND DATE_FORMAT(data, '%Y%m') = '$month_val'";
+                      FROM agenda a 
+                      LEFT JOIN turma t ON a.turma_id = t.id
+                      WHERE a.docente_id = $docente_id 
+                      AND DATE_FORMAT(a.data, '%Y%m') = '$month_val'";
                 if ($turma_id_to_ignore)
                     $q .= " AND turma_id != $turma_id_to_ignore";
 

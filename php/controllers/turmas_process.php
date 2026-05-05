@@ -182,7 +182,8 @@ if ($action === 'delete_bulk' && isAdmin()) {
             $separator = (strpos($return_url, '?') !== false) ? '&' : '?';
             header("Location: $return_url" . $separator . "msg=success&msg_text=$msg");
         } else {
-            header("Location: $return_url?msg=error&msg_text=" . urlencode("Erro ao excluir: " . mysqli_error($conn)));
+            $separator = (strpos($return_url, '?') !== false) ? '&' : '?';
+            header("Location: $return_url" . $separator . "msg=error&msg_text=" . urlencode("Erro ao excluir: " . mysqli_error($conn)));
         }
     } else {
         header("Location: $return_url");
@@ -240,6 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $dias_semana_arr = $_POST['dias_semana'] ?? [];
     $horario_inicio = mysqli_real_escape_string($conn, $_POST['horario_inicio'] ?? '07:30');
     $horario_fim = mysqli_real_escape_string($conn, $_POST['horario_fim'] ?? '11:30');
+    $horario_almoco = mysqli_real_escape_string($conn, $_POST['horario_almoco'] ?? '02:00');
 
     // Normalização: Garante que tenha minutos (ex: "08" -> "08:00")
     if (!empty($horario_inicio) && strpos($horario_inicio, ':') === false)
@@ -329,7 +331,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     foreach ($docentes_to_check as $did) {
-        $val_res = checkDocenteLimits($conn, $did, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim, $periodo, $tipo_agenda, $agenda_flexivel);
+        $val_res = checkDocenteLimits($conn, $did, (!$is_reserva ? $id : null), $data_inicio, $data_fim, $dias_semana_arr, $horario_inicio, $horario_fim, $periodo, $tipo_agenda, $agenda_flexivel, $horario_almoco);
         if ($val_res !== true) {
             mysqli_rollback($conn);
             handle_response($conn, false, $val_res, "", $is_ajax);
@@ -383,10 +385,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         if ($id) {
-            $query = "UPDATE reservas SET docente_id = $principal_docente, curso_id = $curso_id, ambiente_id = $ambiente_id, data_inicio = '$data_inicio', data_fim = '$data_fim', hora_inicio = '$horario_inicio', hora_fim = '$horario_fim', dias_semana = '$dias_semana_str', sigla = '$sigla', periodo = '$periodo', vagas = $vagas, local = '$local', tipo = '$tipo', tipo_custeio = '$tipo_custeio', previsao_despesa = $previsao_despesa, valor_turma = $valor_turma, numero_proposta = '$numero_proposta', tipo_atendimento = '$tipo_atendimento', parceiro = '$parceiro', contato_parceiro = '$contato_parceiro', tipo_agenda = '$tipo_agenda', agenda_flexivel = '$agenda_flexivel' WHERE id = '$id'";
+            $query = "UPDATE reservas SET docente_id = $principal_docente, curso_id = $curso_id, ambiente_id = $ambiente_id, data_inicio = '$data_inicio', data_fim = '$data_fim', hora_inicio = '$horario_inicio', hora_fim = '$horario_fim', horario_almoco = '$horario_almoco', dias_semana = '$dias_semana_str', sigla = '$sigla', periodo = '$periodo', vagas = $vagas, local = '$local', tipo = '$tipo', tipo_custeio = '$tipo_custeio', previsao_despesa = $previsao_despesa, valor_turma = $valor_turma, numero_proposta = '$numero_proposta', tipo_atendimento = '$tipo_atendimento', parceiro = '$parceiro', contato_parceiro = '$contato_parceiro', tipo_agenda = '$tipo_agenda', agenda_flexivel = '$agenda_flexivel' WHERE id = '$id'";
         } else {
             $status_inicial = 'PENDENTE';
-            $query = "INSERT INTO reservas (docente_id, curso_id, ambiente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, sigla, periodo, status, vagas, local, tipo, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_agenda, agenda_flexivel) VALUES ($principal_docente, $curso_id, $ambiente_id, $usuario_id_sql, '$data_inicio', '$data_fim', '$dias_semana_str', '$horario_inicio', '$horario_fim', '$sigla', '$periodo', '$status_inicial', $vagas, '$local', '$tipo', '$tipo_custeio', $previsao_despesa, $valor_turma, '$numero_proposta', '$tipo_atendimento', '$parceiro', '$contato_parceiro', '$tipo_agenda', '$agenda_flexivel')";
+            $query = "INSERT INTO reservas (docente_id, curso_id, ambiente_id, usuario_id, data_inicio, data_fim, dias_semana, hora_inicio, hora_fim, horario_almoco, sigla, periodo, status, vagas, local, tipo, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_agenda, agenda_flexivel) VALUES ($principal_docente, $curso_id, $ambiente_id, $usuario_id_sql, '$data_inicio', '$data_fim', '$dias_semana_str', '$horario_inicio', '$horario_fim', '$horario_almoco', '$sigla', '$periodo', '$status_inicial', $vagas, '$local', '$tipo', '$tipo_custeio', $previsao_despesa, $valor_turma, '$numero_proposta', '$tipo_atendimento', '$parceiro', '$contato_parceiro', '$tipo_agenda', '$agenda_flexivel')";
         }
 
         if (mysqli_query($conn, $query)) {
@@ -468,7 +470,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } else {
         // --- PROCESSAMENTO DE TURMA ---
         if ($id) {
-            $query = "UPDATE turma SET curso_id = $curso_id, tipo = '$tipo', periodo = '$periodo', data_inicio = '$data_inicio', data_fim = '$data_fim', ambiente_id = $ambiente_id, sigla = '$sigla', vagas = $vagas, local = '$local', dias_semana = '$dias_semana_str', horario_inicio = '$horario_inicio', horario_fim = '$horario_fim', docente_id1 = $docente_id1, docente_id2 = $docente_id2, docente_id3 = $docente_id3, docente_id4 = $docente_id4, tipo_custeio = '$tipo_custeio', previsao_despesa = $previsao_despesa, valor_turma = $valor_turma, numero_proposta = '$numero_proposta', tipo_atendimento = '$tipo_atendimento', parceiro = '$parceiro', contato_parceiro = '$contato_parceiro', tipo_agenda = '$tipo_agenda', agenda_flexivel = '$agenda_flexivel' WHERE id = '$id'";
+            $query = "UPDATE turma SET curso_id = $curso_id, tipo = '$tipo', periodo = '$periodo', data_inicio = '$data_inicio', data_fim = '$data_fim', ambiente_id = $ambiente_id, sigla = '$sigla', vagas = $vagas, local = '$local', dias_semana = '$dias_semana_str', horario_inicio = '$horario_inicio', horario_fim = '$horario_fim', horario_almoco = '$horario_almoco', docente_id1 = $docente_id1, docente_id2 = $docente_id2, docente_id3 = $docente_id3, docente_id4 = $docente_id4, tipo_custeio = '$tipo_custeio', previsao_despesa = $previsao_despesa, valor_turma = $valor_turma, numero_proposta = '$numero_proposta', tipo_atendimento = '$tipo_atendimento', parceiro = '$parceiro', contato_parceiro = '$contato_parceiro', tipo_agenda = '$tipo_agenda', agenda_flexivel = '$agenda_flexivel' WHERE id = '$id'";
             if (!mysqli_query($conn, $query)) {
                 mysqli_rollback($conn);
                 handle_response($conn, false, "Erro ao atualizar turma: " . mysqli_error($conn), "", $is_ajax);
@@ -484,7 +486,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (isset($_POST['send_email'])) {
                 // die("DEBUG: send_email=" . $_POST['send_email']);
             }
-            $query = "INSERT INTO turma (curso_id, tipo, periodo, data_inicio, data_fim, ambiente_id, sigla, vagas, local, dias_semana, horario_inicio, horario_fim, docente_id1, docente_id2, docente_id3, docente_id4, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_agenda, agenda_flexivel) VALUES ($curso_id, '$tipo', '$periodo', '$data_inicio', '$data_fim', $ambiente_id, '$sigla', $vagas, '$local', '$dias_semana_str', '$horario_inicio', '$horario_fim', $docente_id1, $docente_id2, $docente_id3, $docente_id4, '$tipo_custeio', $previsao_despesa, $valor_turma, '$numero_proposta', '$tipo_atendimento', '$parceiro', '$contato_parceiro', '$tipo_agenda', '$agenda_flexivel')";
+            $query = "INSERT INTO turma (curso_id, tipo, periodo, data_inicio, data_fim, ambiente_id, sigla, vagas, local, dias_semana, horario_inicio, horario_fim, horario_almoco, docente_id1, docente_id2, docente_id3, docente_id4, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, tipo_agenda, agenda_flexivel) VALUES ($curso_id, '$tipo', '$periodo', '$data_inicio', '$data_fim', $ambiente_id, '$sigla', $vagas, '$local', '$dias_semana_str', '$horario_inicio', '$horario_fim', '$horario_almoco', $docente_id1, $docente_id2, $docente_id3, $docente_id4, '$tipo_custeio', $previsao_despesa, $valor_turma, '$numero_proposta', '$tipo_atendimento', '$parceiro', '$contato_parceiro', '$tipo_agenda', '$agenda_flexivel')";
             if (!mysqli_query($conn, $query)) {
                 mysqli_rollback($conn);
                 handle_response($conn, false, "Erro ao criar turma: " . mysqli_error($conn), "", $is_ajax);

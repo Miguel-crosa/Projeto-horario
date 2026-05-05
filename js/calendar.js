@@ -1501,7 +1501,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         numero_proposta: d.numero_proposta,
                         tipo_atendimento: d.tipo_atendimento,
                         parceiro: d.parceiro,
-                        contato_parceiro: d.contato_parceiro
+                        contato_parceiro: d.contato_parceiro,
+                        horario_almoco: d.horario_almoco
                     };
 
                     // Adiciona docentes (para reservas é um, para turmas podem ser vários)

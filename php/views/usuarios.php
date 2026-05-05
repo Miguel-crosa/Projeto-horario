@@ -12,7 +12,7 @@ if (isCRI()) {
     exit;
 }
 
-$can_edit = isAdmin();
+$can_edit = isAdmin() || isGestor();
 $can_delete = isAdmin();
 $can_reset = isAdmin() || isGestor();
 $can_create = isAdmin() || isGestor();
@@ -116,22 +116,22 @@ include __DIR__ . '/../components/header.php';
                             <?php endif; ?>
                         </td>
                         <td>
-                            <?php if ($can_edit): ?>
+                            <?php if ($can_edit && (isAdmin() || (isGestor() && $u['role'] !== 'admin'))): ?>
                                 <button class="btn btn-edit" onclick="openEditModal(<?= htmlspecialchars(json_encode($u)) ?>)" title="Editar dados">
-                                    <i class="fas fa-edit"></i>
+                                     <i class="fas fa-edit"></i>
                                 </button>
                             <?php endif; ?>
                             
-                            <?php if ($can_toggle_status && $u['id'] != $_SESSION['user_id']): ?>
+                            <?php if ($can_toggle_status && $u['id'] != $_SESSION['user_id'] && (isAdmin() || (isGestor() && $u['role'] !== 'admin'))): ?>
                                 <a href="../controllers/usuarios_process.php?action=toggle_status&id=<?= $u['id'] ?>&status=<?= $u['ativo'] ? '0' : '1' ?>" 
-                                   class="btn <?= $u['ativo'] ? 'btn-delete' : 'btn-primary' ?>" 
-                                   style="background: <?= $u['ativo'] ? '#546e7a' : '#2e7d32' ?>;"
-                                   title="<?= $u['ativo'] ? 'Desativar usuário' : 'Ativar usuário' ?>">
-                                    <i class="fas <?= $u['ativo'] ? 'fa-user-slash' : 'fa-user-check' ?>"></i>
+                                    class="btn <?= $u['ativo'] ? 'btn-delete' : 'btn-primary' ?>" 
+                                    style="background: <?= $u['ativo'] ? '#546e7a' : '#2e7d32' ?>;"
+                                    title="<?= $u['ativo'] ? 'Desativar usuário' : 'Ativar usuário' ?>">
+                                     <i class="fas <?= $u['ativo'] ? 'fa-user-slash' : 'fa-user-check' ?>"></i>
                                 </a>
                             <?php endif; ?>
 
-                            <?php if ($can_reset && $u['id'] != $_SESSION['user_id']): ?>
+                            <?php if ($can_reset && $u['id'] != $_SESSION['user_id'] && (isAdmin() || (isGestor() && $u['role'] !== 'admin'))): ?>
                                 <a href="../controllers/usuarios_process.php?action=reset_password&id=<?= $u['id'] ?>"
                                     class="btn btn-edit" title="Redefinir senha para padrão (senaisp)"
                                     onclick="return confirm('Redefinir a senha deste usuário para senaisp?')">
@@ -176,8 +176,8 @@ include __DIR__ . '/../components/header.php';
                         <option value="professor">Professor</option>
                         <option value="cri">CRI</option>
                         <option value="secretaria">Secretaria</option>
+                        <option value="gestor">Gestor</option>
                         <?php if (isAdmin()): ?>
-                            <option value="gestor">Gestor</option>
                             <option value="admin">Administrador</option>
                         <?php endif; ?>
                     </select>
@@ -228,7 +228,9 @@ include __DIR__ . '/../components/header.php';
                         <option value="cri">CRI</option>
                         <option value="secretaria">Secretaria</option>
                         <option value="gestor">Gestor</option>
-                        <option value="admin">Administrador</option>
+                        <?php if (isAdmin()): ?>
+                            <option value="admin">Administrador</option>
+                        <?php endif; ?>
                     </select>
                 </div>
                 <div class="login-field" id="edit-docente-field">
@@ -301,10 +303,10 @@ include __DIR__ . '/../components/header.php';
         let currentUserIdBeingEdited = null;
 
         function toggleDocenteField(mode) {
-            const roleSelect = document.getElementById(mode + '-role-select') || document.getElementById(mode + '-user-role');
+            // Removida restrição por cargo: qualquer cargo pode ter vínculo docente
             const docenteField = document.getElementById(mode + '-docente-field');
-            if (roleSelect && docenteField) {
-                docenteField.style.display = (roleSelect.value === 'professor') ? 'block' : 'none';
+            if (docenteField) {
+                docenteField.style.display = 'block';
             }
         }
 
