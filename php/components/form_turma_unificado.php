@@ -186,7 +186,7 @@ if (!isset($feriados_data) && isset($conn)) {
 
     <div class="form-group" id="ambiente-outro-container-unified" style="margin-top: 10px; display: <?= ($turma['ambiente_id'] === null && !empty($turma['local']) && $turma['local'] !== 'Sede') ? 'block' : 'none' ?>;">
         <label class="form-label"><i class="fas fa-map-marker-alt"></i> Nome do Ambiente / Local</label>
-        <input type="text" name="local" id="local-manual-unified" class="form-input" value="<?= htmlspecialchars($turma['local'] ?? '') ?>" placeholder="Ex: Auditório Externo, Sala de Reuniões, etc.">
+        <input type="text" name="local_manual" id="local-manual-unified" class="form-input" value="<?= htmlspecialchars($turma['local'] ?? '') ?>" placeholder="Ex: Auditório Externo, Sala de Reuniões, etc.">
     </div>
 
     <div class="form-group" style="margin-top: 20px;">
@@ -959,6 +959,12 @@ if (!isset($feriados_data) && isset($conn)) {
 
         const h_ini = document.getElementById('horario_inicio_unified');
         const h_fim = document.getElementById('horario_fim_unified');
+
+        // Inicializa lastPeriod se for a primeira execução (evita reset no onload)
+        if (periodoSelect.dataset.lastPeriod === undefined) {
+            periodoSelect.dataset.lastPeriod = periodo;
+        }
+
         if (periodoSelect.dataset.lastPeriod !== periodo) {
             const periodDefaults = {
                 'Manhã': ['07:30', '11:30'],
@@ -1414,6 +1420,29 @@ if (!isset($feriados_data) && isset($conn)) {
                 modalIcon.style.color = data.is_reserva ? '#ffb300' : 'var(--primary-red)';
             }
         }
+
+        if (data.sigla !== undefined) {
+            const sigla = document.getElementById('unified-sigla');
+            if(sigla) sigla.value = data.sigla;
+        }
+        if (data.vagas !== undefined) {
+            const vagas = document.getElementById('unified-vagas');
+            if(vagas) vagas.value = data.vagas;
+        }
+        if (data.local !== undefined) {
+            const local = document.getElementById('unified-local');
+            if(local) local.value = data.local;
+            
+            const localManual = document.getElementById('local-manual-unified');
+            if(localManual) localManual.value = data.local;
+        }
+        if (data.ambiente_id !== undefined) {
+            const amb = document.getElementById('ambiente-select-unified');
+            if(amb) {
+                amb.value = data.ambiente_id || (data.local && data.local !== 'Sede' ? 'outro' : '');
+                if (window.toggleAmbienteOutroUnified) window.toggleAmbienteOutroUnified();
+            }
+        }
         
         if (data.docentes && Array.isArray(data.docentes)) {
             selectedDocentes = [...data.docentes];
@@ -1444,6 +1473,7 @@ if (!isset($feriados_data) && isset($conn)) {
             const pSel = document.getElementById('periodo-select-unified');
             if(pSel) {
                 pSel.value = data.periodo;
+                pSel.dataset.lastPeriod = data.periodo;
                 pSel.dispatchEvent(new Event('change'));
             }
         }

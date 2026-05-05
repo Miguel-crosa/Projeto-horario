@@ -234,6 +234,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $sigla = mysqli_real_escape_string($conn, $_POST['sigla'] ?? '');
     $vagas = (int) ($_POST['vagas'] ?? 32);
     $local = mysqli_real_escape_string($conn, $_POST['local'] ?? 'Sede');
+    if ($ambiente_id === "NULL" && !empty($_POST['local_manual'])) {
+        $local = mysqli_real_escape_string($conn, $_POST['local_manual']);
+    }
     $docente_id1 = !empty($_POST['docente_id1']) ? (int) $_POST['docente_id1'] : "NULL";
     $docente_id2 = !empty($_POST['docente_id2']) ? (int) $_POST['docente_id2'] : "NULL";
     $docente_id3 = !empty($_POST['docente_id3']) ? (int) $_POST['docente_id3'] : "NULL";

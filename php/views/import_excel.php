@@ -55,9 +55,13 @@ function parseExcelDate($v)
     if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $v, $m))
         return $m[1] . '-' . $m[2] . '-' . $m[3];
 
-    // Numeric (Excel Serial)
+    // Numeric (Excel Serial Date)
+    // Excel usa epoch 1899-12-30 (bug histórico: trata 1900 como bissexto).
+    // Offset: 25569 dias entre 1899-12-30 e 1970-01-01 (Unix epoch).
+    // DEVE usar gmdate() e não date(): datas seriais do Excel são UTC puro.
+    // date() com UTC-3 converteria meia-noite UTC para 21h do dia anterior → -1 dia.
     if (is_numeric($v) && (float) $v > 30000 && (float) $v < 60000) {
-        $unix = ((float) $v - 25568) * 86400;
+        $unix = ((float) $v - 25569) * 86400;
         return gmdate('Y-m-d', (int) $unix);
     }
 
@@ -1605,9 +1609,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                 cols.forEach(c => {
                     let v = row[c] !== undefined ? row[c] : '';
                     if (typeof v === 'number' && v > 30000 && v < 60000) {
-                        // Converte serial do Excel para data UTC para evitar offset de timezone local
-                        // Ajustado de 25569 para 25568 para corrigir bug de 1 dia de atraso
-                        const dateObj = new Date(Math.round((v - 25568) * 86400) * 1000);
+                        // Converte serial Excel → data UTC usando gmdate-equivalent (offset 25569)
+                        // Excel serial 1 = 1900-01-01, com bug do ano 1900 como bissexto.
+                        const dateObj = new Date(Math.round((v - 25569) * 86400) * 1000);
                         const day = String(dateObj.getUTCDate()).padStart(2, '0');
                         const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
                         const year = dateObj.getUTCFullYear();

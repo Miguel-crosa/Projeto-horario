@@ -32,24 +32,23 @@ $msg_ajuste = "";
 $dias_semana_arr = !empty($turma['dias_semana']) ? explode(',', $turma['dias_semana']) : [];
 if (!empty($dias_semana_arr)) {
     $daysMap = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
-    
+
     $di_atual = $turma['data_inicio'];
     $w_atual = (int)date('w', strtotime($di_atual));
     $nome_dia_atual = $daysMap[$w_atual];
-    
+
     $is_holiday_atual = isHoliday($conn, $di_atual);
     $is_class_day_atual = in_array($nome_dia_atual, $dias_semana_arr);
 
-    // Se NÃO é dia de aula OU é feriado
+    // Se NÃO é dia de aula OU é feriado → avança para o próximo dia de aula
     if (!$is_class_day_atual || $is_holiday_atual) {
         $di_seguinte = date('Y-m-d', strtotime($di_atual . ' +1 day'));
         $w_seguinte = (int)date('w', strtotime($di_seguinte));
         $nome_dia_seguinte = $daysMap[$w_seguinte];
-        
+
         $is_holiday_seguinte = isHoliday($conn, $di_seguinte);
         $is_class_day_seguinte = in_array($nome_dia_seguinte, $dias_semana_arr);
 
-        // Se o dia seguinte É dia de aula E NÃO é feriado
         if ($is_class_day_seguinte && !$is_holiday_seguinte) {
             $turma['data_inicio'] = $di_seguinte;
             mysqli_query($conn, "UPDATE turma SET data_inicio = '$di_seguinte' WHERE id = '$id'");
