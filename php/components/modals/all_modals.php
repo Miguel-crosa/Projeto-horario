@@ -568,7 +568,12 @@
     <div class="modal-content animate-pop-in">
         <div class="modal-header">
             <h3><i class="fas fa-calendar-check" style="color: var(--primary-red);"></i> Relatório Mensal de Horários</h3>
-            <button class="modal-close" onclick="closeModal('modal-relatorio-mensal-detalhado')"><i class="fas fa-times"></i></button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button class="btn btn-success" id="btn-export-anual-excel" title="Exportar Ano Inteiro (Excel)" style="padding: 5px 12px; font-size: 0.85rem; background: #2e7d32; border: none; display: flex; align-items: center; gap: 5px;">
+                    <i class="fas fa-file-excel"></i> Exportar Ano
+                </button>
+                <button class="modal-close" onclick="closeModal('modal-relatorio-mensal-detalhado')"><i class="fas fa-times"></i></button>
+            </div>
         </div>
         <div class="modal-body" style="padding: 20px;">
             <div class="report-month-nav">

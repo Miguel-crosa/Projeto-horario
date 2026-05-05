@@ -365,6 +365,29 @@ document.addEventListener('DOMContentLoaded', () => {
         loadReportData();
     });
 
+    // 6. Exportar Relatório Anual (Excel)
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('#btn-export-anual-excel');
+        if (btn) {
+            e.preventDefault();
+            if (!reportCurrentProfId) {
+                console.warn('Exportação ignorada: ID do professor não definido.');
+                return;
+            }
+            const year = reportCurrentDate.getFullYear();
+            const url = `php/controllers/export_relatorio_anual.php?docente_id=${reportCurrentProfId}&year=${year}`;
+            
+            // Método robusto para disparar download
+            const link = document.createElement('a');
+            link.href = url;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            console.log('Download do Excel iniciado para o professor ID:', reportCurrentProfId);
+        }
+    });
+
     // --- Suporte a Swipe (Touch) ---
     let touchStartX = 0;
     let touchEndX = 0;
