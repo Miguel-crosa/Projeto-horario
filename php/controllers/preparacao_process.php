@@ -16,6 +16,25 @@ if ($action === 'delete') {
     exit;
 }
 
+if ($action === 'delete_multiple' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $ids = $_POST['ids'] ?? [];
+    if (!empty($ids)) {
+        $ids_clean = array_map('intval', $ids);
+        $ids_str = implode(',', $ids_clean);
+        mysqli_query($conn, "DELETE FROM preparacao_atestados WHERE id IN ($ids_str)");
+        header("Location: ../views/preparacao.php?msg=deleted_multiple");
+    } else {
+        header("Location: ../views/preparacao.php");
+    }
+    exit;
+}
+
+if ($action === 'delete_all') {
+    mysqli_query($conn, "DELETE FROM preparacao_atestados");
+    header("Location: ../views/preparacao.php?msg=deleted_all");
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = $_POST['id'] ? (int) $_POST['id'] : null;
     $docente_id = (int) $_POST['docente_id'];

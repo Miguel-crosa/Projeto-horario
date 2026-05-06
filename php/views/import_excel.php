@@ -252,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
         // ── MULTI-SHEET IMPORT ──
         if ($import_mode === 'multi') {
             $sheets_json = json_decode($_POST['sheets_json'] ?? '{}', true);
-            $order = ['CURSOS', 'DOCENTES', 'AMBIENTES', 'USUARIOS', 'CARGOS DO SISTEMA', 'TURMAS', 'RESERVAS', 'AGENDA', 'AGENDA_CALENDARIO', 'FÉRIAS', 'FERIADOS', 'HORARIO_TRABALHO', 'BLOQUEIOS', 'PREPARACAO_ATESTADOS', 'BLOQUEIO'];
+            $order = ['AREAS', 'CURSOS', 'DOCENTES', 'AMBIENTES', 'USUARIOS', 'CARGOS DO SISTEMA', 'TURMAS', 'RESERVAS', 'AGENDA', 'AGENDA_CALENDARIO', 'FÉRIAS', 'FERIADOS', 'HORARIO_TRABALHO', 'BLOQUEIOS', 'PREPARACAO_ATESTADOS', 'BLOQUEIO'];
             $agenda_cleared_turmas = [];
             $turmas_processed_in_session = []; // Rastreia quais siglas já foram processadas nesta rodada
             $ht_cleared_profs = []; // Rastreia quais docentes já tiveram o horário limpo nesta sessão
@@ -281,7 +281,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                     }
 
                     try {
-                        if ($sheet_key === 'USUARIOS') {
+                        if ($sheet_key === 'AREAS') {
+                            $nome = $r['nome'] ?? $r['area'] ?? '';
+                            if (!$nome) continue;
+                            $stmt = $mysqli->prepare("INSERT IGNORE INTO area (nome) VALUES (?)");
+                            $stmt->bind_param('s', $nome);
+                            $stmt->execute();
+                        } elseif ($sheet_key === 'USUARIOS') {
                             $nome = $r['nome'] ?? '';
                             $email = $r['email'] ?? '';
                             $role = $r['cargopermissao'] ?? $r['cargo'] ?? $r['permissao'] ?? $r['papel'] ?? 'professor';
@@ -914,26 +920,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                                 }
                             }
 
-                            // Evitar duplicidade
-                            $ck_sql = "SELECT id FROM vacations WHERE type = ? AND start_date = ? AND end_date = ?";
-                            $params = [$tipo, $di, $df];
-                            $types = "sss";
-                            if ($did_vac !== null) {
-                                $ck_sql .= " AND teacher_id = ?";
-                                $params[] = (int) $did_vac;
-                                $types .= "i";
-                            } else {
-                                $ck_sql .= " AND teacher_id IS NULL";
-                            }
-                            $stmt_ck = $mysqli->prepare($ck_sql);
-                            $stmt_ck->bind_param($types, ...$params);
-                            $stmt_ck->execute();
+                            // Evitar duplicidade: Deleta registro idêntico antes de inserir
+                            $stmt_del = $mysqli->prepare("DELETE FROM vacations WHERE type = ? AND teacher_id <=> ? AND start_date = ? AND end_date = ?");
+                            $stmt_del->bind_param('siss', $tipo, $did_vac, $di, $df);
+                            $stmt_del->execute();
 
-                            if (!$stmt_ck->get_result()->fetch_row()) {
-                                $stmt_vac = $mysqli->prepare("INSERT INTO vacations (type, teacher_id, start_date, end_date) VALUES (?, ?, ?, ?)");
-                                $stmt_vac->bind_param('siss', $tipo, $did_vac, $di, $df);
-                                $stmt_vac->execute();
-                            }
+                            $stmt_vac = $mysqli->prepare("INSERT INTO vacations (type, teacher_id, start_date, end_date) VALUES (?, ?, ?, ?)");
+                            $stmt_vac->bind_param('siss', $tipo, $did_vac, $di, $df);
+                            $stmt_vac->execute();
 
                         } elseif ($sheet_key === 'FERIADOS') {
                             $nome_fer = $r['nome'] ?? $r['feriado'] ?? '';
@@ -943,15 +937,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                             if (!$nome_fer || !$di)
                                 throw new Exception("Dados insuficientes para FERIADOS.");
 
-                            // Evitar duplicidade
-                            $ck_fer = $mysqli->prepare("SELECT id FROM holidays WHERE name = ? AND date = ? AND (end_date = ? OR (end_date IS NULL AND ? IS NULL))");
-                            $ck_fer->bind_param('ssss', $nome_fer, $di, $df, $df);
-                            $ck_fer->execute();
-                            if (!$ck_fer->get_result()->fetch_row()) {
-                                $stmt_fer = $mysqli->prepare("INSERT INTO holidays (name, date, end_date) VALUES (?, ?, ?)");
-                                $stmt_fer->bind_param('sss', $nome_fer, $di, $df);
-                                $stmt_fer->execute();
-                            }
+                            // Evitar duplicidade: Deleta feriado com mesmo nome e data inicial antes de inserir
+                            $stmt_del = $mysqli->prepare("DELETE FROM holidays WHERE name = ? AND date = ?");
+                            $stmt_del->bind_param('ss', $nome_fer, $di);
+                            $stmt_del->execute();
+
+                            $stmt_fer = $mysqli->prepare("INSERT INTO holidays (name, date, end_date) VALUES (?, ?, ?)");
+                            $stmt_fer->bind_param('sss', $nome_fer, $di, $df);
+                            $stmt_fer->execute();
                         } elseif ($sheet_key === 'BLOQUEIOS' || $sheet_key === 'PREPARACAO_ATESTADOS' || $sheet_key === 'BLOQUEIO') {
                             $pname = $r['docente'] ?? $r['professor'] ?? '';
                             $tipo = mb_strtolower($r['tipo'] ?? $r['motivo'] ?? 'preparação');
@@ -975,6 +968,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
                             $did_prep = $sp->get_result()->fetch_row()[0] ?? null;
 
                             if ($did_prep) {
+                                // Evitar duplicidade: Deleta bloqueio do mesmo tipo e período para este docente
+                                $stmt_del = $mysqli->prepare("DELETE FROM preparacao_atestados WHERE docente_id = ? AND tipo = ? AND data_inicio = ? AND data_fim = ?");
+                                $stmt_del->bind_param('isss', $did_prep, $tipo, $di, $df);
+                                $stmt_del->execute();
+
                                 $stmt_prep = $mysqli->prepare("INSERT INTO preparacao_atestados (docente_id, tipo, data_inicio, data_fim, horario_inicio, horario_fim, status) VALUES (?, ?, ?, ?, ?, ?, 'ativo')");
                                 $stmt_prep->bind_param('isssss', $did_prep, $tipo, $di, $df, $hi, $hf);
                                 $stmt_prep->execute();
@@ -1354,7 +1352,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
             'FÉRIAS' => 'Férias',
             'FERIADOS' => 'Feriados',
             'HORARIO_TRABALHO' => 'Horário de Trabalho',
-            'AGENDA_AUTO' => 'Agenda (Auto-gerada das Turmas)'
+            'AGENDA_AUTO' => 'Agenda (Auto-gerada das Turmas)',
+            'AREAS' => 'Áreas de Conhecimento'
         ];
         foreach ($import_result['results'] as $sheet_name => $res): ?>
             <div class="import-result-row"
@@ -1478,7 +1477,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 <script>
     let currentMode = 'multi';
-    const knownSheets = ['DOCENTES', 'AMBIENTES', 'CURSOS', 'TURMAS', 'AGENDA', 'BLOQUEIOS', 'RESERVAS', 'FERIADOS'];
+    const knownSheets = ['AREAS', 'DOCENTES', 'AMBIENTES', 'CURSOS', 'TURMAS', 'AGENDA', 'BLOQUEIOS', 'RESERVAS', 'FERIADOS'];
     const sheetLabels = {
         DOCENTES: { icon: 'fa-chalkboard-teacher', color: '#0d6efd', label: 'Docentes' },
         AMBIENTES: { icon: 'fa-building', color: '#198754', label: 'Ambientes' },
@@ -1490,7 +1489,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
         HORARIO_TRABALHO: { icon: 'fa-briefcase', color: '#007bff', label: 'Horário de Trabalho' },
         BLOQUEIOS: { icon: 'fa-ban', color: '#ff6b35', label: 'Bloqueios (Preparação / Ausências)' },
         PREPARACAO_ATESTADOS: { icon: 'fa-ban', color: '#ff6b35', label: 'Preparação / Ausências' },
-        RESERVAS: { icon: 'fa-bookmark', color: '#17a2b8', label: 'Reservas' }
+        RESERVAS: { icon: 'fa-bookmark', color: '#17a2b8', label: 'Reservas' },
+        AREAS: { icon: 'fa-tags', color: '#20c997', label: 'Áreas de Conhecimento' }
     };
 
     function switchTab(mode) {
@@ -1565,6 +1565,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['import_mode']) || is
 
             // Special mapping for provided XML names to known internal keys
             const mapping = {
+                'AREAS': 'AREAS',
                 'USUARIOS': 'USUARIOS',
                 'CARGOS_DO_SISTEMA': 'CARGOS DO SISTEMA',
                 'TURMAS': 'TURMAS',

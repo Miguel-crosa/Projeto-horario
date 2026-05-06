@@ -20,9 +20,17 @@ $prep = mysqli_fetch_all(mysqli_query($conn, "SELECT p.*, d.nome AS professor_no
             style="width: 100%;" onkeyup="currentPage=1; updatePagination(); updateFilterChips();">
     </div>
     <div class="header-actions" style="display: flex; gap: 8px;">
+        <button type="button" id="btnDeleteSelected" class="btn" style="background:#dc3545; color:#fff; display:none;" onclick="deleteSelected()">
+            <i class="fas fa-trash"></i> EXCLUIR SELECIONADOS
+        </button>
+        <button type="button" class="btn" style="background:#6c757d; color:#fff;" onclick="deleteAll()">
+            <i class="fas fa-dumpster"></i> EXCLUIR TUDO
+        </button>
         <a href="preparacao_form.php" class="btn btn-primary" style="font-weight: 700;"><i class="fas fa-plus"></i> NOVO REGISTRO</a>
     </div>
 </div>
+
+<form id="bulkDeleteForm" action="../controllers/preparacao_process.php?action=delete_multiple" method="POST" style="display:none;"></form>
 
 <div class="filter-chips-container dashboard-container" id="filter-chips-container" style="margin-bottom: 20px;">
     <!-- Chips via JS -->
@@ -32,6 +40,9 @@ $prep = mysqli_fetch_all(mysqli_query($conn, "SELECT p.*, d.nome AS professor_no
     <table>
         <thead>
             <tr>
+                <th style="width: 40px; text-align: center;">
+                    <input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)">
+                </th>
                 <th>Tipo</th>
                 <th>Professor</th>
                 <th>Início</th>
@@ -48,6 +59,9 @@ $prep = mysqli_fetch_all(mysqli_query($conn, "SELECT p.*, d.nome AS professor_no
             <?php else: ?>
                 <?php foreach ($prep as $p): ?>
                     <tr class="table-row">
+                        <td style="text-align: center;">
+                            <input type="checkbox" class="row-checkbox" value="<?= $p['id'] ?>" onclick="updateDeleteButton()">
+                        </td>
                         <td>
                             <?php if ($p['tipo'] === 'preparação'): ?>
                                 <span class="badge" style="background:#673ab7; color: #fff !important; font-weight: 700;">Preparação</span>
@@ -156,9 +170,68 @@ $prep = mysqli_fetch_all(mysqli_query($conn, "SELECT p.*, d.nome AS professor_no
         }
     }
 
+    function updateDeleteButton() {
+        const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+        const btn = document.getElementById('btnDeleteSelected');
+        btn.style.display = checkboxes.length > 0 ? 'inline-block' : 'none';
+        
+        // Update selectAll state
+        const allCheckboxes = document.querySelectorAll('.row-checkbox');
+        document.getElementById('selectAll').checked = allCheckboxes.length > 0 && checkboxes.length === allCheckboxes.length;
+    }
+
+    function toggleSelectAll(source) {
+        const checkboxes = document.querySelectorAll('.row-checkbox');
+        checkboxes.forEach(cb => {
+            if (cb.closest('tr').style.display !== 'none') {
+                cb.checked = source.checked;
+            }
+        });
+        updateDeleteButton();
+    }
+
+    function deleteSelected() {
+        const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+        if (checkboxes.length === 0) return;
+
+        if (confirm(`Tem certeza que deseja excluir os ${checkboxes.length} registros selecionados?`)) {
+            const form = document.getElementById('bulkDeleteForm');
+            form.innerHTML = '';
+            checkboxes.forEach(cb => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'ids[]';
+                input.value = cb.value;
+                form.appendChild(input);
+            });
+            form.submit();
+        }
+    }
+
+    function deleteAll() {
+        if (confirm('ATENÇÃO: Isso apagará TODOS os registros de preparação e ausências. Esta ação não pode ser desfeita. Deseja continuar?')) {
+            window.location.href = '../controllers/preparacao_process.php?action=delete_all';
+        }
+    }
+
     window.addEventListener('load', () => {
         updatePagination();
         updateFilterChips();
+
+        // Alertas de feedback
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('msg')) {
+            const msg = urlParams.get('msg');
+            if (msg === 'deleted') {
+                Swal.fire({ icon: 'success', title: 'Excluído!', text: 'Registro removido com sucesso.', timer: 2000, showConfirmButton: false });
+            } else if (msg === 'deleted_multiple') {
+                Swal.fire({ icon: 'success', title: 'Excluídos!', text: 'Registros selecionados foram removidos.', timer: 2000, showConfirmButton: false });
+            } else if (msg === 'deleted_all') {
+                Swal.fire({ icon: 'success', title: 'Limpeza Total!', text: 'Todos os registros foram removidos.', timer: 2000, showConfirmButton: false });
+            } else if (msg === 'success') {
+                Swal.fire({ icon: 'success', title: 'Sucesso!', text: 'Operação realizada com êxito.', timer: 2000, showConfirmButton: false });
+            }
+        }
     });
 </script>
 

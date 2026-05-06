@@ -425,8 +425,12 @@ echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
      FROM preparacao_atestados pa 
      JOIN docente d ON pa.docente_id = d.id
      ORDER BY data_inicio DESC
-";
+  ";
   renderWorksheet("BLOQUEIOS", $q_bloqueios, $conn, ['Data Início', 'Data Fim'], ['Horário de', 'Horário até']);
+
+  // 12. Áreas
+  $q_areas = "SELECT nome AS Nome FROM area ORDER BY nome ASC";
+  renderWorksheet("ÁREAS", $q_areas, $conn);
 
   ?>
 </Workbook>
