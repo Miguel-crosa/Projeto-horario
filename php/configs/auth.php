@@ -186,3 +186,53 @@ function dispararNotificacaoGlobal($mysqli, $tipo, $titulo, $mensagem, $link = n
         $insert->execute();
     }
 }
+
+/**
+ * Notificação direcionada para reservas: envia mensagem pessoal ao criador/docente
+ * e mensagem genérica aos demais admins/gestores.
+ * 
+ * @param int|null $usuario_id_criador  ID do usuário que criou a reserva
+ * @param int|null $docente_id          ID do docente vinculado à reserva
+ * @param string   $titulo_pessoal     Título para o criador/docente (ex: "Sua reserva foi Aprovada")
+ * @param string   $titulo_generico    Título para os demais (ex: "Reserva Aprovada")
+ * @param string   $mensagem_pessoal   Mensagem para o criador/docente
+ * @param string   $mensagem_generica  Mensagem genérica para admins/gestores
+ */
+function dispararNotificacaoReserva($mysqli, $tipo, $titulo_pessoal, $titulo_generico, $mensagem_pessoal, $mensagem_generica, $link = null, $usuario_id_criador = null, $docente_id = null)
+{
+    global $auth_user_id;
+
+    $insert = $mysqli->prepare("INSERT INTO notificacoes (usuario_id, tipo, titulo, mensagem, link) VALUES (?, ?, ?, ?, ?)");
+    $notificados = []; // IDs já notificados para evitar duplicata
+
+    // 1. Notificar o criador da reserva (mensagem pessoal)
+    if ($usuario_id_criador && $usuario_id_criador > 0) {
+        $insert->bind_param('issss', $usuario_id_criador, $tipo, $titulo_pessoal, $mensagem_pessoal, $link);
+        $insert->execute();
+        $notificados[] = (int)$usuario_id_criador;
+    }
+
+    // 2. Notificar o docente vinculado (mensagem pessoal)
+    if ($docente_id && $docente_id > 0) {
+        $user_res = $mysqli->query("SELECT id FROM usuario WHERE docente_id = " . (int)$docente_id . " LIMIT 1");
+        if ($user_row = $user_res->fetch_assoc()) {
+            $docente_user_id = (int)$user_row['id'];
+            if (!in_array($docente_user_id, $notificados)) {
+                $insert->bind_param('issss', $docente_user_id, $tipo, $titulo_pessoal, $mensagem_pessoal, $link);
+                $insert->execute();
+                $notificados[] = $docente_user_id;
+            }
+        }
+    }
+
+    // 3. Notificar admins e gestores com mensagem genérica (excluindo quem já foi notificado e quem executou a ação)
+    $admin_res = $mysqli->query("SELECT id FROM usuario WHERE role IN ('admin', 'gestor')");
+    while ($u = $admin_res->fetch_assoc()) {
+        $uid = (int)$u['id'];
+        if (in_array($uid, $notificados)) continue; // Já recebeu a versão pessoal
+        if ($uid == $auth_user_id) continue;          // Quem executou a ação não precisa receber
+
+        $insert->bind_param('issss', $uid, $tipo, $titulo_generico, $mensagem_generica, $link);
+        $insert->execute();
+    }
+}

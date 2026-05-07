@@ -857,7 +857,17 @@ switch ($action) {
             mysqli_query($conn, "UPDATE reservas SET status = 'CONCLUIDA', turma_id = $turma_id WHERE id = $reserva_id");
 
             $executor = $_SESSION['user_nome'] ?? 'Gestor';
-            dispararNotificacaoGlobal($conn, 'reserva_realizada', 'Sua reserva foi Aprovada', "A reserva da turma {$r['sigla']} foi aprovada por $executor e confirmada na agenda.", BASE_URL . "/php/views/gerenciar_reservas.php?status=CONCLUIDA&reserva_id=$reserva_id", ['admin', 'gestor', 'professor', 'cri']);
+            dispararNotificacaoReserva(
+                $conn, 
+                'reserva_realizada',
+                'Sua reserva foi Aprovada',
+                'Reserva Aprovada',
+                "A reserva da turma {$r['sigla']} foi aprovada por $executor e confirmada na agenda.",
+                "A reserva da turma {$r['sigla']} foi aprovada por $executor.",
+                BASE_URL . "/php/views/gerenciar_reservas.php?status=CONCLUIDA&reserva_id=$reserva_id",
+                $r['usuario_id'] ?? null,
+                $r['docente_id'] ?? null
+            );
 
             // --- ENVIO DE E-MAIL (APROVAÇÃO) ---
             if (isset($_POST['send_email']) && $_POST['send_email'] == '1') {
@@ -990,8 +1000,21 @@ switch ($action) {
         }
         $reserva_id = (int) ($_POST['reserva_id'] ?? 0);
         if (mysqli_query($conn, "UPDATE reservas SET status = 'RECUSADA' WHERE id = $reserva_id")) {
+            // Buscar dados da reserva para notificação direcionada
+            $r_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT usuario_id, docente_id, sigla FROM reservas WHERE id = $reserva_id"));
             $executor = $_SESSION['user_nome'] ?? 'Gestor';
-            dispararNotificacaoGlobal($conn, 'reserva_realizada', 'Sua reserva foi Recusada', "A solicitação de reserva #$reserva_id foi recusada por $executor.", BASE_URL . "/php/views/gerenciar_reservas.php?status=RECUSADA&reserva_id=$reserva_id", ['admin', 'gestor', 'professor', 'cri']);
+            $sigla_ref = $r_data['sigla'] ?? "#$reserva_id";
+            dispararNotificacaoReserva(
+                $conn,
+                'reserva_realizada',
+                'Sua reserva foi Recusada',
+                'Reserva Recusada',
+                "A solicitação de reserva ($sigla_ref) foi recusada por $executor.",
+                "A reserva ($sigla_ref) foi recusada por $executor.",
+                BASE_URL . "/php/views/gerenciar_reservas.php?status=RECUSADA&reserva_id=$reserva_id",
+                $r_data['usuario_id'] ?? null,
+                $r_data['docente_id'] ?? null
+            );
 
             echo json_encode(['success' => true, 'message' => 'Reserva recusada.']);
         } else {
