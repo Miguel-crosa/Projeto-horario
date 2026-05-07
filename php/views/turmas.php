@@ -194,6 +194,13 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
         border-color: currentColor !important;
     }
+    .highlight-from-reserva {
+        animation: pulse-orange 1.5s ease-in-out 3;
+    }
+    @keyframes pulse-orange {
+        0%, 100% { box-shadow: 0 0 5px rgba(255, 152, 0, 0.2); }
+        50% { box-shadow: 0 0 20px rgba(255, 152, 0, 0.45); }
+    }
 </style>
 
 <div class="filter-bar"
@@ -749,6 +756,7 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
         }
 
         const targetId = urlParams.get('id');
+        const fromReserva = urlParams.get('from') === 'reserva';
         if (targetId) {
             const targetRow = document.querySelector(`tr[data-id="${targetId}"]`);
             if (targetRow) {
@@ -760,14 +768,25 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
                     updatePagination();
                 }
 
-                // Destaque visual
-                targetRow.style.backgroundColor = 'rgba(237, 28, 36, 0.1)';
-                targetRow.style.transition = 'background-color 2s';
+                // Destaque visual — laranja se vindo de reserva, vermelho padrão
+                if (fromReserva) {
+                    targetRow.style.border = '2px solid #ff9800';
+                    targetRow.style.backgroundColor = 'rgba(255, 152, 0, 0.08)';
+                    targetRow.style.boxShadow = '0 0 15px rgba(255, 152, 0, 0.25)';
+                    targetRow.style.transition = 'all 0.5s ease';
+                    targetRow.classList.add('highlight-from-reserva');
+                } else {
+                    targetRow.style.backgroundColor = 'rgba(237, 28, 36, 0.1)';
+                    targetRow.style.transition = 'background-color 2s';
+                }
                 targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
                 setTimeout(() => {
                     targetRow.style.backgroundColor = '';
-                }, 3000);
+                    targetRow.style.border = '';
+                    targetRow.style.boxShadow = '';
+                    targetRow.classList.remove('highlight-from-reserva');
+                }, 5000);
             }
         }
 

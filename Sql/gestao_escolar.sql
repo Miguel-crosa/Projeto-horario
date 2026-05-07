@@ -172,6 +172,7 @@
         usuario_id INT NOT NULL,
         curso_id INT DEFAULT NULL,
         ambiente_id INT DEFAULT NULL,
+        turma_id INT DEFAULT NULL,
         data_inicio DATE NOT NULL,
         data_fim DATE NOT NULL,
         dias_semana VARCHAR(255) NOT NULL,
@@ -190,7 +191,7 @@
         tipo_atendimento ENUM('Empresa', 'Entidade', 'Balcão') DEFAULT 'Balcão',
         parceiro VARCHAR(255) DEFAULT NULL,
         contato_parceiro VARCHAR(255) DEFAULT NULL,
-        status ENUM('ativo', 'concluido', 'PENDENTE', 'APROVADA', 'REJEITADA', 'CONCLUIDA') NOT NULL DEFAULT 'PENDENTE',
+        status ENUM('ativo', 'concluido', 'PENDENTE', 'APROVADA', 'RECUSADA', 'CONCLUIDA') NOT NULL DEFAULT 'PENDENTE',
         tipo_agenda ENUM('recorrente', 'flexivel') DEFAULT 'recorrente',
         agenda_flexivel TEXT DEFAULT NULL,
         notas TEXT DEFAULT NULL,
@@ -199,7 +200,8 @@
         FOREIGN KEY (docente_id) REFERENCES docente(id),
         FOREIGN KEY (usuario_id) REFERENCES usuario(id),
         FOREIGN KEY (curso_id) REFERENCES curso(id),
-        FOREIGN KEY (ambiente_id) REFERENCES ambiente(id)
+        FOREIGN KEY (ambiente_id) REFERENCES ambiente(id),
+        FOREIGN KEY (turma_id) REFERENCES turma(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
     -- ============================================================
@@ -356,3 +358,26 @@
     ALTER TABLE preparacao_atestados MODIFY COLUMN tipo ENUM('preparação', 'atestado', 'ausência') NOT NULL;
     */
 
+-- ============================================================
+-- SCRIPT DE ATUALIZAÇÃO (COLAR NO SERVIDOR SEM DELETAR O BANCO)
+-- Pode ser executado múltiplas vezes sem risco (idempotente)
+-- ============================================================
+
+ALTER TABLE reservas ADD COLUMN IF NOT EXISTS turma_id INT DEFAULT NULL AFTER ambiente_id;
+
+SET @fk_exists = (SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'reservas' AND COLUMN_NAME = 'turma_id' AND REFERENCED_TABLE_NAME = 'turma');
+SET @sql = IF(@fk_exists = 0, 'ALTER TABLE reservas ADD FOREIGN KEY (turma_id) REFERENCES turma(id) ON DELETE SET NULL', 'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+ALTER TABLE reservas MODIFY COLUMN status ENUM('ativo', 'concluido', 'PENDENTE', 'APROVADA', 'REJEITADA', 'RECUSADA', 'CONCLUIDA') NOT NULL DEFAULT 'PENDENTE';
+
+UPDATE reservas SET status = 'RECUSADA' WHERE status = 'REJEITADA';
+
+-- 5. Vincular retroativamente reservas concluídas às turmas já existentes
+UPDATE reservas r
+    JOIN turma t ON t.sigla = r.sigla AND t.docente_id1 = r.docente_id
+SET r.turma_id = t.id
+WHERE r.status = 'CONCLUIDA' AND r.turma_id IS NULL AND r.sigla IS NOT NULL AND r.sigla != '';

@@ -51,7 +51,7 @@ if ($owner_filter === 'mine') {
 
 $st = $mysqli->prepare("
     SELECT r.*, d.nome as professor_nome, d.area_conhecimento as especialidade, d.cor_agenda,
-           u.nome as gestor_nome, c.nome as curso_nome, amb.nome as ambiente_nome
+           u.nome as gestor_nome, COALESCE(c.nome, 'Sem curso vinculado') as curso_nome, amb.nome as ambiente_nome
     FROM reservas r
     JOIN docente d ON r.docente_id = d.id
     JOIN usuario u ON r.usuario_id = u.id
@@ -70,6 +70,10 @@ $reservas = $st->get_result()->fetch_all(MYSQLI_ASSOC);
 $count_pendente = $mysqli->query("SELECT COUNT(*) FROM reservas WHERE status = 'PENDENTE'")->fetch_row()[0];
 
 $dow_map = ['Segunda-feira' => 'Seg', 'Terça-feira' => 'Ter', 'Quarta-feira' => 'Qua', 'Quinta-feira' => 'Qui', 'Sexta-feira' => 'Sex', 'Sábado' => 'Sáb', 'Domingo' => 'Dom'];
+
+// Buscar cursos e ambientes para modal de edição
+$cursos_list = mysqli_fetch_all(mysqli_query($mysqli, "SELECT id, nome FROM curso ORDER BY nome"), MYSQLI_ASSOC);
+$ambientes_list = mysqli_fetch_all(mysqli_query($mysqli, "SELECT id, nome FROM ambiente ORDER BY nome"), MYSQLI_ASSOC);
 
 include __DIR__ . '/../components/header.php';
 ?>
@@ -529,6 +533,9 @@ include __DIR__ . '/../components/header.php';
                 <div class="card-footer">
                     <?php if ($r['status'] === 'PENDENTE'): ?>
                         <?php if (isAdmin() || isGestor()): ?>
+                            <button class="btn-action" style="background: rgba(33,150,243,0.1); color: #1565c0; border-color: #90caf9; flex: 0.5;" onclick="openEditReserva(<?= $r['id'] ?>)">
+                                <i class="fas fa-pen"></i>
+                            </button>
                             <button class="btn-action btn-approve" onclick="manageReserva(<?= $r['id'] ?>, 'aprovar')">
                                 <i class="fas fa-check"></i> Aprovar
                             </button>
@@ -541,10 +548,17 @@ include __DIR__ . '/../components/header.php';
                             </div>
                         <?php endif; ?>
                     <?php elseif ($r['status'] === 'APROVADA' || $r['status'] === 'CONCLUIDA'): ?>
-                        <div class="btn-action"
-                            style="background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; cursor: default;">
-                            <i class="fas fa-check-double"></i> Reserva Aprovada
-                        </div>
+                        <?php if (!empty($r['turma_id'])): ?>
+                            <a href="turmas.php?id=<?= $r['turma_id'] ?>&from=reserva" class="btn-action"
+                                style="background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; cursor: pointer; text-decoration: none;">
+                                <i class="fas fa-external-link-alt"></i> Ver Turma
+                            </a>
+                        <?php else: ?>
+                            <div class="btn-action"
+                                style="background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; cursor: default;">
+                                <i class="fas fa-check-double"></i> Reserva Aprovada
+                            </div>
+                        <?php endif; ?>
                     <?php elseif ($r['status'] === 'RECUSADA'): ?>
                         <div class="btn-action"
                             style="background: #ffebee; color: #c62828; border-color: #ffcdd2; cursor: default;">
@@ -556,6 +570,93 @@ include __DIR__ . '/../components/header.php';
         <?php endforeach; ?>
     </div>
 <?php endif; ?>
+
+<!-- Modal de Edição de Reserva -->
+<div id="modal-edit-reserva" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);">
+    <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--card-bg); border-radius:20px; width:95%; max-width:600px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <div style="padding:20px 25px; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; font-size:1.1rem;"><i class="fas fa-pen" style="color:var(--primary-red); margin-right:8px;"></i>Editar Reserva <span id="edit-reserva-id-label" style="color:var(--text-muted); font-size:0.85rem;"></span></h3>
+            <button onclick="closeEditModal()" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+        </div>
+        <div style="padding:25px;">
+            <input type="hidden" id="edit-reserva-id">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                <div style="grid-column:1/-1;">
+                    <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; display:block;">Curso</label>
+                    <select id="edit-curso-id" class="form-input" style="width:100%;">
+                        <option value="">-- Sem curso --</option>
+                        <?php foreach($cursos_list as $c): ?>
+                            <option value="<?= $c['id'] ?>"><?= xe($c['nome']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; display:block;">Sigla</label>
+                    <input type="text" id="edit-sigla" class="form-input" style="width:100%;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; display:block;">Ambiente</label>
+                    <select id="edit-ambiente-id" class="form-input" style="width:100%;">
+                        <option value="">-- Nenhum --</option>
+                        <?php foreach($ambientes_list as $a): ?>
+                            <option value="<?= $a['id'] ?>"><?= xe($a['nome']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; display:block;">Período</label>
+                    <select id="edit-periodo" class="form-input" style="width:100%;">
+                        <option value="Manhã">Manhã</option>
+                        <option value="Tarde">Tarde</option>
+                        <option value="Noite">Noite</option>
+                        <option value="Integral">Integral</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; display:block;">Vagas</label>
+                    <input type="number" id="edit-vagas" class="form-input" style="width:100%;" min="1">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; display:block;">Hora Início</label>
+                    <input type="time" id="edit-hora-inicio" class="form-input" style="width:100%;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; display:block;">Hora Fim</label>
+                    <input type="time" id="edit-hora-fim" class="form-input" style="width:100%;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; display:block;">Data Início</label>
+                    <input type="date" id="edit-data-inicio" class="form-input" style="width:100%;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; display:block;">Data Fim</label>
+                    <input type="date" id="edit-data-fim" class="form-input" style="width:100%;">
+                </div>
+                <div style="grid-column:1/-1;">
+                    <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; display:block;">Dias da Semana</label>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                        <?php
+                        $dias_edit = ['Segunda-feira'=>'Seg','Terça-feira'=>'Ter','Quarta-feira'=>'Qua','Quinta-feira'=>'Qui','Sexta-feira'=>'Sex','Sábado'=>'Sáb'];
+                        foreach($dias_edit as $full => $short): ?>
+                            <label style="display:flex; align-items:center; gap:5px; padding:6px 12px; border-radius:8px; background:rgba(0,0,0,0.03); border:1px solid var(--border-color); cursor:pointer; font-size:0.85rem; font-weight:600;">
+                                <input type="checkbox" class="edit-dia-check" value="<?= $full ?>">
+                                <?= $short ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div style="grid-column:1/-1;">
+                    <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; display:block;">Local</label>
+                    <input type="text" id="edit-local" class="form-input" style="width:100%;">
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+                <button onclick="closeEditModal()" class="btn" style="background:rgba(0,0,0,0.05); color:var(--text-color); border:1px solid var(--border-color); font-weight:700;">Cancelar</button>
+                <button onclick="saveEditReserva()" class="btn btn-primary" style="font-weight:700;"><i class="fas fa-save"></i> Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
     async function manageReserva(id, action) {
@@ -573,12 +674,11 @@ include __DIR__ . '/../components/header.php';
                 cancelButtonText: 'Cancelar'
             });
 
-            if (result.isDismissed) return; // Cancelado
+            if (result.isDismissed) return;
 
             const shouldSendEmail = result.isConfirmed;
-            const apiAction = 'aprovar_reserva';
             const fd = new FormData();
-            fd.append('action', apiAction);
+            fd.append('action', 'aprovar_reserva');
             fd.append('reserva_id', id);
             fd.append('send_email', shouldSendEmail ? '1' : '0');
 
@@ -595,7 +695,6 @@ include __DIR__ . '/../components/header.php';
                 showNotification('Erro na comunicação com o servidor.', 'error');
             }
         } else {
-            // Caso Recusar
             if (!confirm('Deseja realmente RECUSAR esta reserva?')) return;
             const fd = new FormData();
             fd.append('action', 'recusar_reserva');
@@ -613,6 +712,92 @@ include __DIR__ . '/../components/header.php';
             } catch (e) {
                 showNotification('Erro na comunicação com o servidor.', 'error');
             }
+        }
+    }
+
+    // --- MODAL DE EDIÇÃO ---
+    async function openEditReserva(id) {
+        try {
+            const r = await fetch(`../controllers/agenda_api.php?action=get_reserva&id=${id}`);
+            const data = await r.json();
+            if (!data.success) {
+                showNotification(data.message || 'Erro ao carregar reserva.', 'error');
+                return;
+            }
+            const rv = data.data;
+            document.getElementById('edit-reserva-id').value = rv.id;
+            document.getElementById('edit-reserva-id-label').textContent = '#' + rv.id;
+            document.getElementById('edit-curso-id').value = rv.curso_id || '';
+            document.getElementById('edit-sigla').value = rv.sigla || '';
+            document.getElementById('edit-ambiente-id').value = rv.ambiente_id || '';
+            document.getElementById('edit-periodo').value = rv.periodo || 'Manhã';
+            document.getElementById('edit-vagas').value = rv.vagas || 32;
+            document.getElementById('edit-hora-inicio').value = (rv.hora_inicio || '07:30').substring(0, 5);
+            document.getElementById('edit-hora-fim').value = (rv.hora_fim || '11:30').substring(0, 5);
+            document.getElementById('edit-data-inicio').value = rv.data_inicio || '';
+            document.getElementById('edit-data-fim').value = rv.data_fim || '';
+            document.getElementById('edit-local').value = rv.local || '';
+
+            // Dias da semana
+            const diasArr = (rv.dias_semana || '').split(',').map(d => d.trim());
+            document.querySelectorAll('.edit-dia-check').forEach(cb => {
+                cb.checked = diasArr.includes(cb.value);
+            });
+
+            document.getElementById('modal-edit-reserva').style.display = 'block';
+        } catch(e) {
+            showNotification('Erro ao carregar dados da reserva.', 'error');
+        }
+    }
+
+    function closeEditModal() {
+        document.getElementById('modal-edit-reserva').style.display = 'none';
+    }
+
+    // Fechar com ESC ou click fora
+    document.getElementById('modal-edit-reserva').addEventListener('click', function(e) {
+        if (e.target === this) closeEditModal();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeEditModal();
+    });
+
+    async function saveEditReserva() {
+        const id = document.getElementById('edit-reserva-id').value;
+        const dias = Array.from(document.querySelectorAll('.edit-dia-check:checked')).map(cb => cb.value);
+
+        if (dias.length === 0) {
+            showNotification('Selecione pelo menos um dia da semana.', 'error');
+            return;
+        }
+
+        const fd = new FormData();
+        fd.append('action', 'update_reserva');
+        fd.append('reserva_id', id);
+        fd.append('curso_id', document.getElementById('edit-curso-id').value);
+        fd.append('sigla', document.getElementById('edit-sigla').value);
+        fd.append('ambiente_id', document.getElementById('edit-ambiente-id').value);
+        fd.append('periodo', document.getElementById('edit-periodo').value);
+        fd.append('vagas', document.getElementById('edit-vagas').value);
+        fd.append('hora_inicio', document.getElementById('edit-hora-inicio').value);
+        fd.append('hora_fim', document.getElementById('edit-hora-fim').value);
+        fd.append('data_inicio', document.getElementById('edit-data-inicio').value);
+        fd.append('data_fim', document.getElementById('edit-data-fim').value);
+        fd.append('dias_semana', dias.join(','));
+        fd.append('local', document.getElementById('edit-local').value);
+
+        try {
+            const r = await fetch('../controllers/agenda_api.php', { method: 'POST', body: fd });
+            const data = await r.json();
+            if (data.success) {
+                showNotification(data.message, 'success');
+                closeEditModal();
+                setTimeout(() => location.reload(), 500);
+            } else {
+                showNotification(data.message, 'error');
+            }
+        } catch(e) {
+            showNotification('Erro ao salvar alterações.', 'error');
         }
     }
 

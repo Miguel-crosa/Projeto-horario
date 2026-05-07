@@ -743,30 +743,44 @@ switch ($action) {
                 throw new Exception("Reserva não encontrada ou já processada.");
             }
 
-            // 1. Create Turma
+            // 1. Create Turma — preparar valores com fallback para NULLs
             $dias_arr = explode(',', $r['dias_semana']);
-            $env_id = !empty($r['ambiente_id']) ? $r['ambiente_id'] : "NULL";
-            $cur_id = !empty($r['curso_id']) ? $r['curso_id'] : "NULL";
+            $env_id = !empty($r['ambiente_id']) ? (int)$r['ambiente_id'] : "NULL";
+            $cur_id = !empty($r['curso_id']) ? (int)$r['curso_id'] : "NULL";
             $props = !empty($r['numero_proposta']) ? "'" . mysqli_real_escape_string($conn, $r['numero_proposta']) . "'" : "NULL";
             $parc = !empty($r['parceiro']) ? "'" . mysqli_real_escape_string($conn, $r['parceiro']) . "'" : "NULL";
             $cont = !empty($r['contato_parceiro']) ? "'" . mysqli_real_escape_string($conn, $r['contato_parceiro']) . "'" : "NULL";
 
-            $tipo_esc = mysqli_real_escape_string($conn, $r['tipo']);
-            $sigla_esc = mysqli_real_escape_string($conn, $r['sigla']);
-            $periodo_esc = mysqli_real_escape_string($conn, $r['periodo']);
-            $dias_esc = mysqli_real_escape_string($conn, $r['dias_semana']);
-            $local_esc = mysqli_real_escape_string($conn, $r['local']);
-            $custeio_esc = mysqli_real_escape_string($conn, $r['tipo_custeio']);
-            $atend_esc = mysqli_real_escape_string($conn, $r['tipo_atendimento']);
-            $alm_esc = mysqli_real_escape_string($conn, $r['horario_almoco']);
+            // Escape de strings
+            $tipo_esc = mysqli_real_escape_string($conn, $r['tipo'] ?? 'Presencial');
+            $sigla_esc = mysqli_real_escape_string($conn, $r['sigla'] ?? '');
+            $periodo_esc = mysqli_real_escape_string($conn, $r['periodo'] ?? 'Manhã');
+            $dias_esc = mysqli_real_escape_string($conn, $r['dias_semana'] ?? '');
+            $local_esc = mysqli_real_escape_string($conn, $r['local'] ?? 'Sede');
+            $custeio_esc = mysqli_real_escape_string($conn, $r['tipo_custeio'] ?? 'Gratuidade');
+            $atend_esc = mysqli_real_escape_string($conn, $r['tipo_atendimento'] ?? 'Balcão');
+            $alm_esc = mysqli_real_escape_string($conn, $r['horario_almoco'] ?? '02:00');
 
-            $sql_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, local, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, horario_almoco) 
-                          VALUES ($cur_id, '$tipo_esc', '$sigla_esc', {$r['vagas']}, '$periodo_esc', '{$r['data_inicio']}', '{$r['data_fim']}', '$dias_esc', $env_id, {$r['docente_id']}, '$local_esc', '$custeio_esc', {$r['previsao_despesa']}, {$r['valor_turma']}, $props, '$atend_esc', $parc, $cont, '$alm_esc')";
+            // FIX: Horários da reserva → turma (campos hora_inicio/hora_fim → horario_inicio/horario_fim)
+            $h_inicio_esc = mysqli_real_escape_string($conn, $r['hora_inicio'] ?? '07:30');
+            $h_fim_esc = mysqli_real_escape_string($conn, $r['hora_fim'] ?? '11:30');
+
+            // FIX: Tratar NULLs em campos numéricos
+            $vagas_val = (int)($r['vagas'] ?? 32);
+            $previsao_val = floatval($r['previsao_despesa'] ?? 0);
+            $valor_val = floatval($r['valor_turma'] ?? 0);
+
+            // FIX: Incluir tipo_agenda e agenda_flexivel da reserva
+            $tipo_agenda_esc = mysqli_real_escape_string($conn, $r['tipo_agenda'] ?? 'recorrente');
+            $agenda_flex_esc = mysqli_real_escape_string($conn, $r['agenda_flexivel'] ?? '');
+
+            $sql_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, local, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, horario_almoco, horario_inicio, horario_fim, tipo_agenda, agenda_flexivel) 
+                          VALUES ($cur_id, '$tipo_esc', '$sigla_esc', $vagas_val, '$periodo_esc', '{$r['data_inicio']}', '{$r['data_fim']}', '$dias_esc', $env_id, {$r['docente_id']}, '$local_esc', '$custeio_esc', $previsao_val, $valor_val, $props, '$atend_esc', $parc, $cont, '$alm_esc', '$h_inicio_esc', '$h_fim_esc', '$tipo_agenda_esc', '$agenda_flex_esc')";
             if (!mysqli_query($conn, $sql_turma))
                 throw new Exception("Erro ao criar turma: " . mysqli_error($conn));
             $turma_id = mysqli_insert_id($conn);
 
-            // 2. Clear old legacy RESERVADO rows from the agenda table in this range to avoid conflicts
+            // 2. Clear old legacy RESERVADO rows from the agenda table in this range
             $del_p = $r['periodo'];
             $p_list = "('$del_p')";
             if ($del_p === 'Manhã') {
@@ -789,38 +803,66 @@ switch ($action) {
 
             // 3. Create explicit detailed Agenda Entries per day
             $daysMap = [0 => 'Domingo', 1 => 'Segunda-feira', 2 => 'Terça-feira', 3 => 'Quarta-feira', 4 => 'Quinta-feira', 5 => 'Sexta-feira', 6 => 'Sábado'];
-            $it = new DateTime($r['data_inicio']);
-            $end = new DateTime($r['data_fim']);
             $dias_arr = array_map('trim', explode(',', $r['dias_semana']));
-            $amb_val = $r['ambiente_id'] ?: 'NULL';
+            $amb_val = !empty($r['ambiente_id']) ? (int)$r['ambiente_id'] : 'NULL';
+            $docente_id = (int)$r['docente_id'];
 
-            while ($it <= $end) {
-                $w = (int) $it->format('w');
-                $dayName = $daysMap[$w] ?? '';
-                if (in_array($dayName, $dias_arr)) {
-                    $dateStr = $it->format('Y-m-d');
-                    $dia_esc = mysqli_real_escape_string($conn, $dayName);
+            // FIX: Suporte a agenda flexível na aprovação
+            if ($tipo_agenda_esc === 'flexivel' && !empty($r['agenda_flexivel'])) {
+                $flex_dates = array_filter(array_map('trim', explode(',', $r['agenda_flexivel'])));
+                foreach ($flex_dates as $dateStr) {
+                    if (empty($dateStr)) continue;
+                    // Pular feriados e férias
+                    if (isHoliday($conn, $dateStr)) continue;
+                    if (isVacation($conn, $docente_id, $dateStr)) continue;
+
+                    $w = (int) date('w', strtotime($dateStr));
+                    $dayName = $daysMap[$w] ?? '';
+                    $dia_esc_ag = mysqli_real_escape_string($conn, $dayName);
 
                     $sql_insert = "INSERT INTO agenda (docente_id, ambiente_id, turma_id, dia_semana, periodo, horario_inicio, horario_fim, data, status)
-                                   VALUES ({$r['docente_id']}, $amb_val, $turma_id, '$dia_esc', '{$r['periodo']}', '{$r['hora_inicio']}', '{$r['hora_fim']}', '$dateStr', 'CONFIRMADO')";
+                                   VALUES ($docente_id, $amb_val, $turma_id, '$dia_esc_ag', '$periodo_esc', '$h_inicio_esc', '$h_fim_esc', '$dateStr', 'CONFIRMADO')";
                     if (!mysqli_query($conn, $sql_insert)) {
                         throw new Exception("Erro ao agendar dia $dateStr: " . mysqli_error($conn));
                     }
                 }
-                $it->modify('+1 day');
+            } else {
+                // Modo recorrente
+                $it = new DateTime($r['data_inicio']);
+                $end = new DateTime($r['data_fim']);
+                $it->setTime(0, 0, 0);
+                $end->setTime(0, 0, 0);
+
+                while ($it->format('Y-m-d') <= $end->format('Y-m-d')) {
+                    $w = (int) $it->format('w');
+                    $dayName = $daysMap[$w] ?? '';
+                    if (in_array($dayName, $dias_arr)) {
+                        $dateStr = $it->format('Y-m-d');
+                        
+                        // FIX: Pular feriados e férias
+                        if (!isHoliday($conn, $dateStr) && !isVacation($conn, $docente_id, $dateStr)) {
+                            $dia_esc_ag = mysqli_real_escape_string($conn, $dayName);
+                            $sql_insert = "INSERT INTO agenda (docente_id, ambiente_id, turma_id, dia_semana, periodo, horario_inicio, horario_fim, data, status)
+                                           VALUES ($docente_id, $amb_val, $turma_id, '$dia_esc_ag', '$periodo_esc', '$h_inicio_esc', '$h_fim_esc', '$dateStr', 'CONFIRMADO')";
+                            if (!mysqli_query($conn, $sql_insert)) {
+                                throw new Exception("Erro ao agendar dia $dateStr: " . mysqli_error($conn));
+                            }
+                        }
+                    }
+                    $it->modify('+1 day');
+                }
             }
 
-            // 3. Update Reservation Status
-            mysqli_query($conn, "UPDATE reservas SET status = 'CONCLUIDA' WHERE id = $reserva_id");
+            // 4. Update Reservation Status + vincular turma_id
+            mysqli_query($conn, "UPDATE reservas SET status = 'CONCLUIDA', turma_id = $turma_id WHERE id = $reserva_id");
 
             $executor = $_SESSION['user_nome'] ?? 'Gestor';
-            dispararNotificacaoGlobal($conn, 'reserva_realizada', 'Sua reserva foi Aprovada', "A reserva da turma {$r['sigla']} foi aprovada por $executor e confirmada na agenda.", BASE_URL . "/php/views/gerenciar_reservas.php?status=CONCLUIDA&reserva_id=$reserva_id", ['admin', 'gestor', 'professor', 'cri']); // Goes everywhere but ignores selves mostly, users will see if it's theirs
+            dispararNotificacaoGlobal($conn, 'reserva_realizada', 'Sua reserva foi Aprovada', "A reserva da turma {$r['sigla']} foi aprovada por $executor e confirmada na agenda.", BASE_URL . "/php/views/gerenciar_reservas.php?status=CONCLUIDA&reserva_id=$reserva_id", ['admin', 'gestor', 'professor', 'cri']);
 
             // --- ENVIO DE E-MAIL (APROVAÇÃO) ---
             if (isset($_POST['send_email']) && $_POST['send_email'] == '1') {
                 require_once __DIR__ . '/../configs/mailer.php';
                 $did = $r['docente_id'];
-                // FIX: tabela docente não possui coluna email; buscar via usuario vinculado
                 $d_res = mysqli_query($conn, "SELECT d.nome, u.email FROM docente d LEFT JOIN usuario u ON u.docente_id = d.id WHERE d.id = $did LIMIT 1");
                 if ($d_row = mysqli_fetch_assoc($d_res)) {
                     $d_email = $d_row['email'];
@@ -844,6 +886,61 @@ switch ($action) {
         } catch (Exception $e) {
             mysqli_rollback($conn);
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        exit;
+
+    case 'update_reserva':
+        if (!isAdmin() && !isGestor()) {
+            echo json_encode(['success' => false, 'message' => 'Sem permissão para editar.']);
+            exit;
+        }
+        $reserva_id = (int) ($_POST['reserva_id'] ?? 0);
+        if (!$reserva_id) {
+            echo json_encode(['success' => false, 'message' => 'ID da reserva inválido.']);
+            exit;
+        }
+
+        // Verificar se a reserva existe e está pendente
+        $check = mysqli_query($conn, "SELECT status FROM reservas WHERE id = $reserva_id");
+        $row = mysqli_fetch_assoc($check);
+        if (!$row || $row['status'] !== 'PENDENTE') {
+            echo json_encode(['success' => false, 'message' => 'Apenas reservas pendentes podem ser editadas.']);
+            exit;
+        }
+
+        $curso_id = (int) ($_POST['curso_id'] ?? 0);
+        $ambiente_id = (int) ($_POST['ambiente_id'] ?? 0);
+        $sigla = mysqli_real_escape_string($conn, $_POST['sigla'] ?? '');
+        $periodo = mysqli_real_escape_string($conn, $_POST['periodo'] ?? 'Manhã');
+        $vagas = (int) ($_POST['vagas'] ?? 32);
+        $hora_inicio = mysqli_real_escape_string($conn, $_POST['hora_inicio'] ?? '07:30');
+        $hora_fim = mysqli_real_escape_string($conn, $_POST['hora_fim'] ?? '11:30');
+        $data_inicio = mysqli_real_escape_string($conn, $_POST['data_inicio'] ?? '');
+        $data_fim = mysqli_real_escape_string($conn, $_POST['data_fim'] ?? '');
+        $dias_semana = mysqli_real_escape_string($conn, $_POST['dias_semana'] ?? '');
+        $local = mysqli_real_escape_string($conn, $_POST['local'] ?? '');
+
+        $cur_val = $curso_id > 0 ? $curso_id : 'NULL';
+        $amb_val = $ambiente_id > 0 ? $ambiente_id : 'NULL';
+
+        $sql = "UPDATE reservas SET 
+            curso_id = $cur_val, 
+            ambiente_id = $amb_val, 
+            sigla = '$sigla', 
+            periodo = '$periodo', 
+            vagas = $vagas, 
+            hora_inicio = '$hora_inicio', 
+            hora_fim = '$hora_fim', 
+            data_inicio = '$data_inicio', 
+            data_fim = '$data_fim', 
+            dias_semana = '$dias_semana', 
+            local = '$local'
+            WHERE id = $reserva_id";
+
+        if (mysqli_query($conn, $sql)) {
+            echo json_encode(['success' => true, 'message' => 'Reserva atualizada com sucesso!'], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Erro ao atualizar: ' . mysqli_error($conn)]);
         }
         exit;
 

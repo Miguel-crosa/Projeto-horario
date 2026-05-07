@@ -144,6 +144,41 @@ function run_migrations($conn)
         mysqli_query($conn, "INSERT INTO sys_migrations (migration_name) VALUES ('$migration_areas')");
     }
 
+    // 7. Migração: Adicionar coluna turma_id na tabela reservas (vínculo reserva → turma)
+    $migration_turma_id = 'add_turma_id_to_reservas_2026_05_07';
+    $check_turma_id = mysqli_query($conn, "SELECT id FROM sys_migrations WHERE migration_name = '$migration_turma_id'");
+    if (mysqli_num_rows($check_turma_id) == 0) {
+        $res = mysqli_query($conn, "SHOW COLUMNS FROM reservas LIKE 'turma_id'");
+        if (mysqli_num_rows($res) == 0) {
+            mysqli_query($conn, "ALTER TABLE reservas ADD COLUMN turma_id INT DEFAULT NULL AFTER ambiente_id");
+            mysqli_query($conn, "ALTER TABLE reservas ADD FOREIGN KEY (turma_id) REFERENCES turma(id) ON DELETE SET NULL");
+        }
+
+        // Tentar vincular reservas CONCLUIDAS existentes às turmas já criadas (retroativo)
+        $res_old = mysqli_query($conn, "SELECT r.id, r.sigla, r.docente_id, r.data_inicio, r.data_fim FROM reservas r WHERE r.status = 'CONCLUIDA' AND r.turma_id IS NULL AND r.sigla IS NOT NULL AND r.sigla != ''");
+        if ($res_old) {
+            while ($ro = mysqli_fetch_assoc($res_old)) {
+                $sigla_esc = mysqli_real_escape_string($conn, $ro['sigla']);
+                $t_res = mysqli_query($conn, "SELECT id FROM turma WHERE sigla = '$sigla_esc' AND docente_id1 = {$ro['docente_id']} LIMIT 1");
+                if ($t_row = mysqli_fetch_assoc($t_res)) {
+                    mysqli_query($conn, "UPDATE reservas SET turma_id = {$t_row['id']} WHERE id = {$ro['id']}");
+                }
+            }
+        }
+
+        mysqli_query($conn, "INSERT INTO sys_migrations (migration_name) VALUES ('$migration_turma_id')");
+    }
+
+    // 8. Migração: Adicionar 'RECUSADA' ao ENUM de status da tabela reservas
+    $migration_recusada = 'add_recusada_enum_reservas_2026_05_07';
+    $check_recusada = mysqli_query($conn, "SELECT id FROM sys_migrations WHERE migration_name = '$migration_recusada'");
+    if (mysqli_num_rows($check_recusada) == 0) {
+        mysqli_query($conn, "ALTER TABLE reservas MODIFY COLUMN status ENUM('ativo', 'concluido', 'PENDENTE', 'APROVADA', 'REJEITADA', 'RECUSADA', 'CONCLUIDA') NOT NULL DEFAULT 'PENDENTE'");
+        // Converter registros antigos de REJEITADA para RECUSADA
+        mysqli_query($conn, "UPDATE reservas SET status = 'RECUSADA' WHERE status = 'REJEITADA'");
+        mysqli_query($conn, "INSERT INTO sys_migrations (migration_name) VALUES ('$migration_recusada')");
+    }
+
     return false;
 }
 
