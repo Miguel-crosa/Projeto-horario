@@ -652,18 +652,12 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
             if (result.isConfirmed) {
                 const form = document.createElement('form');
                 form.method = 'POST';
-                form.action = '../controllers/turmas_process.php';
-
-                const actInput = document.createElement('input');
-                actInput.type = 'hidden';
-                actInput.name = 'action';
-                actInput.value = 'delete_bulk';
-                form.appendChild(actInput);
+                form.action = '../controllers/turmas_process.php?action=delete_bulk';
 
                 const urlInput = document.createElement('input');
                 urlInput.type = 'hidden';
                 urlInput.name = 'return_url';
-                urlInput.value = 'turmas.php?' + getCurrentFilterParams();
+                urlInput.value = '../views/turmas.php?' + getCurrentFilterParams();
                 form.appendChild(urlInput);
 
                 selected.forEach(id => {
@@ -1244,7 +1238,7 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
             <button class="bar-btn" style="background: #6a1b9a;" onclick="openBulkEditModal()">
                 <i class="fas fa-edit"></i> Editar Horários
             </button>
-            <?php if (isAdmin()): ?>
+            <?php if (isAdmin() || isGestor()): ?>
                 <button class="bar-btn btn-delete" onclick="deleteSelectedTurmas()">
                     <i class="fas fa-trash"></i> Excluir
                 </button>

@@ -165,7 +165,7 @@ if ($action == 'bulk_update' && $_SERVER['REQUEST_METHOD'] == 'POST') {
     exit;
 }
 
-if ($action === 'delete_bulk' && isAdmin()) {
+if ($action === 'delete_bulk' && (isAdmin() || isGestor())) {
     $ids = $_POST['ids'] ?? [];
     $return_url = $_POST['return_url'] ?? '../views/turmas.php';
     if (!empty($ids)) {
