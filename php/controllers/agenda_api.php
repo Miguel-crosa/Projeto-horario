@@ -747,14 +747,23 @@ switch ($action) {
             $dias_arr = explode(',', $r['dias_semana']);
             $env_id = !empty($r['ambiente_id']) ? $r['ambiente_id'] : "NULL";
             $cur_id = !empty($r['curso_id']) ? $r['curso_id'] : "NULL";
-            $props = !empty($r['numero_proposta']) ? "'" . $r['numero_proposta'] . "'" : "NULL";
-            $parc = !empty($r['parceiro']) ? "'" . $r['parceiro'] . "'" : "NULL";
-            $cont = !empty($r['contato_parceiro']) ? "'" . $r['contato_parceiro'] . "'" : "NULL";
+            $props = !empty($r['numero_proposta']) ? "'" . mysqli_real_escape_string($conn, $r['numero_proposta']) . "'" : "NULL";
+            $parc = !empty($r['parceiro']) ? "'" . mysqli_real_escape_string($conn, $r['parceiro']) . "'" : "NULL";
+            $cont = !empty($r['contato_parceiro']) ? "'" . mysqli_real_escape_string($conn, $r['contato_parceiro']) . "'" : "NULL";
+
+            $tipo_esc = mysqli_real_escape_string($conn, $r['tipo']);
+            $sigla_esc = mysqli_real_escape_string($conn, $r['sigla']);
+            $periodo_esc = mysqli_real_escape_string($conn, $r['periodo']);
+            $dias_esc = mysqli_real_escape_string($conn, $r['dias_semana']);
+            $local_esc = mysqli_real_escape_string($conn, $r['local']);
+            $custeio_esc = mysqli_real_escape_string($conn, $r['tipo_custeio']);
+            $atend_esc = mysqli_real_escape_string($conn, $r['tipo_atendimento']);
+            $alm_esc = mysqli_real_escape_string($conn, $r['horario_almoco']);
 
             $sql_turma = "INSERT INTO turma (curso_id, tipo, sigla, vagas, periodo, data_inicio, data_fim, dias_semana, ambiente_id, docente_id1, local, tipo_custeio, previsao_despesa, valor_turma, numero_proposta, tipo_atendimento, parceiro, contato_parceiro, horario_almoco) 
-                          VALUES ($cur_id, '{$r['tipo']}', '{$r['sigla']}', {$r['vagas']}, '{$r['periodo']}', '{$r['data_inicio']}', '{$r['data_fim']}', '{$r['dias_semana']}', $env_id, {$r['docente_id']}, '{$r['local']}', '{$r['tipo_custeio']}', {$r['previsao_despesa']}, {$r['valor_turma']}, $props, '{$r['tipo_atendimento']}', $parc, $cont, '{$r['horario_almoco']}')";
+                          VALUES ($cur_id, '$tipo_esc', '$sigla_esc', {$r['vagas']}, '$periodo_esc', '{$r['data_inicio']}', '{$r['data_fim']}', '$dias_esc', $env_id, {$r['docente_id']}, '$local_esc', '$custeio_esc', {$r['previsao_despesa']}, {$r['valor_turma']}, $props, '$atend_esc', $parc, $cont, '$alm_esc')";
             if (!mysqli_query($conn, $sql_turma))
-                throw new Exception("Erro ao criar turma: " . mysqli_error($conn) . " SQL: " . $sql_turma);
+                throw new Exception("Erro ao criar turma: " . mysqli_error($conn));
             $turma_id = mysqli_insert_id($conn);
 
             // 2. Clear old legacy RESERVADO rows from the agenda table in this range to avoid conflicts
