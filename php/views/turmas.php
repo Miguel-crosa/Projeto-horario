@@ -19,7 +19,7 @@ if (isProfessor()) {
     }
 }
 
-$query = "SELECT t.*, c.nome as curso_nome, c.carga_horaria_total,
+$query = "SELECT t.*, c.nome as curso_nome, c.carga_horaria_total, c.tipo as curso_tipo,
           d1.nome as docente1_nome, d2.nome as docente2_nome, 
           d3.nome as docente3_nome, d4.nome as docente4_nome
           FROM turma t 
@@ -31,6 +31,12 @@ $query = "SELECT t.*, c.nome as curso_nome, c.carga_horaria_total,
           WHERE t.ativo = " . ($is_archived_view ? '0' : '1') . " $where_professor
           ORDER BY t." . ($is_archived_view ? 'id' : 'data_inicio') . " DESC";
 $turmas = mysqli_fetch_all(mysqli_query($conn, $query), MYSQLI_ASSOC);
+
+// Buscar tipos únicos de curso para o filtro (usando c.tipo do curso)
+$tipos_query = "SELECT DISTINCT c.tipo FROM turma t JOIN curso c ON t.curso_id = c.id WHERE t.ativo = " . ($is_archived_view ? '0' : '1') . " AND c.tipo IS NOT NULL AND c.tipo != '' ORDER BY c.tipo ASC";
+$tipos_res = mysqli_query($conn, $tipos_query);
+$tipos_lista = $tipos_res ? mysqli_fetch_all($tipos_res, MYSQLI_ASSOC) : [];
+
 
 // --- CÁLCULO DE ALERTAS (LIMITE E AUTORIZAÇÃO) ---
 $alertas_info = [
@@ -198,6 +204,12 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
     </div>
     <input type="text" id="t-filter-docente" placeholder="Filtrar por Docente..." class="form-input" style="width: 180px;"
         onkeyup="filterTurmas()" onkeydown="if(event.key==='Enter') event.preventDefault();">
+    <select id="t-filter-tipo" class="form-input" style="width: 120px;" onchange="filterTurmas()">
+        <option value="">Todos Tipos</option>
+        <?php foreach ($tipos_lista as $tp): ?>
+            <option value="<?= xe($tp['tipo']) ?>"><?= xe($tp['tipo']) ?></option>
+        <?php endforeach; ?>
+    </select>
     <select id="t-filter-periodo" class="form-input" style="width: 140px;" onchange="filterTurmas()">
         <option value="">Todos Períodos</option>
         <option value="Manhã">Manhã</option>
@@ -224,8 +236,8 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
     <div class="header-actions" style="display: flex; gap: 8px;">
         <?php if (can_reserve()): ?>
             <button type="button" onclick="openGlobalReserva()" class="btn btn-warning"
-                style="background: #ffb300; border: none; color: #5d4037; font-weight: 700; height: 38px;">
-                <i class="fas fa-bookmark"></i> RESERVA
+                style="background: #ffb300; border: none; color: #5d4037; font-weight: 700; height: 38px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <i class="fas fa-plus-circle"></i> NOVA RESERVA
             </button>
         <?php endif; ?>
         <?php if (isAdmin() || isGestor()): ?>
@@ -280,6 +292,8 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
         const periodo = periodoInput ? periodoInput.value : '';
         const docenteInput = document.getElementById('t-filter-docente');
         const docenteFilter = docenteInput ? docenteInput.value.toLowerCase().trim() : '';
+        const tipoInput = document.getElementById('t-filter-tipo');
+        const tipo = tipoInput ? tipoInput.value : '';
         const diaInput = document.getElementById('t-filter-dia');
         const dia = diaInput ? diaInput.value : '';
         const rows = Array.from(document.querySelectorAll('#turmas-table tbody tr:not(.empty-row)'));
@@ -296,10 +310,11 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
             const matchesSigla = !sigla || text.includes(sigla);
             const matchesPeriodo = !periodo || pCell === periodo;
             const matchesDocente = !docenteFilter || docentesCell.toLowerCase().includes(docenteFilter);
+            const matchesTipo = !tipo || row.dataset.tipo === tipo;
             const matchesDia = !dia || diasTurma.includes(dia);
             const matchesAlert = activeAlertFilter === null || activeAlertIds.includes(row.dataset.id);
 
-            if (matchesSigla && matchesPeriodo && matchesDocente && matchesDia && matchesAlert) {
+            if (matchesSigla && matchesPeriodo && matchesDocente && matchesTipo && matchesDia && matchesAlert) {
                 row.classList.add('matches-filter');
             } else {
                 row.classList.remove('matches-filter');
@@ -319,6 +334,7 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
         const filters = [
             { id: 't-filter-sigla', label: 'Busca', icon: 'fa-search' },
             { id: 't-filter-docente', label: 'Professor', icon: 'fa-user-tie' },
+            { id: 't-filter-tipo', label: 'Tipo', icon: 'fa-tag' },
             { id: 't-filter-periodo', label: 'Período', icon: 'fa-clock' },
             { id: 't-filter-dia', label: 'Dia', icon: 'fa-calendar-day' }
         ];
@@ -364,6 +380,7 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
             clearAll.innerHTML = `<span>Limpar Tudo</span>`;
             clearAll.onclick = () => {
                 filters.forEach(f => document.getElementById(f.id).value = '');
+                if(document.getElementById('t-filter-tipo')) document.getElementById('t-filter-tipo').value = '';
                 activeAlertFilter = null;
                 activeAlertIds = [];
                 document.querySelectorAll('.alert-card-mini').forEach(c => c.classList.remove('active'));
@@ -681,6 +698,7 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
             const profInput = document.getElementById('t-filter-docente');
             if (searchInput) searchInput.value = '';
             if (profInput) profInput.value = '';
+            if (document.getElementById('t-filter-tipo')) document.getElementById('t-filter-tipo').value = '';
             document.getElementById('t-filter-periodo').value = '';
             document.getElementById('t-filter-dia').value = '';
             filterTurmas();
@@ -701,6 +719,9 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
 
         const periodoParam = urlParams.get('periodo');
         if (periodoParam) document.getElementById('t-filter-periodo').value = periodoParam;
+
+        const tipoParam = urlParams.get('tipo');
+        if (tipoParam && document.getElementById('t-filter-tipo')) document.getElementById('t-filter-tipo').value = tipoParam;
 
         const diaParam = urlParams.get('dia');
         if (diaParam) document.getElementById('t-filter-dia').value = diaParam;
@@ -787,12 +808,14 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
         const params = new URLSearchParams();
         const sigla = document.getElementById('t-filter-sigla').value;
         const docente = document.getElementById('t-filter-docente').value;
+        const tipo = document.getElementById('t-filter-tipo') ? document.getElementById('t-filter-tipo').value : '';
         const periodo = document.getElementById('t-filter-periodo').value;
         const dia = document.getElementById('t-filter-dia').value;
         const sort = document.getElementById('t-filter-sort').value;
 
         if (sigla) params.set('sigla', sigla);
         if (docente) params.set('docente', docente);
+        if (tipo) params.set('tipo', tipo);
         if (periodo) params.set('periodo', periodo);
         if (dia) params.set('dia', dia);
         if (sort) params.set('sort', sort);
@@ -886,6 +909,7 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
                         data-curso="<?= mb_strtolower($t['curso_nome'], 'UTF-8') ?>"
                         data-docentes="<?= mb_strtolower($docentes_str, 'UTF-8') ?>"
                         data-dias="<?= $t['dias_semana'] ?>"
+                        data-tipo="<?= xe($t['curso_tipo']) ?>"
                         data-alertas="<?= implode(',', $alertas_turma) ?>">
                         <?php if (can_edit()): ?>
                             <td style="text-align: center;"><input type="checkbox" class="row-checkbox turma-checkbox"
@@ -940,8 +964,11 @@ $alertas_ativos = array_filter($alertas_info, function($a) { return !empty($a['i
                                 <i class="fas fa-check-circle" style="color: #2e7d32; opacity: 0.3; font-size: 0.9rem;" title="Sem alertas"></i>
                             <?php endif; ?>
                         </td>
-                        <td><?= xe($t['curso_nome']) ?> <span
-                                style="font-size: 0.8rem; color: var(--text-muted); opacity: 0.8;">(<?= $t['carga_horaria_total'] ?>h)</span>
+                        <td><?= xe($t['curso_nome']) ?> 
+                            <div style="font-size: 0.8rem; color: var(--text-muted); opacity: 0.9; margin-top: 2px; display: flex; align-items: center; gap: 6px;">
+                                <span>(<?= $t['carga_horaria_total'] ?>h)</span>
+                                <span style="background: rgba(237, 28, 36, 0.1); color: var(--primary-red); padding: 0px 4px; border-radius: 3px; font-weight: 800; font-size: 0.7rem; border: 1px solid rgba(237, 28, 36, 0.2); text-transform: uppercase;"><?= xe($t['curso_tipo']) ?></span>
+                            </div>
                         </td>
                         <td style="font-weight: 700; color: var(--primary-color);"><?= $t['carga_horaria_total'] ?>h</td>
                         <td><?= xe($t['periodo']) ?></td>

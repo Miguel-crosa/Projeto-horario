@@ -19,10 +19,7 @@ if (isCRI() || isProfessor() || isSecretaria()) {
         'turmas_form.php'
     ];
     
-    // CRI também não vê a lista de turmas (Professores agora podem ver para acompanhar suas aulas)
-    if (isCRI()) {
-        $restricted[] = 'turmas.php';
-    }
+    /* CRI agora pode ver a lista de turmas para consulta */
 
     if (in_array($current_page, $restricted)) {
         header('Location: ' . $prefix . 'index.php');
@@ -315,7 +312,7 @@ if (isCRI() || isProfessor() || isSecretaria()) {
                 </a>
             <?php endif; ?>
 
-            <?php if (isAdmin() || isGestor() || isProfessor() || isSecretaria()): ?>
+            <?php if (isAdmin() || isGestor() || isProfessor() || isSecretaria() || isCRI()): ?>
                 <a href="<?= $prefix ?>php/views/turmas.php"
                     class="links <?= in_array($current_page, ['turmas.php', 'turmas_form.php']) ? 'ativo' : '' ?>">
                     <i class="bi bi-people-fill" style="margin-right: 10px;"></i> Turmas

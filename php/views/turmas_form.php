@@ -33,7 +33,8 @@ $turma = [
     'numero_proposta' => '',
     'tipo_atendimento' => 'Balcão',
     'parceiro' => '',
-    'contato_parceiro' => ''
+    'contato_parceiro' => '',
+    'tipo_agenda' => 'recorrente'
 ];
 
 if ($id) {
@@ -41,6 +42,9 @@ if ($id) {
     if (!$turma) {
         header("Location: turmas.php");
         exit;
+    }
+    if (empty($turma['tipo_agenda'])) {
+        $turma['tipo_agenda'] = 'recorrente';
     }
 }
 

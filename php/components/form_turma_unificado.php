@@ -15,7 +15,8 @@ $turma = $turma ?? [
     'docente_id3' => '', 'docente_id4' => '', 'local' => 'Sede', 'dias_semana' => '',
     'horario_inicio' => '07:30', 'horario_fim' => '11:30', 'horario_almoco' => '02:00',
     'tipo_custeio' => 'Gratuidade', 'previsao_despesa' => 0, 'valor_turma' => 0,
-    'numero_proposta' => '', 'tipo_atendimento' => 'Balcão', 'parceiro' => '', 'contato_parceiro' => ''
+    'numero_proposta' => '', 'tipo_atendimento' => 'Balcão', 'parceiro' => '', 'contato_parceiro' => '',
+    'tipo_agenda' => 'recorrente'
 ];
 $dias_selecionados = !empty($turma['dias_semana']) ? explode(',', $turma['dias_semana']) : [];
 
@@ -216,10 +217,10 @@ if (!isset($feriados_data) && isset($conn)) {
         <label class="form-label">Período</label>
         <select name="periodo" class="form-input" required id="periodo-select-unified">
             <option value="">Selecione o período...</option>
-            <option value="Manhã" <?= $turma['periodo'] == 'Manhã' ? 'selected' : '' ?>>Manhã (07:30 - 11:30)</option>
-            <option value="Tarde" <?= $turma['periodo'] == 'Tarde' ? 'selected' : '' ?>>Tarde (13:30 - 17:30)</option>
-            <option value="Noite" <?= $turma['periodo'] == 'Noite' ? 'selected' : '' ?>>Noite (18:00 - 23:00)</option>
-            <option value="Integral" <?= $turma['periodo'] == 'Integral' ? 'selected' : '' ?>>Integral (07:30 - 17:30)</option>
+            <option value="Manhã" <?= (mb_strtolower($turma['periodo'] ?? '') == 'manhã') ? 'selected' : '' ?>>Manhã (07:30 - 11:30)</option>
+            <option value="Tarde" <?= (mb_strtolower($turma['periodo'] ?? '') == 'tarde') ? 'selected' : '' ?>>Tarde (13:30 - 17:30)</option>
+            <option value="Noite" <?= (mb_strtolower($turma['periodo'] ?? '') == 'noite') ? 'selected' : '' ?>>Noite (18:00 - 23:00)</option>
+            <option value="Integral" <?= (mb_strtolower($turma['periodo'] ?? '') == 'integral') ? 'selected' : '' ?>>Integral (07:30 - 17:30)</option>
         </select>
     </div>
 
@@ -253,14 +254,14 @@ if (!isset($feriados_data) && isset($conn)) {
             </div>
             <div class="agenda-type-toggle-v4">
                 <label class="toggle-option">
-                    <input type="radio" name="tipo_agenda" value="recorrente" <?= ($turma['tipo_agenda'] ?? 'recorrente') == 'recorrente' ? 'checked' : '' ?> onchange="toggleAgendaTypeUnified()">
+                    <input type="radio" name="tipo_agenda" value="recorrente" <?= (empty($turma['tipo_agenda']) || $turma['tipo_agenda'] == 'recorrente') ? 'checked' : '' ?> onchange="toggleAgendaTypeUnified()">
                     <div class="option-content">
                         <i class="fas fa-redo-alt"></i>
                         <span>Semanal</span>
                     </div>
                 </label>
                 <label class="toggle-option">
-                    <input type="radio" name="tipo_agenda" value="flexivel" <?= ($turma['tipo_agenda'] ?? 'recorrente') == 'flexivel' ? 'checked' : '' ?> onchange="toggleAgendaTypeUnified()">
+                    <input type="radio" name="tipo_agenda" value="flexivel" <?= ($turma['tipo_agenda'] ?? '') == 'flexivel' ? 'checked' : '' ?> onchange="toggleAgendaTypeUnified()">
                     <div class="option-content">
                         <i class="fas fa-calendar-day"></i>
                         <span>Manual</span>
@@ -460,7 +461,10 @@ if (!isset($feriados_data) && isset($conn)) {
     calStartMonth.setDate(1);
 
     window.toggleAgendaTypeUnified = function() {
-        const type = document.querySelector('input[name="tipo_agenda"]:checked').value;
+        const checkedRadio = document.querySelector('input[name="tipo_agenda"]:checked');
+        if (!checkedRadio) return; // Proteção contra erro de valor vazio
+        
+        const type = checkedRadio.value;
         const rec = document.getElementById('container-agenda-recorrente');
         const flex = document.getElementById('container-agenda-flexivel');
         
@@ -468,15 +472,15 @@ if (!isset($feriados_data) && isset($conn)) {
         const df = document.getElementById('data-fim-unified');
 
         if (type === 'recorrente') {
-            rec.style.display = 'block';
-            flex.style.display = 'none';
-            document.getElementById('calc-auto-container-unified').style.display = 'flex';
-            // Se mudou para recorrente, as datas serão recalculadas pela função calcularDataFimUnified()
+            if(rec) rec.style.display = 'block';
+            if(flex) flex.style.display = 'none';
+            const calcAuto = document.getElementById('calc-auto-container-unified');
+            if(calcAuto) calcAuto.style.display = 'flex';
         } else {
-            rec.style.display = 'none';
-            flex.style.display = 'block';
-            document.getElementById('calc-auto-container-unified').style.display = 'none';
-            // Se mudou para flexível, garante que as datas venham do calendário
+            if(rec) rec.style.display = 'none';
+            if(flex) flex.style.display = 'block';
+            const calcAuto = document.getElementById('calc-auto-container-unified');
+            if(calcAuto) calcAuto.style.display = 'none';
             updateFlexPreview();
         }
         calcularDataFimUnified();
@@ -1472,8 +1476,21 @@ if (!isset($feriados_data) && isset($conn)) {
         if (data.periodo) {
             const pSel = document.getElementById('periodo-select-unified');
             if(pSel) {
+                // Tenta atribuir o valor diretamente
                 pSel.value = data.periodo;
-                pSel.dataset.lastPeriod = data.periodo;
+                
+                // Se não selecionou (ex: caso diferente), tenta busca case-insensitive
+                if (!pSel.value) {
+                    const normalized = data.periodo.toLowerCase();
+                    for (let opt of pSel.options) {
+                        if (opt.value.toLowerCase() === normalized) {
+                            pSel.value = opt.value;
+                            break;
+                        }
+                    }
+                }
+                
+                pSel.dataset.lastPeriod = pSel.value;
                 pSel.dispatchEvent(new Event('change'));
             }
         }
