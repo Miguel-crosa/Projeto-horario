@@ -47,13 +47,18 @@ include __DIR__ . '/../components/header.php';
 
 <div class="page-header">
     <h2><i class="fas fa-users-cog" style="color: var(--primary-red);"></i> Gerenciamento de Usuários</h2>
-    <div style="display: flex; gap: 10px;">
-        <a href="?show_inactive=<?= $show_inactive ? '0' : '1' ?>" class="btn <?= $show_inactive ? 'btn-edit' : 'btn-outline' ?>" style="text-decoration: none; display: flex; align-items: center; gap: 8px;">
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <div class="search-container" style="position: relative; min-width: 250px;">
+            <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem;"></i>
+            <input type="text" id="user-search-table" placeholder="Buscar por nome ou e-mail..." 
+                   style="width: 100%; padding: 8px 12px 8px 35px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-color); outline: none; font-size: 0.9rem; transition: all 0.2s;">
+        </div>
+        <a href="?show_inactive=<?= $show_inactive ? '0' : '1' ?>" class="btn <?= $show_inactive ? 'btn-edit' : 'btn-outline' ?>" style="text-decoration: none; display: flex; align-items: center; gap: 8px; height: 38px;">
             <i class="fas <?= $show_inactive ? 'fa-eye-slash' : 'fa-eye' ?>"></i>
             <?= $show_inactive ? 'Ocultar Inativos' : 'Ver Inativos' ?>
         </a>
         <?php if ($can_create): ?>
-            <button class="btn btn-primary" onclick="document.getElementById('modal-user-create').style.display='flex'">
+            <button class="btn btn-primary" style="height: 38px;" onclick="document.getElementById('modal-user-create').style.display='flex'">
                 <i class="fas fa-plus"></i> Novo Usuário
             </button>
         <?php endif; ?>
@@ -388,6 +393,28 @@ include __DIR__ . '/../components/header.php';
         window.addEventListener('load', () => {
             toggleDocenteField('create');
             currentUserIdBeingEdited = null;
+
+            // Lógica de busca na tabela
+            const searchInput = document.getElementById('user-search-table');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const query = this.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const rows = document.querySelectorAll('table tbody tr');
+                    
+                    rows.forEach(row => {
+                        if (row.cells.length < 2) return; // Pula linha de "nenhum usuário"
+                        
+                        const nome = row.cells[1].textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        const email = row.cells[2].textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        
+                        if (nome.includes(query) || email.includes(query)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            }
         });
     </script>
 
@@ -396,6 +423,11 @@ include __DIR__ . '/../components/header.php';
         #modal-user-create, #modal-user-edit { z-index: 1100; }
         #modal-docente-selector { z-index: 1200; background: rgba(0,0,0,0.85); }
         
+        #user-search-table:focus {
+            border-color: var(--primary-red) !important;
+            box-shadow: 0 0 0 3px rgba(237, 28, 36, 0.1);
+        }
+
         .is-linked-card {
             opacity: 0.6;
             background: rgba(255,255,255,0.02) !important;

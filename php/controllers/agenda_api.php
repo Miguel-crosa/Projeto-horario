@@ -693,7 +693,7 @@ switch ($action) {
         }
 
         $executor = $_SESSION['user_nome'] ?? 'Gestor';
-        dispararNotificacaoGlobal($conn, 'registro_horario', 'Novo Horário Registrado', "A turma $sigla foi agendada por $executor para " . date('d/m/Y', strtotime($data_inicio)) . " a " . date('d/m/Y', strtotime($data_fim)) . ".", BASE_URL . "/php/views/turmas.php", ['admin', 'gestor', 'professor', 'cri']);
+        dispararNotificacaoGlobal($conn, 'registro_horario', 'Novo Horário Registrado', "A turma $sigla foi agendada por $executor para " . date('d/m/Y', strtotime($data_inicio)) . " a " . date('d/m/Y', strtotime($data_fim)) . ".", BASE_URL . "/php/views/turmas.php?id=$turma_id", ['admin', 'gestor', 'professor', 'cri']);
 
         // --- ENVIO DE E-MAIL (NOVO HORÁRIO/TURMA/RESERVA) ---
         if (isset($_POST['send_email']) && $_POST['send_email'] == '1') {

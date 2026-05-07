@@ -39,7 +39,7 @@ if ($action == 'activate') {
         $sigla = $row['sigla'];
         mysqli_query($conn, "UPDATE turma SET ativo = 1 WHERE id = '$id'");
 
-        dispararNotificacaoGlobal($conn, 'ativacao_turma', 'Turma Reativada', "A turma $sigla foi restaurada ao status ativo.", BASE_URL . "/php/views/turmas.php", ['admin', 'gestor', 'professor', 'cri']);
+        dispararNotificacaoGlobal($conn, 'ativacao_turma', 'Turma Reativada', "A turma $sigla foi restaurada ao status ativo.", BASE_URL . "/php/views/turmas.php?id=$id", ['admin', 'gestor', 'professor', 'cri']);
         header("Location: ../views/turmas.php?msg=activated");
     } else {
         header("Location: ../views/turmas.php?msg=notfound");
